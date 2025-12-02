@@ -25,9 +25,9 @@ class TradingBotAPI:
         self.db_manager = db_manager
         self.auth_manager = AuthManager(self.config)
         self.app = web.Application()
-        self._setup_routes()  # Setup routes first
-        self._setup_middleware()  # Then middleware
-        self._setup_cors()  # Then CORS
+        self._setup_middleware()  # Setup middleware first
+        self._setup_routes()  # Then routes
+        self._setup_cors()  # Then CORS (after routes are registered)
         self._setup_static_blocker()  # Static blocker last
     
     def _setup_middleware(self):
@@ -130,7 +130,7 @@ class TradingBotAPI:
         self.app.middlewares.append(static_blocker)
     
     def _setup_cors(self):
-        """Setup CORS for API - exclude static routes to avoid HEAD conflicts."""
+        """Setup CORS for API routes only - exclude static routes to avoid HEAD conflicts."""
         # Setup CORS but exclude static routes to avoid HEAD method conflicts
         # Static routes handle HEAD automatically and don't need CORS wrapping
         if self.config.CORS_ORIGINS:
@@ -143,12 +143,20 @@ class TradingBotAPI:
                 ) for origin in self.config.CORS_ORIGINS
             })
             
-            # Explicitly exclude static routes from CORS to prevent HEAD conflicts
-            # Get all resources and exclude the static one
-            for resource in self.app.router.resources():
-                if hasattr(resource, '_name') and resource._name == 'static':
-                    continue  # Skip static routes
-                cors.add(resource)
+            # Only add CORS for non-static routes to prevent HEAD conflicts
+            # Static routes already handle HEAD requests and don't need CORS
+            for resource in list(self.app.router.resources()):
+                # Skip static file resources - they handle HEAD automatically
+                if hasattr(resource, '_name') and resource._name and 'static' in str(resource._name).lower():
+                    continue
+                # Skip static route patterns
+                if any(pattern.startswith('/static') for pattern in [str(r) for r in resource._match_info.get_info().get('path', '')]):
+                    continue
+                try:
+                    cors.add(resource)
+                except Exception as e:
+                    # If route already has CORS or can't be wrapped, skip it
+                    logger.debug(f"Skipping CORS for resource {resource}: {e}")
     
     def _setup_routes(self):
         """Setup API routes."""
