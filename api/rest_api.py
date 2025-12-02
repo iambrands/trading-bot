@@ -131,15 +131,9 @@ class TradingBotAPI:
     
     def _setup_cors(self):
         """Setup CORS for API - exclude static routes to avoid HEAD conflicts."""
-        # Setup CORS only for non-static routes to avoid HEAD method conflicts
+        # Setup CORS but exclude static routes to avoid HEAD method conflicts
         # Static routes handle HEAD automatically and don't need CORS wrapping
         if self.config.CORS_ORIGINS:
-            # Get all routes except static ones
-            routes_to_wrap = [
-                route for route in self.app.router.routes()
-                if not (hasattr(route, 'name') and route.name == 'static')
-            ]
-            
             cors = cors_setup(self.app, defaults={
                 origin: ResourceOptions(
                     allow_credentials=True,
@@ -149,9 +143,12 @@ class TradingBotAPI:
                 ) for origin in self.config.CORS_ORIGINS
             })
             
-            # Only add CORS for non-static routes
-            for route in routes_to_wrap:
-                cors.add(route)
+            # Explicitly exclude static routes from CORS to prevent HEAD conflicts
+            # Get all resources and exclude the static one
+            for resource in self.app.router.resources():
+                if hasattr(resource, '_name') and resource._name == 'static':
+                    continue  # Skip static routes
+                cors.add(resource)
     
     def _setup_routes(self):
         """Setup API routes."""
