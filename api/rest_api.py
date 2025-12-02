@@ -8,7 +8,8 @@ from datetime import datetime
 from typing import Optional, Dict
 from collections import defaultdict
 from aiohttp import web
-from aiohttp_cors import setup as cors_setup, ResourceOptions
+# CORS is handled manually via middleware to avoid route wrapping conflicts
+# from aiohttp_cors import setup as cors_setup, ResourceOptions
 from config import get_config
 from auth.auth_manager import AuthManager
 from database.db_manager import DatabaseManager
@@ -130,41 +131,12 @@ class TradingBotAPI:
         self.app.middlewares.append(static_blocker)
     
     def _setup_cors(self):
-        """Setup CORS for API routes - skip static routes to avoid HEAD conflicts."""
-        # Don't setup CORS - it's causing conflicts with static routes
-        # Static routes don't need CORS anyway since they're same-origin
-        # For API routes, we can add CORS headers manually in middleware if needed
-        if self.config.CORS_ORIGINS:
-            # Only setup CORS for non-static routes by adding middleware
-            @web.middleware
-            async def cors_middleware(request, handler):
-                # Skip CORS for static files
-                if request.path.startswith('/static') or request.path.startswith('/favicon'):
-                    return await handler(request)
-                
-                # Handle CORS preflight
-                if request.method == 'OPTIONS':
-                    headers = {
-                        'Access-Control-Allow-Origin': ', '.join(self.config.CORS_ORIGINS),
-                        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-                        'Access-Control-Allow-Headers': '*',
-                        'Access-Control-Allow-Credentials': 'true',
-                    }
-                    return web.Response(headers=headers)
-                
-                response = await handler(request)
-                
-                # Add CORS headers to API responses
-                if request.path.startswith('/api/'):
-                    origin = request.headers.get('Origin', '')
-                    if origin in self.config.CORS_ORIGINS:
-                        response.headers['Access-Control-Allow-Origin'] = origin
-                        response.headers['Access-Control-Allow-Credentials'] = 'true'
-                        response.headers['Access-Control-Expose-Headers'] = '*'
-                
-                return response
-            
-            self.app.middlewares.append(cors_middleware)
+        """CORS disabled to avoid route conflicts - can be added via middleware later if needed."""
+        # CORS disabled temporarily to avoid HEAD method conflicts with static routes
+        # Static routes handle HEAD automatically and don't need CORS
+        # For same-origin requests, CORS is not needed
+        # Can add CORS headers manually via middleware later if cross-origin is required
+        pass
     
     def _setup_routes(self):
         """Setup API routes."""
