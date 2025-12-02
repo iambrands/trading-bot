@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Crypto Scalping Trading Bot</title>
+    <script>
+        // AGGRESSIVE CACHE CLEARING - Run immediately
+        (function() {
+            if ('caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                    return Promise.all(cacheNames.map(function(cacheName) {
+                        return caches.delete(cacheName);
+                    }));
+                });
+            }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        registration.unregister();
+                    });
+                });
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <a href="/" class="auth-logo">
+                    <span class="logo">🤖</span>
+                    <span class="brand-name">Crypto Scalping Trading Bot</span>
+                </a>
+                <h1>Welcome Back</h1>
+                <p>Sign in to your trading dashboard</p>
+            </div>
+
+            <div id="alert" class="alert" style="display: none;"></div>
+
+            <form id="signinForm" class="auth-form">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" placeholder="you@example.com" required autofocus>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn-primary btn-full">Sign In</button>
+            </form>
+
+            <div class="auth-footer">
+                <p>Don't have an account? <a href="/signup">Sign Up</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/auth.js"></script>
+</body>
+</html>
+

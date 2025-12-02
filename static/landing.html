@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Scalping Trading Bot - Automated Cryptocurrency Trading</title>
+    <script>
+        // AGGRESSIVE CACHE CLEARING - Run immediately
+        (function() {
+            if ('caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                    return Promise.all(cacheNames.map(function(cacheName) {
+                        return caches.delete(cacheName);
+                    }));
+                });
+            }
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        registration.unregister();
+                    });
+                });
+            }
+        })();
+    </script>
+    <link rel="stylesheet" href="/static/landing.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="logo">🤖</span>
+                <span class="brand-name">Crypto Scalping Trading Bot</span>
+            </div>
+            <div class="nav-actions">
+                <a href="/signin" class="btn-secondary">Sign In</a>
+                <a href="/signup" class="btn-primary">Get Started</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Automated Crypto Scalp Trading<br>Production-Ready Bot</h1>
+            <p class="hero-subtitle">Low-latency execution with EMA + RSI + Volume strategy. Enterprise-grade risk management, real-time monitoring, and Coinbase Advanced Trade integration.</p>
+            <div class="hero-actions">
+                <a href="/signup" class="btn-large btn-primary">Start Trading Now</a>
+                <a href="#features" class="btn-large btn-outline">Learn More</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <div class="stat-value">99%+</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">24/7</div>
+                    <div class="stat-label">Automated Trading</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">&lt;1s</div>
+                    <div class="stat-label">Execution Speed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value">1.5+</div>
+                    <div class="stat-label">Profit Factor</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-image">
+            <img src="/static/landing-hero-image.png" alt="Automated Crypto Trading Powered by AI - Robot with cryptocurrency charts" class="hero-img" onerror="this.src='/static/landing-hero-image.jpg'; this.onerror=null;">
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Why Choose Crypto Scalping Trading Bot?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>Smart Strategy</h3>
+                    <p>EMA + RSI + Volume confirmation algorithm optimized for crypto scalping with 55%+ win rate target</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Risk Management</h3>
+                    <p>Built-in position sizing, daily loss limits, and stop-loss protection to safeguard your capital</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Real-Time Execution</h3>
+                    <p>Lightning-fast order execution with WebSocket streaming and sub-second response times</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Portfolio Analytics</h3>
+                    <p>Asset allocation charts, P&L breakdown by pair, tax reporting (FIFO/LIFO), and portfolio tracking</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📉</div>
+                    <h3>Advanced Charting</h3>
+                    <p>TradingView-style candlestick charts with EMA, RSI, Bollinger Bands and multiple timeframes</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚙️</div>
+                    <h3>Advanced Orders</h3>
+                    <p>Trailing stops, OCO, bracket orders, stop limits, and iceberg orders for sophisticated trading</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h3>Grid Trading</h3>
+                    <p>Automated grid trading strategies with configurable price levels and DCA support</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>AI Analysis</h3>
+                    <p>Claude AI provides real-time market insights, backtest analysis, and trading recommendations</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧪</div>
+                    <h3>Backtesting</h3>
+                    <p>Test strategies on historical data with AI-powered analysis before risking real capital</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📱</div>
+                    <h3>Mobile PWA</h3>
+                    <p>Install as native app with offline support and push notifications for trade alerts</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Secure & Reliable</h3>
+                    <p>Enterprise-grade security with JWT authentication and encrypted API communications</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🚨</div>
+                    <h3>Emergency Kill Switch</h3>
+                    <p>Instant shutdown capability with emergency kill-switch to protect your capital</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Features from Requirements -->
+    <section class="key-features">
+        <div class="container">
+            <h2 class="section-title">Complete Feature Set</h2>
+            <div class="features-list">
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Low-Latency Execution</h3>
+                        <p>Sub-second order execution with async processing and WebSocket streaming for real-time market data</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Advanced Risk Controls</h3>
+                        <p>Position sizing (0.25% risk per trade), max positions (2), and daily loss limits ($2,000) with automatic enforcement</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Real-Time Monitoring Dashboard</h3>
+                        <p>Comprehensive dashboard with live P&L, performance metrics (Sharpe ratio, profit factor), and trade history</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Portfolio Analytics & Tax Reporting</h3>
+                        <p>Asset allocation charts, P&L breakdown by trading pair, portfolio value tracking, and FIFO/LIFO tax reports</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Advanced Charting</h3>
+                        <p>TradingView-style candlestick charts with EMA, RSI, Bollinger Bands, and multiple timeframes (1m to 1d)</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Advanced Order Types</h3>
+                        <p>Trailing stop loss, OCO orders, bracket orders, stop limit, and iceberg orders for sophisticated trading strategies</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Grid Trading & DCA</h3>
+                        <p>Automated grid trading at multiple price levels and dollar cost averaging with hourly/daily/weekly intervals</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>AI-Powered Analysis</h3>
+                        <p>Claude AI provides real-time market insights, backtest analysis, strategy explanations, and trading guidance</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Mobile PWA Support</h3>
+                        <p>Progressive Web App with offline support, push notifications, and install as native app on any device</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Comprehensive Backtesting</h3>
+                        <p>Test strategies on 30-90 days of historical data with AI-powered analysis and performance metrics</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>REST API Control</h3>
+                        <p>Complete REST API for monitoring and controlling the bot programmatically with start, stop, pause, and resume</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Alert System</h3>
+                        <p>Multi-channel alerts via Slack, Telegram, and Email for trades, errors, risk warnings, and daily summaries</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Trade Export</h3>
+                        <p>Export trade history to CSV or JSON format for accounting, tax reporting, and analysis</p>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <span class="check-icon">✅</span>
+                    <div class="feature-item-content">
+                        <h3>Persistent Storage</h3>
+                        <p>PostgreSQL database for trades, performance metrics, backtests, orders, and comprehensive logging</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+        <div class="container">
+            <h2 class="section-title">How It Works</h2>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Sign Up</h3>
+                    <p>Create your account in seconds. No credit card required to start.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Connect Exchange</h3>
+                    <p>Link your Coinbase Advanced Trade API keys securely.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Test with Paper Trading</h3>
+                    <p>Validate your strategy risk-free with realistic paper trading before going live.</p>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <h3>Monitor & Optimize</h3>
+                    <p>Track performance metrics, adjust parameters, and let the bot trade automatically 24/7.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Security & Compliance -->
+    <section class="security-section">
+        <div class="container">
+            <h2 class="section-title">Built for Production Trading</h2>
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="security-icon">🔐</div>
+                    <h3>Secure Credential Storage</h3>
+                    <p>API keys stored securely with environment-based configuration</p>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">📊</div>
+                    <h3>Comprehensive Logging</h3>
+                    <p>Full audit trail with detailed system logs for all trading activity</p>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">🛡️</div>
+                    <h3>Risk Management First</h3>
+                    <p>Multiple layers of risk controls to protect your capital</p>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">⚡</div>
+                    <h3>Low-Latency Architecture</h3>
+                    <p>Optimized for high-frequency scalping with minimal execution delays</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="container">
+            <h2>Ready to Start Trading?</h2>
+            <p>Experience automated crypto trading with enterprise-grade risk management and real-time monitoring</p>
+            <a href="/signup" class="btn-large btn-primary">Start Trading Now</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo">🤖</span>
+                    <span class="brand-name">Crypto Scalping Trading Bot</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#features">Features</a>
+                    <a href="/signin">Sign In</a>
+                    <a href="/signup">Sign Up</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Crypto Scalping Trading Bot. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
+

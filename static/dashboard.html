@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Trading Bot">
+    <title>Crypto Scalping Trading Bot Dashboard</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script>
+        // AGGRESSIVE CACHE CLEARING - Run immediately before anything else
+        (function() {
+            console.log('🔧 Clearing old caches and service workers...');
+            
+            // Clear all caches
+            if ('caches' in window) {
+                caches.keys().then(function(cacheNames) {
+                    return Promise.all(
+                        cacheNames.map(function(cacheName) {
+                            console.log('🗑️ Deleting cache:', cacheName);
+                            return caches.delete(cacheName);
+                        })
+                    );
+                }).then(function() {
+                    console.log('✅ All caches cleared');
+                });
+            }
+            
+            // Unregister all service workers
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    registrations.forEach(function(registration) {
+                        console.log('🗑️ Unregistering service worker:', registration.scope);
+                        registration.unregister();
+                    });
+                });
+            }
+        })();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+    <script>
+        // Verify LightweightCharts loaded
+        window.addEventListener('load', function() {
+            if (window.LightweightCharts && typeof window.LightweightCharts.createChart === 'function') {
+                console.log('✅ LightweightCharts loaded successfully');
+            } else {
+                console.error('❌ LightweightCharts failed to load or API not available');
+                console.log('Available on window:', Object.keys(window).filter(k => k.toLowerCase().includes('light') || k.toLowerCase().includes('chart')));
+            }
+        });
+    </script>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <span class="logo">TB</span>
+                <span class="brand-name">Crypto Scalping Trading Bot</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul class="nav-menu">
+                <li>
+                    <a href="/" class="nav-link active" data-page="overview">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Overview</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/market-conditions" class="nav-link" data-page="market">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Market Conditions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/positions" class="nav-link" data-page="positions">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Positions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/trades" class="nav-link" data-page="trades">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Trade History</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/performance" class="nav-link" data-page="performance">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Performance</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/portfolio" class="nav-link" data-page="portfolio">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Portfolio</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/charts" class="nav-link" data-page="charts">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Charts</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/orders" class="nav-link" data-page="orders">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Advanced Orders</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/grid" class="nav-link" data-page="grid">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Grid Trading</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/backtest" class="nav-link" data-page="backtest">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Backtest</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/logs" class="nav-link" data-page="logs">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/settings" class="nav-link" data-page="settings">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="connection-status-sidebar" id="connectionStatusSidebar">
+                <span class="status-dot"></span>
+                <span class="status-text">Connected</span>
+            </div>
+            <button class="nav-link logout-btn" onclick="logout(); return false;">
+                <span class="nav-icon"></span>
+                <span class="nav-text">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1 class="page-title" id="pageTitle">Overview</h1>
+                <div class="status-badge-container">
+                    <span id="statusBadge" class="status-badge status-stopped">Loading...</span>
+                    <span id="lastUpdate" class="update-time">Never</span>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <!-- Demo Mode Banner -->
+                <div class="demo-banner-top">
+                    <span class="demo-icon"></span>
+                    <span class="demo-text">DEMO MODE</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Toast Notification Container -->
+        <div id="toastContainer" class="toast-container"></div>
+
+        <!-- Page Content -->
+        <div class="container">
+        <!-- Overview Page -->
+        <div id="page-overview" class="page active">
+
+            <div class="control-panel">
+                <h2>Control Panel</h2>
+                <div class="buttons">
+                    <button class="btn btn-start" onclick="controlBot('start')">▶ Start</button>
+                    <button class="btn btn-pause" onclick="controlBot('pause')">⏸ Pause</button>
+                    <button class="btn btn-resume" onclick="controlBot('resume')">▶ Resume</button>
+                    <button class="btn btn-stop" onclick="controlBot('stop')">⏹ Stop</button>
+                    <button class="btn btn-close-all" onclick="controlBot('close-all')">✕ Close All</button>
+                    <button class="btn btn-kill" onclick="if(confirm('Emergency shutdown?')) controlBot('kill-switch')">Kill Switch</button>
+                </div>
+            </div>
+
+            <!-- Quick Stats Summary -->
+            <div class="stats-summary">
+                <div class="stat-card">
+                    <div class="stat-icon"></div>
+                    <div class="stat-info">
+                        <div class="stat-label">Account Balance</div>
+                        <div class="stat-value" id="quickBalance">$100,000.00</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"></div>
+                    <div class="stat-info">
+                        <div class="stat-label">Total P&L</div>
+                        <div class="stat-value" id="quickPnl">$0.00</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"></div>
+                    <div class="stat-info">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value" id="quickWinRate">0%</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"></div>
+                    <div class="stat-info">
+                        <div class="stat-label">Active Positions</div>
+                        <div class="stat-value" id="quickPositions">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+            <div class="card">
+                <h2>Account Status <span class="ai-help-icon" onclick="getAIHelp('account-status')" title="Get AI help">ℹ</span></h2>
+                <div id="accountStatus" class="loading">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h2>Performance Metrics <span class="ai-help-icon" onclick="getAIHelp('performance')" title="Get AI help">ℹ</span></h2>
+                <div id="performanceMetrics" class="loading">Loading...</div>
+            </div>
+
+            <div class="card">
+                <h2>Risk Metrics <span class="ai-help-icon" onclick="getAIHelp('risk')" title="Get AI help">ℹ</span></h2>
+                <div id="riskMetrics" class="loading">Loading...</div>
+            </div>
+            </div>
+
+            <div class="card">
+                <h2>Active Positions</h2>
+                <div id="positions" class="loading">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Market Conditions Page -->
+        <div id="page-market" class="page">
+            <div class="page-actions">
+                <button class="btn btn-primary" onclick="getAIAnalysis()">
+                    Get AI Analysis
+                </button>
+            </div>
+
+            <div id="marketConditions" class="loading">Loading market conditions...</div>
+            
+            <!-- AI Analysis Section -->
+            <div class="card ai-analysis-card" id="aiAnalysisCard" style="display: none; margin-top: 2rem;">
+                <div class="ai-analysis-header">
+                    <div class="ai-analysis-title-section">
+                        <h2>AI Market Analysis</h2>
+                        <p class="ai-analysis-subtitle">Powered by Claude AI • Real-time insights</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="getAIAnalysis()" style="margin: 0;">
+                        Refresh Analysis
+                    </button>
+                </div>
+                <div id="aiAnalysisContent" class="loading">Getting AI insights...</div>
+            </div>
+        </div>
+
+        <!-- Positions Page -->
+        <div id="page-positions" class="page">
+            <div id="positionsPage" class="loading">Loading...</div>
+        </div>
+
+        <!-- Trades Page -->
+        <div id="page-trades" class="page">
+            <div class="page-actions">
+                <button class="btn btn-export" onclick="exportTrades('csv')">Export CSV</button>
+                <button class="btn btn-export" onclick="exportTrades('json')">Export JSON</button>
+            </div>
+            <div id="tradesPage" class="loading">Loading...</div>
+        </div>
+
+        <!-- Performance Page -->
+        <div id="page-performance" class="page">
+            <div id="performancePage" class="loading">Loading...</div>
+            <div class="charts-container" style="display: none;">
+                <div class="card">
+                    <h2>Equity Curve</h2>
+                    <canvas id="equityChart"></canvas>
+                </div>
+                <div class="grid">
+                    <div class="card">
+                        <h2>P&L Over Time</h2>
+                        <canvas id="pnlChart"></canvas>
+                    </div>
+                    <div class="card">
+                        <h2>Win Rate</h2>
+                        <canvas id="winRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Backtesting Page -->
+        <div id="page-backtest" class="page">
+
+            <div class="grid">
+                <!-- Run Backtest Form -->
+                <div class="card">
+                    <h2>Run New Backtest <span class="ai-help-icon" onclick="getAIHelp('backtest')" title="Get AI help">ℹ</span></h2>
+                    <form id="backtestForm" onsubmit="runBacktest(event); return false;">
+                        <div class="form-group">
+                            <label for="backtestPair">Trading Pair</label>
+                            <select id="backtestPair" class="form-input" required>
+                                <option value="BTC-USD">BTC-USD</option>
+                                <option value="ETH-USD">ETH-USD</option>
+                                <option value="SOL-USD">SOL-USD</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtestDays">Historical Period (Days)</label>
+                            <input type="number" id="backtestDays" class="form-input" value="30" min="7" max="90" required>
+                            <small>7-90 days of historical data</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtestBalance">Initial Balance ($)</label>
+                            <input type="number" id="backtestBalance" class="form-input" value="100000" min="1000" step="1000" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="backtestName">Backtest Name (Optional)</label>
+                            <input type="text" id="backtestName" class="form-input" placeholder="e.g., BTC 30-day test">
+                        </div>
+                        <button type="submit" class="btn btn-start" id="runBacktestBtn">
+                            <span id="backtestBtnText">Run Backtest</span>
+                            <span id="backtestLoading" style="display: none;">Running...</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Backtest Results -->
+                <div class="card" id="backtestResultsCard" style="display: none;">
+                    <h2>Latest Results</h2>
+                    <div id="backtestResultsContent"></div>
+                </div>
+            </div>
+
+            <!-- Previous Backtests -->
+            <div class="card">
+                <h2>Previous Backtests</h2>
+                <div id="backtestList" class="loading">Loading backtests...</div>
+            </div>
+        </div>
+
+        <!-- Portfolio Page -->
+        <div id="page-portfolio" class="page">
+            <!-- Portfolio Summary Cards -->
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 2rem;">
+                <div class="card">
+                    <h3>Portfolio Value</h3>
+                    <div class="metric-value" id="portfolioValue">$0.00</div>
+                    <div class="metric-label" id="portfolioChange">+0.00%</div>
+                </div>
+                <div class="card">
+                    <h3>Total P&L</h3>
+                    <div class="metric-value" id="portfolioPnl">$0.00</div>
+                    <div class="metric-label">ROI: <span id="portfolioRoi">0.00%</span></div>
+                </div>
+                <div class="card">
+                    <h3>Win Streak</h3>
+                    <div class="metric-value" id="winStreak">0</div>
+                    <div class="metric-label">Longest winning streak</div>
+                </div>
+                <div class="card">
+                    <h3>Loss Streak</h3>
+                    <div class="metric-value" id="lossStreak">0</div>
+                    <div class="metric-label">Longest losing streak</div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); margin-bottom: 2rem;">
+                <div class="card">
+                    <h2>Asset Allocation</h2>
+                    <canvas id="allocationChart" style="max-height: 300px;"></canvas>
+                </div>
+                <div class="card">
+                    <h2>P&L by Trading Pair</h2>
+                    <canvas id="pnlByPairChart" style="max-height: 300px;"></canvas>
+                </div>
+            </div>
+
+            <!-- Portfolio Value Over Time -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Portfolio Value Over Time</h2>
+                <canvas id="portfolioValueChart" style="max-height: 400px;"></canvas>
+            </div>
+
+            <!-- Detailed Statistics -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2>Statistics by Trading Pair</h2>
+                <div id="pairStatistics" class="loading">Loading statistics...</div>
+            </div>
+
+            <!-- Tax Reporting Section -->
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2>Tax Reporting</h2>
+                    <div>
+                        <select id="taxYear" class="form-input" style="margin-right: 0.5rem;">
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                        </select>
+                        <select id="taxMethod" class="form-input" style="margin-right: 0.5rem;">
+                            <option value="FIFO">FIFO</option>
+                            <option value="LIFO">LIFO</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="generateTaxReport()">Generate Report</button>
+                        <button class="btn btn-primary" onclick="exportTaxReport()" style="margin-left: 0.5rem;">Export CSV</button>
+                    </div>
+                </div>
+                <div id="taxReportContent" class="loading">Select year and method, then click Generate Report</div>
+            </div>
+        </div>
+
+        <!-- Advanced Charts Page -->
+        <div id="page-charts" class="page">
+            <div class="page-actions" style="margin-bottom: 1.5rem;">
+                <select id="chartPair" class="form-input" style="max-width: 200px; margin-right: 1rem;">
+                    <option value="BTC-USD">BTC-USD</option>
+                    <option value="ETH-USD">ETH-USD</option>
+                </select>
+                <select id="chartTimeframe" class="form-input" style="max-width: 150px; margin-right: 1rem;">
+                    <option value="1m">1 Minute</option>
+                    <option value="5m">5 Minutes</option>
+                    <option value="15m">15 Minutes</option>
+                    <option value="1h">1 Hour</option>
+                    <option value="4h">4 Hours</option>
+                    <option value="1d">1 Day</option>
+                </select>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="showEMA" checked> EMA(50)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="showRSI"> RSI(14)
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="showVolume"> Volume
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="showBollinger"> Bollinger Bands
+                    </label>
+                </div>
+                <button class="btn btn-primary" onclick="updateAdvancedChart()" style="margin-left: auto;">Refresh Chart</button>
+            </div>
+            
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <h2>Price Chart</h2>
+                <div id="priceChartContainer" style="height: 500px; position: relative;">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="grid" style="grid-template-columns: 1fr 1fr;">
+                <div class="card">
+                    <h2>RSI Indicator</h2>
+                    <div id="rsiChartContainer" style="height: 200px;">
+                        <canvas id="rsiChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h2>Volume</h2>
+                    <div id="volumeChartContainer" style="height: 200px;">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 1.5rem;">
+                <h2>Technical Indicators Summary</h2>
+                <div id="indicatorsSummary" class="loading">Loading indicators...</div>
+            </div>
+        </div>
+
+        <!-- Advanced Orders Page -->
+        <div id="page-orders" class="page">
+            <div class="page-actions" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0;">Advanced Orders</h2>
+                <button class="btn btn-primary" onclick="showCreateOrderModal()">Create New Order</button>
+            </div>
+            
+            <!-- Order Filters -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <select id="orderFilterPair" class="form-input" style="max-width: 150px;">
+                        <option value="">All Pairs</option>
+                        <option value="BTC-USD">BTC-USD</option>
+                        <option value="ETH-USD">ETH-USD</option>
+                    </select>
+                    <select id="orderFilterStatus" class="form-input" style="max-width: 150px;">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="pending">Pending</option>
+                        <option value="filled">Filled</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <select id="orderFilterType" class="form-input" style="max-width: 180px;">
+                        <option value="">All Types</option>
+                        <option value="trailing_stop">Trailing Stop</option>
+                        <option value="oco">OCO Order</option>
+                        <option value="bracket">Bracket Order</option>
+                        <option value="stop_limit">Stop Limit</option>
+                        <option value="iceberg">Iceberg Order</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadOrders()">Filter</button>
+                    <button class="btn btn-primary" onclick="loadOrders(true)">Refresh</button>
+                </div>
+            </div>
+            
+            <!-- Orders List -->
+            <div class="card">
+                <h2>Active Orders</h2>
+                <div id="ordersList" class="loading">Loading orders...</div>
+            </div>
+        </div>
+        
+        <!-- Create Order Modal -->
+        <div id="createOrderModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Create Advanced Order</h2>
+                    <button class="modal-close" onclick="closeCreateOrderModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="createOrderForm" onsubmit="createOrder(event); return false;">
+                        <div class="form-group">
+                            <label>Order Type <span class="required">*</span></label>
+                            <select id="orderTypeSelect" class="form-input" required onchange="updateOrderForm()">
+                                <option value="">Select Order Type</option>
+                                <option value="trailing_stop">Trailing Stop Loss</option>
+                                <option value="oco">OCO (One-Cancels-Other)</option>
+                                <option value="bracket">Bracket Order</option>
+                                <option value="stop_limit">Stop Limit</option>
+                                <option value="iceberg">Iceberg Order</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Trading Pair <span class="required">*</span></label>
+                            <select id="orderPair" class="form-input" required>
+                                <option value="BTC-USD">BTC-USD</option>
+                                <option value="ETH-USD">ETH-USD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Side <span class="required">*</span></label>
+                            <select id="orderSide" class="form-input" required>
+                                <option value="BUY">BUY</option>
+                                <option value="SELL">SELL</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Size <span class="required">*</span></label>
+                            <input type="number" id="orderSize" class="form-input" step="0.000001" min="0" required>
+                        </div>
+                        
+                        <!-- Trailing Stop Fields -->
+                        <div id="trailingStopFields" style="display: none;">
+                            <div class="form-group">
+                                <label>Trailing Percent <span class="required">*</span></label>
+                                <input type="number" id="trailingPercent" class="form-input" step="0.1" min="0.1" max="50" placeholder="e.g., 2.5">
+                                <small class="form-help">Percentage to trail the price (e.g., 2.5 for 2.5%)</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Initial Price <span class="required">*</span></label>
+                                <input type="number" id="trailingInitialPrice" class="form-input" step="0.01" min="0" placeholder="Current market price">
+                            </div>
+                        </div>
+                        
+                        <!-- OCO Fields -->
+                        <div id="ocoFields" style="display: none;">
+                            <div class="form-group">
+                                <label>Stop Loss Price <span class="required">*</span></label>
+                                <input type="number" id="ocoStopLoss" class="form-input" step="0.01" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Take Profit Price <span class="required">*</span></label>
+                                <input type="number" id="ocoTakeProfit" class="form-input" step="0.01" min="0">
+                            </div>
+                        </div>
+                        
+                        <!-- Bracket Fields -->
+                        <div id="bracketFields" style="display: none;">
+                            <div class="form-group">
+                                <label>Entry Price <span class="required">*</span></label>
+                                <input type="number" id="bracketEntry" class="form-input" step="0.01" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Stop Loss Price <span class="required">*</span></label>
+                                <input type="number" id="bracketStopLoss" class="form-input" step="0.01" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Take Profit Price <span class="required">*</span></label>
+                                <input type="number" id="bracketTakeProfit" class="form-input" step="0.01" min="0">
+                            </div>
+                        </div>
+                        
+                        <!-- Stop Limit Fields -->
+                        <div id="stopLimitFields" style="display: none;">
+                            <div class="form-group">
+                                <label>Stop Price <span class="required">*</span></label>
+                                <input type="number" id="stopPrice" class="form-input" step="0.01" min="0">
+                                <small class="form-help">Price that triggers the order</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Limit Price <span class="required">*</span></label>
+                                <input type="number" id="limitPrice" class="form-input" step="0.01" min="0">
+                                <small class="form-help">Price at which to execute</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Iceberg Fields -->
+                        <div id="icebergFields" style="display: none;">
+                            <div class="form-group">
+                                <label>Total Size <span class="required">*</span></label>
+                                <input type="number" id="icebergTotalSize" class="form-input" step="0.000001" min="0">
+                                <small class="form-help">Total order size to execute</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Visible Size <span class="required">*</span></label>
+                                <input type="number" id="icebergVisibleSize" class="form-input" step="0.000001" min="0">
+                                <small class="form-help">Size visible in order book per chunk</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Limit Price <span class="required">*</span></label>
+                                <input type="number" id="icebergLimitPrice" class="form-input" step="0.01" min="0">
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCreateOrderModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Trading Page -->
+        <div id="page-grid" class="page">
+            <div class="page-actions" style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0;">Grid Trading & DCA Strategies</h2>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn btn-primary" onclick="showCreateGridModal()">Create Grid</button>
+                    <button class="btn btn-primary" onclick="showCreateDCAModal()">Create DCA</button>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--gray-200);">
+                <button class="btn-tab active" onclick="switchGridTab('grid')" id="gridTabBtn">Grid Trading</button>
+                <button class="btn-tab" onclick="switchGridTab('dca')" id="dcaTabBtn">Dollar Cost Averaging</button>
+            </div>
+            
+            <!-- Grid Trading Tab -->
+            <div id="gridTabContent">
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <select id="gridFilterPair" class="form-input" style="max-width: 150px;">
+                            <option value="">All Pairs</option>
+                            <option value="BTC-USD">BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                        </select>
+                        <select id="gridFilterStatus" class="form-input" style="max-width: 150px;">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="stopped">Stopped</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="loadGrids()">Filter</button>
+                        <button class="btn btn-primary" onclick="loadGrids(true)">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Active Grid Strategies</h2>
+                    <div id="gridsList" class="loading">Loading grids...</div>
+                </div>
+            </div>
+            
+            <!-- DCA Tab -->
+            <div id="dcaTabContent" style="display: none;">
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                        <select id="dcaFilterPair" class="form-input" style="max-width: 150px;">
+                            <option value="">All Pairs</option>
+                            <option value="BTC-USD">BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                        </select>
+                        <select id="dcaFilterStatus" class="form-input" style="max-width: 150px;">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="paused">Paused</option>
+                            <option value="stopped">Stopped</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="loadDCAs()">Filter</button>
+                        <button class="btn btn-primary" onclick="loadDCAs(true)">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <h2>Active DCA Strategies</h2>
+                    <div id="dcaList" class="loading">Loading DCA strategies...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Create Grid Modal -->
+        <div id="createGridModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Create Grid Trading Strategy</h2>
+                    <button class="modal-close" onclick="closeCreateGridModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="createGridForm" onsubmit="createGrid(event); return false;">
+                        <div class="form-group">
+                            <label>Trading Pair <span class="required">*</span></label>
+                            <select id="gridPair" class="form-input" required>
+                                <option value="BTC-USD">BTC-USD</option>
+                                <option value="ETH-USD">ETH-USD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Lower Price <span class="required">*</span></label>
+                            <input type="number" id="gridLowerPrice" class="form-input" step="0.01" min="0" required>
+                            <small class="form-help">Lower boundary of the grid</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Upper Price <span class="required">*</span></label>
+                            <input type="number" id="gridUpperPrice" class="form-input" step="0.01" min="0" required>
+                            <small class="form-help">Upper boundary of the grid</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Grid Count <span class="required">*</span></label>
+                            <input type="number" id="gridCount" class="form-input" min="2" max="100" value="10" required>
+                            <small class="form-help">Number of grid levels</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Order Size <span class="required">*</span></label>
+                            <input type="number" id="gridOrderSize" class="form-input" step="0.000001" min="0" required>
+                            <small class="form-help">Size per grid order</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Side <span class="required">*</span></label>
+                            <select id="gridSide" class="form-input" required>
+                                <option value="BOTH">Both (Buy & Sell)</option>
+                                <option value="LONG">Long Only</option>
+                                <option value="SHORT">Short Only</option>
+                            </select>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCreateGridModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create Grid</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Create DCA Modal -->
+        <div id="createDCAModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h2>Create DCA Strategy</h2>
+                    <button class="modal-close" onclick="closeCreateDCAModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="createDCAForm" onsubmit="createDCA(event); return false;">
+                        <div class="form-group">
+                            <label>Trading Pair <span class="required">*</span></label>
+                            <select id="dcaPair" class="form-input" required>
+                                <option value="BTC-USD">BTC-USD</option>
+                                <option value="ETH-USD">ETH-USD</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Side <span class="required">*</span></label>
+                            <select id="dcaSide" class="form-input" required>
+                                <option value="BUY">BUY</option>
+                                <option value="SELL">SELL</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Amount per Interval <span class="required">*</span></label>
+                            <input type="number" id="dcaAmount" class="form-input" step="0.01" min="0" required>
+                            <small class="form-help">Amount to invest/sell per interval</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Interval <span class="required">*</span></label>
+                            <select id="dcaInterval" class="form-input" required>
+                                <option value="hourly">Hourly</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Total Amount (Optional)</label>
+                            <input type="number" id="dcaTotalAmount" class="form-input" step="0.01" min="0">
+                            <small class="form-help">Stop after investing this total (leave empty for unlimited)</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>End Price (Optional)</label>
+                            <input type="number" id="dcaEndPrice" class="form-input" step="0.01" min="0">
+                            <small class="form-help">Stop DCA when price reaches this level</small>
+                        </div>
+                        
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" onclick="closeCreateDCAModal()">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Create DCA</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Page -->
+        <div id="page-logs" class="page">
+            <div class="page-actions">
+                <select id="logLevelFilter" class="form-input" style="max-width: 150px;">
+                    <option value="ALL">All Levels</option>
+                    <option value="INFO">Info</option>
+                    <option value="WARNING">Warning</option>
+                    <option value="ERROR">Error</option>
+                    <option value="DEBUG">Debug</option>
+                </select>
+                <input type="text" id="logSearch" placeholder="Search logs..." class="form-input" style="max-width: 250px;">
+                <button class="btn btn-primary" onclick="clearLogs()">Clear View</button>
+                <button class="btn btn-primary" onclick="downloadLogs()">Download Logs</button>
+            </div>
+            <div class="card">
+                <div id="logsContainer" class="logs-container">
+                    <div class="loading">Loading logs...</div>
+                </div>
+            </div>
+        </div>
+        </div>
+    </main>
+
+    <!-- Overlay for mobile menu -->
+    <div class="overlay" id="overlay"></div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>
