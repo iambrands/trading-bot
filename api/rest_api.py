@@ -26,8 +26,9 @@ class TradingBotAPI:
         self.auth_manager = AuthManager(self.config)
         self.app = web.Application()
         self._setup_middleware()  # Setup middleware first
-        self._setup_routes()  # Then routes
-        self._setup_cors()  # Then CORS (after routes are registered)
+        self._setup_routes_without_static()  # Routes without static files
+        self._setup_cors()  # Setup CORS (before static routes)
+        self._setup_static_routes()  # Add static routes AFTER CORS
         self._setup_static_blocker()  # Static blocker last
     
     def _setup_middleware(self):
@@ -130,33 +131,41 @@ class TradingBotAPI:
         self.app.middlewares.append(static_blocker)
     
     def _setup_cors(self):
-        """Setup CORS for API routes only - exclude static routes to avoid HEAD conflicts."""
-        # Setup CORS but exclude static routes to avoid HEAD method conflicts
-        # Static routes handle HEAD automatically and don't need CORS wrapping
+        """Setup CORS for API routes - skip static routes to avoid HEAD conflicts."""
+        # Don't setup CORS - it's causing conflicts with static routes
+        # Static routes don't need CORS anyway since they're same-origin
+        # For API routes, we can add CORS headers manually in middleware if needed
         if self.config.CORS_ORIGINS:
-            cors = cors_setup(self.app, defaults={
-                origin: ResourceOptions(
-                    allow_credentials=True,
-                    expose_headers="*",
-                    allow_headers="*",
-                    allow_methods="*"
-                ) for origin in self.config.CORS_ORIGINS
-            })
+            # Only setup CORS for non-static routes by adding middleware
+            @web.middleware
+            async def cors_middleware(request, handler):
+                # Skip CORS for static files
+                if request.path.startswith('/static') or request.path.startswith('/favicon'):
+                    return await handler(request)
+                
+                # Handle CORS preflight
+                if request.method == 'OPTIONS':
+                    headers = {
+                        'Access-Control-Allow-Origin': ', '.join(self.config.CORS_ORIGINS),
+                        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                        'Access-Control-Allow-Headers': '*',
+                        'Access-Control-Allow-Credentials': 'true',
+                    }
+                    return web.Response(headers=headers)
+                
+                response = await handler(request)
+                
+                # Add CORS headers to API responses
+                if request.path.startswith('/api/'):
+                    origin = request.headers.get('Origin', '')
+                    if origin in self.config.CORS_ORIGINS:
+                        response.headers['Access-Control-Allow-Origin'] = origin
+                        response.headers['Access-Control-Allow-Credentials'] = 'true'
+                        response.headers['Access-Control-Expose-Headers'] = '*'
+                
+                return response
             
-            # Only add CORS for non-static routes to prevent HEAD conflicts
-            # Static routes already handle HEAD requests and don't need CORS
-            for resource in list(self.app.router.resources()):
-                # Skip static file resources - they handle HEAD automatically
-                if hasattr(resource, '_name') and resource._name and 'static' in str(resource._name).lower():
-                    continue
-                # Skip static route patterns
-                if any(pattern.startswith('/static') for pattern in [str(r) for r in resource._match_info.get_info().get('path', '')]):
-                    continue
-                try:
-                    cors.add(resource)
-                except Exception as e:
-                    # If route already has CORS or can't be wrapped, skip it
-                    logger.debug(f"Skipping CORS for resource {resource}: {e}")
+            self.app.middlewares.append(cors_middleware)
     
     def _setup_routes(self):
         """Setup API routes."""
