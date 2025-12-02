@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Crypto Scalping Trading Bot</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        /* Settings page specific styles */
+        .settings-container {
+            max-width: 1200px;
+        }
+        
+        .settings-section {
+            background: var(--white);
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .settings-section h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--gray-100);
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--gray-900);
+            font-size: 0.9375rem;
+        }
+        
+        .form-group input[type="number"],
+        .form-group input[type="text"],
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.9375rem;
+            transition: border-color 0.3s;
+            background: var(--white);
+            color: var(--gray-900);
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+        
+        .form-help {
+            font-size: 0.875rem;
+            color: var(--gray-500);
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
+        
+        .form-warning {
+            font-size: 0.875rem;
+            color: var(--accent-gold-dark);
+            margin-top: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+        }
+        
+        .settings-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid var(--gray-200);
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .alert {
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none;
+            border-left: 4px solid;
+        }
+        
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-green-dark);
+            border-left-color: var(--success-green);
+        }
+        
+        .alert-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-red-dark);
+            border-left-color: var(--danger-red);
+        }
+        
+        .subtitle {
+            color: var(--gray-500);
+            font-size: 0.9375rem;
+            margin: 0 0 2rem 0;
+        }
+        
+        /* Help Icon Styles */
+        .help-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            margin-left: 0.5rem;
+            cursor: help;
+            color: var(--primary-blue);
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: rgba(37, 99, 235, 0.1);
+            border-radius: 50%;
+            transition: all 0.2s ease;
+            vertical-align: middle;
+        }
+        
+        .help-icon:hover {
+            background: rgba(37, 99, 235, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* Tooltip Container */
+        .tooltip {
+            position: fixed;
+            background: var(--gray-900);
+            color: var(--white);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            max-width: 300px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            display: none;
+            word-wrap: break-word;
+        }
+        
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 6px solid var(--gray-900);
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <span class="logo">TB</span>
+                <span class="brand-name">Crypto Scalping Trading Bot</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul class="nav-menu">
+                <li>
+                    <a href="/" class="nav-link" data-page="overview">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Overview</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/market-conditions" class="nav-link" data-page="market">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Market Conditions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/positions" class="nav-link" data-page="positions">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Positions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/trades" class="nav-link" data-page="trades">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Trade History</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/performance" class="nav-link" data-page="performance">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Performance</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/backtest" class="nav-link" data-page="backtest">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Backtest</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/logs" class="nav-link" data-page="logs">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Logs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/settings" class="nav-link active" data-page="settings">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="connection-status-sidebar" id="connectionStatusSidebar">
+                <span class="status-dot"></span>
+                <span class="status-text">Connected</span>
+            </div>
+            <button class="nav-link logout-btn" onclick="window.location.href='/landing'">
+                <span class="nav-icon"></span>
+                <span class="nav-text">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1 class="page-title">Settings & Configuration</h1>
+            </div>
+            <div class="top-bar-right">
+                <div class="demo-banner-top">
+                    <span class="demo-icon"></span>
+                    <span class="demo-text">DEMO MODE</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="container settings-container">
+            <p class="subtitle">Customize your trading strategy and risk parameters</p>
+
+            <div id="alert" class="alert"></div>
+
+            <form id="settingsForm">
+                <!-- Strategy Settings -->
+                <div class="settings-section">
+                    <h2>Strategy Parameters</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ema_period">EMA Period</label>
+                            <input type="number" id="ema_period" name="ema_period" min="10" max="200" step="1">
+                            <div class="form-help">Exponential Moving Average period (default: 50). Higher = smoother trend</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="rsi_period">RSI Period</label>
+                            <input type="number" id="rsi_period" name="rsi_period" min="5" max="30" step="1">
+                            <div class="form-help">Relative Strength Index period (default: 14)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="volume_period">Volume Period</label>
+                            <input type="number" id="volume_period" name="volume_period" min="5" max="50" step="1">
+                            <div class="form-help">Volume average period (default: 20)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="volume_multiplier">Volume Multiplier</label>
+                            <input type="number" id="volume_multiplier" name="volume_multiplier" min="1.0" max="5.0" step="0.1">
+                            <div class="form-help">Volume must be X times average (default: 1.5)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="min_confidence">Minimum Confidence Score (%)</label>
+                            <input type="number" id="min_confidence" name="min_confidence" min="50" max="95" step="1">
+                            <div class="form-help">Minimum confidence required to execute trade (default: 70)</div>
+                            <div class="form-warning">Lower values = more trades but lower quality</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="loop_interval">Loop Interval (seconds)</label>
+                            <input type="number" id="loop_interval" name="loop_interval" min="1" max="60" step="1">
+                            <div class="form-help">How often bot checks for signals (default: 5)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RSI Thresholds -->
+                <div class="settings-section">
+                    <h2>RSI Entry Thresholds</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rsi_long_min">Long Entry RSI Min</label>
+                            <input type="number" id="rsi_long_min" name="rsi_long_min" min="40" max="65" step="1">
+                            <div class="form-help">Minimum RSI for LONG entry (default: 55)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="rsi_long_max">Long Entry RSI Max</label>
+                            <input type="number" id="rsi_long_max" name="rsi_long_max" min="60" max="80" step="1">
+                            <div class="form-help">Maximum RSI for LONG entry (default: 70)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rsi_short_min">Short Entry RSI Min</label>
+                            <input type="number" id="rsi_short_min" name="rsi_short_min" min="20" max="40" step="1">
+                            <div class="form-help">Minimum RSI for SHORT entry (default: 30)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="rsi_short_max">Short Entry RSI Max</label>
+                            <input type="number" id="rsi_short_max" name="rsi_short_max" min="30" max="50" step="1">
+                            <div class="form-help">Maximum RSI for SHORT entry (default: 45)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Risk Management -->
+                <div class="settings-section">
+                    <h2>Risk Management</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="risk_per_trade">Risk Per Trade (%)</label>
+                            <input type="number" id="risk_per_trade" name="risk_per_trade" min="0.1" max="5.0" step="0.05">
+                            <div class="form-help">Percentage of account risked per trade (default: 0.25)</div>
+                            <div class="form-warning">Higher = more risk per trade</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="max_positions">Max Positions</label>
+                            <input type="number" id="max_positions" name="max_positions" min="1" max="10" step="1">
+                            <div class="form-help">Maximum simultaneous positions (default: 2)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="daily_loss_limit">Daily Loss Limit ($)</label>
+                            <input type="number" id="daily_loss_limit" name="daily_loss_limit" min="100" max="10000" step="100">
+                            <div class="form-help">Stop trading after this daily loss (default: 2000)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="max_position_size">Max Position Size (%)</label>
+                            <input type="number" id="max_position_size" name="max_position_size" min="10" max="100" step="5">
+                            <div class="form-help">Maximum % of account per position (default: 50)</div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="position_timeout">Position Timeout (minutes)</label>
+                        <input type="number" id="position_timeout" name="position_timeout" min="1" max="60" step="1">
+                        <div class="form-help">Force close position after X minutes (default: 10)</div>
+                    </div>
+                </div>
+
+                <!-- Exit Parameters -->
+                <div class="settings-section">
+                    <h2>Exit Parameters</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="take_profit_min">Take Profit Min (%)</label>
+                            <input type="number" id="take_profit_min" name="take_profit_min" min="0.05" max="2.0" step="0.05">
+                            <div class="form-help">Minimum take profit percentage (default: 0.15)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="take_profit_max">Take Profit Max (%)</label>
+                            <input type="number" id="take_profit_max" name="take_profit_max" min="0.2" max="5.0" step="0.05">
+                            <div class="form-help">Maximum take profit percentage (default: 0.40)</div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="stop_loss_min">Stop Loss Min (%)</label>
+                            <input type="number" id="stop_loss_min" name="stop_loss_min" min="0.05" max="2.0" step="0.05">
+                            <div class="form-help">Minimum stop loss percentage (default: 0.10)</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="stop_loss_max">Stop Loss Max (%)</label>
+                            <input type="number" id="stop_loss_max" name="stop_loss_max" min="0.2" max="5.0" step="0.05">
+                            <div class="form-help">Maximum stop loss percentage (default: 0.50)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Trading Pairs -->
+                <div class="settings-section">
+                    <h2>Trading Pairs</h2>
+                    <div class="form-group">
+                        <label for="trading_pairs">Trading Pairs</label>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <select id="coinSelector" style="flex: 1; padding: 0.75rem; border: 2px solid var(--gray-200); border-radius: 8px;">
+                                <option value="">Select a coin to add...</option>
+                            </select>
+                            <button type="button" class="btn btn-start" onclick="addCoin()" style="padding: 0.75rem 1.5rem;">+ Add Coin</button>
+                            <button type="button" class="btn btn-primary" onclick="loadAvailableCoins()" style="padding: 0.75rem 1.5rem;">Refresh List</button>
+                        </div>
+                        <div id="selectedPairs" style="margin-bottom: 1rem;"></div>
+                        <input type="hidden" id="trading_pairs" name="trading_pairs">
+                        <div class="form-help">Click "Refresh List" to load available Coinbase trading pairs, then add coins you want to trade</div>
+                    </div>
+                </div>
+
+                <!-- Trading Mode -->
+                <div class="settings-section">
+                    <h2>Trading Mode</h2>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="paper_trading" name="paper_trading">
+                            <label for="paper_trading">Paper Trading (Simulated)</label>
+                        </div>
+                        <div class="form-help">When enabled, orders are simulated with no real money at risk</div>
+                    </div>
+                    <div class="form-group">
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="use_real_market_data" name="use_real_market_data">
+                            <label for="use_real_market_data">Use Real Market Data</label>
+                        </div>
+                        <div class="form-help">When enabled, uses real Coinbase prices instead of synthetic data</div>
+                    </div>
+                </div>
+
+                <!-- Configuration Templates -->
+                <div class="settings-section">
+                    <h2>Configuration Templates</h2>
+                    <div class="form-group">
+                        <label>Save/Load Presets</label>
+                        <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <input type="text" id="templateName" placeholder="Template name..." style="flex: 1; padding: 0.75rem; border: 2px solid var(--gray-200); border-radius: 8px;">
+                            <button type="button" class="btn btn-primary" onclick="saveTemplate()">Save as Template</button>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <select id="templateSelector" style="flex: 1; padding: 0.75rem; border: 2px solid var(--gray-200); border-radius: 8px;">
+                                <option value="">Select a template to load...</option>
+                            </select>
+                            <button type="button" class="btn btn-primary" onclick="loadTemplate()">Load Template</button>
+                            <button type="button" class="btn btn-stop" onclick="deleteTemplate()">Delete</button>
+                        </div>
+                        <div class="form-help">Save your current settings as a template to easily switch between different configurations</div>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <div>
+                        <button type="submit" class="btn btn-primary">Save Settings</button>
+                        <button type="button" class="btn btn-pause" onclick="resetToDefaults()">Reset to Defaults</button>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-stop" onclick="if(confirm('Restart bot to apply changes? Bot will be stopped and restarted.')) restartBot()">Apply & Restart Bot</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Help Tooltip Container -->
+    <div id="tooltip" class="tooltip"></div>
+
+    <script>
+        // Mobile menu toggle for Settings page
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.id = 'overlay';
+        document.body.appendChild(overlay);
+
+        function openMobileMenu() {
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.classList.add('no-scroll');
+        }
+
+        function closeMobileMenu() {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.classList.remove('no-scroll');
+        }
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', openMobileMenu);
+        }
+        if (overlay) {
+            overlay.addEventListener('click', closeMobileMenu);
+        }
+
+        // Tooltip functionality - initialize after page loads
+        function initializeTooltips() {
+            // Add help icons and tooltips to all form groups
+            document.querySelectorAll('.form-group').forEach((formGroup) => {
+                const label = formGroup.querySelector('label');
+                if (!label) return;
+                
+                // Skip if help icon already exists
+                if (label.querySelector('.help-icon')) {
+                    return;
+                }
+                
+                // Find the help text (usually in .form-help or .form-warning divs within the form-group)
+                let helpText = null;
+                const formHelp = formGroup.querySelector('.form-help');
+                const formWarning = formGroup.querySelector('.form-warning');
+                
+                if (formHelp) {
+                    helpText = formHelp.textContent.trim();
+                } else if (formWarning) {
+                    helpText = formWarning.textContent.trim();
+                }
+                
+                if (helpText && helpText.length > 0) {
+                    const helpIcon = document.createElement('span');
+                    helpIcon.className = 'help-icon';
+                    helpIcon.textContent = '?';
+                    helpIcon.setAttribute('aria-label', 'Help');
+                    helpIcon.style.marginLeft = '0.5rem';
+                    helpIcon.style.cursor = 'help';
+                    helpIcon.title = helpText; // Fallback browser tooltip
+                    
+                    // Show tooltip on hover
+                    helpIcon.addEventListener('mouseenter', function(e) {
+                        e.stopPropagation();
+                        showTooltip(e, helpText);
+                    });
+                    
+                    helpIcon.addEventListener('mouseleave', function(e) {
+                        e.stopPropagation();
+                        hideTooltip();
+                    });
+                    
+                    helpIcon.addEventListener('mouseout', function(e) {
+                        e.stopPropagation();
+                        hideTooltip();
+                    });
+                    
+                    // Hide tooltip on click
+                    helpIcon.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        hideTooltip();
+                    });
+                    
+                    label.appendChild(helpIcon);
+                }
+            });
+        }
+        
+        // Initialize tooltips when DOM is ready
+        function startTooltipInit() {
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function() {
+                    setTimeout(initializeTooltips, 200);
+                });
+            } else {
+                // DOM is already loaded
+                setTimeout(initializeTooltips, 200);
+            }
+        }
+        
+        startTooltipInit();
+        
+        // Also try to initialize after a delay to catch any dynamic content
+        setTimeout(initializeTooltips, 1000);
+
+        function showTooltip(event, text) {
+            const tooltip = document.getElementById('tooltip');
+            if (!tooltip || !text) {
+                console.warn('Tooltip element or text not found');
+                return;
+            }
+            
+            tooltip.textContent = text;
+            tooltip.style.display = 'block';
+            
+            // Force a reflow to get accurate dimensions
+            tooltip.style.visibility = 'hidden';
+            tooltip.style.display = 'block';
+            const tooltipWidth = tooltip.offsetWidth || 300;
+            const tooltipHeight = tooltip.offsetHeight || 100;
+            tooltip.style.visibility = 'visible';
+            
+            // Position tooltip near cursor
+            const x = event.clientX || event.pageX || 0;
+            const y = event.clientY || event.pageY || 0;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+            const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+            
+            // Position tooltip - adjust if it would go off screen
+            let left = x + scrollX + 15;
+            let top = y + scrollY + 15;
+            
+            // Check if tooltip goes off right edge
+            if (left + tooltipWidth > windowWidth + scrollX - 20) {
+                left = x + scrollX - tooltipWidth - 15;
+            }
+            
+            // Check if tooltip goes off bottom edge
+            if (top + tooltipHeight > windowHeight + scrollY - 20) {
+                top = y + scrollY - tooltipHeight - 15;
+            }
+            
+            // Ensure tooltip doesn't go off left or top edges
+            if (left < scrollX + 10) left = scrollX + 10;
+            if (top < scrollY + 10) top = scrollY + 10;
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.style.zIndex = '10000';
+        }
+
+        function hideTooltip() {
+            const tooltip = document.getElementById('tooltip');
+            if (tooltip) {
+                tooltip.style.display = 'none';
+            }
+        }
+        
+        // Hide tooltip when clicking anywhere
+        document.addEventListener('click', function(e) {
+            if (!e.target || !e.target.closest('.help-icon')) {
+                hideTooltip();
+            }
+        });
+    </script>
+
+    <script src="/static/settings.js"></script>
+</body>
+</html>

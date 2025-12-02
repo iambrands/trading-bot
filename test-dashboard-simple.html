@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Test Runner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .test-container {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-tab {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background: #3a3a3a;
+            border: 1px solid #555;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .test-tab:hover {
+            background: #4a4a4a;
+        }
+        .test-tab.active {
+            background: #2563eb;
+        }
+        .test-results {
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .test-result {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        .test-result.pass {
+            background: #10b981;
+            color: white;
+        }
+        .test-result.fail {
+            background: #ef4444;
+            color: white;
+        }
+        .test-result.info {
+            background: #3b82f6;
+            color: white;
+        }
+        button {
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        #errors {
+            color: #ef4444;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Dashboard Automated Test Runner</h1>
+        <p>This page will automatically test all dashboard tabs and report errors.</p>
+        
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+        
+        <div id="testTabs"></div>
+        
+        <div class="test-results" id="testResults">
+            <div class="test-result info">Click "Run All Tests" to start testing...</div>
+        </div>
+        
+        <div id="summary" style="margin-top: 20px; padding: 15px; background: #2a2a2a; border-radius: 4px;">
+            <h3>Test Summary</h3>
+            <div>✅ Passed: <span id="passedCount">0</span></div>
+            <div>❌ Failed: <span id="failedCount">0</span></div>
+            <div id="errors">Errors: <span id="errorCount">0</span></div>
+        </div>
+    </div>
+
+    <script>
+        const TABS = [
+            { name: 'Overview', path: '/', id: 'overview' },
+            { name: 'Market Conditions', path: '/market-conditions', id: 'market' },
+            { name: 'Positions', path: '/positions', id: 'positions' },
+            { name: 'Trade History', path: '/trades', id: 'trades' },
+            { name: 'Performance', path: '/performance', id: 'performance' },
+            { name: 'Portfolio', path: '/portfolio', id: 'portfolio' },
+            { name: 'Charts', path: '/charts', id: 'charts' },
+            { name: 'Advanced Orders', path: '/orders', id: 'orders' },
+            { name: 'Grid Trading', path: '/grid', id: 'grid' },
+            { name: 'Strategy Backtesting', path: '/backtest', id: 'backtest' },
+            { name: 'Logs', path: '/logs', id: 'logs' },
+            { name: 'Settings', path: '/settings', id: 'settings' }
+        ];
+
+        let testStats = { passed: 0, failed: 0, errors: [] };
+        let consoleErrors = [];
+        
+        // Capture console errors
+        window.addEventListener('error', (e) => {
+            consoleErrors.push({
+                message: e.message,
+                filename: e.filename,
+                lineno: e.lineno,
+                colno: e.colno,
+                error: e.error?.stack
+            });
+        });
+
+        // Initialize tabs
+        function initTabs() {
+            const container = document.getElementById('testTabs');
+            TABS.forEach(tab => {
+                const tabEl = document.createElement('div');
+                tabEl.className = 'test-tab';
+                tabEl.textContent = tab.name;
+                tabEl.onclick = () => testTab(tab);
+                container.appendChild(tabEl);
+            });
+        }
+
+        function addResult(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.textContent = message;
+            results.appendChild(result);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('testResults').innerHTML = '';
+            testStats = { passed: 0, failed: 0, errors: [] };
+            updateSummary();
+        }
+
+        function updateSummary() {
+            document.getElementById('passedCount').textContent = testStats.passed;
+            document.getElementById('failedCount').textContent = testStats.failed;
+            document.getElementById('errorCount').textContent = testStats.errors.length;
+        }
+
+        async function testTab(tab) {
+            consoleErrors = [];
+            addResult(`Testing: ${tab.name}...`, 'info');
+            
+            try {
+                // Open tab in iframe or new window (if same origin)
+                // For same origin, we can use fetch to check if page loads
+                const response = await fetch(tab.path);
+                
+                if (response.ok) {
+                    addResult(`✅ ${tab.name}: Page loaded successfully`, 'pass');
+                    testStats.passed++;
+                } else {
+                    addResult(`❌ ${tab.name}: HTTP ${response.status}`, 'fail');
+                    testStats.failed++;
+                    testStats.errors.push(`${tab.name}: HTTP ${response.status}`);
+                }
+                
+                // Check for console errors (if we navigated there)
+                if (consoleErrors.length > 0) {
+                    consoleErrors.forEach(err => {
+                        addResult(`❌ ${tab.name}: ${err.message}`, 'fail');
+                        testStats.errors.push(`${tab.name}: ${err.message}`);
+                    });
+                    testStats.failed++;
+                }
+                
+            } catch (error) {
+                addResult(`❌ ${tab.name}: ${error.message}`, 'fail');
+                testStats.failed++;
+                testStats.errors.push(`${tab.name}: ${error.message}`);
+            }
+            
+            updateSummary();
+        }
+
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Starting automated tests...', 'info');
+            
+            for (const tab of TABS) {
+                await testTab(tab);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait between tests
+            }
+            
+            addResult(`\n✅ Testing complete! Passed: ${testStats.passed}, Failed: ${testStats.failed}`, 
+                testStats.failed === 0 ? 'pass' : 'fail');
+        }
+
+        // Initialize on load
+        initTabs();
+    </script>
+</body>
+</html>
+
