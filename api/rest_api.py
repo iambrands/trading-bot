@@ -41,11 +41,12 @@ class TradingBotAPI:
                 '/landing',
                 '/signup',
                 '/signin',
-                '/test-runner'
+                '/test-runner',
+                '/favicon.ico'
             ]
             
-            # Allow static files (must be before other checks)
-            if request.path.startswith('/static'):
+            # Allow static files and favicon (must be before other checks)
+            if request.path.startswith('/static') or request.path == '/favicon.ico':
                 is_public = True
                 return await handler(request)
             
@@ -180,6 +181,7 @@ class TradingBotAPI:
         # PWA routes
         self.app.router.add_get('/manifest.json', self.serve_manifest)
         self.app.router.add_get('/service-worker.js', self.serve_service_worker)
+        self.app.router.add_get('/favicon.ico', self.serve_favicon)
         
         # Status endpoints
         self.app.router.add_get('/api/status', self.get_status)
@@ -2035,6 +2037,22 @@ class TradingBotAPI:
             return web.FileResponse(sw_path, headers={'Content-Type': 'application/javascript'})
         else:
             return web.Response(status=404, text='Service worker not found')
+    
+    async def serve_favicon(self, request):
+        """Serve favicon.ico."""
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        favicon_path = os.path.join(project_root, 'static', 'icon-192.png')
+        
+        # Use icon-192.png as favicon, or return 204 No Content if not found
+        if os.path.exists(favicon_path):
+            return web.FileResponse(
+                favicon_path,
+                headers={'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=31536000'}
+            )
+        else:
+            # Return 204 No Content instead of 404/503 for favicon
+            return web.Response(status=204)
     
     async def get_chart_candles(self, request):
         """Get candle data for advanced charting."""
