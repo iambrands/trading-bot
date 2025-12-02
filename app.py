@@ -19,30 +19,43 @@ logger = logging.getLogger(__name__)
 
 async def init_app():
     """Initialize the web application."""
-    # Create app without bot instance (API-only mode)
-    app = create_app(bot_instance=None, db_manager=None)
-    return app
+    try:
+        # Create app without bot instance (API-only mode)
+        app = create_app(bot_instance=None, db_manager=None)
+        logger.info("Application initialized successfully")
+        return app
+    except Exception as e:
+        logger.error(f"Failed to initialize application: {e}", exc_info=True)
+        raise
 
 
 async def main():
     """Main entry point for Heroku."""
-    # Get port from Heroku environment variable
-    port = int(os.environ.get('PORT', 4000))
-    
-    logger.info(f"Starting API server on port {port}")
-    
-    # Create and initialize app
-    app = await init_app()
-    
-    # Run the server (this sets up and starts the server)
-    await run_api(app, host='0.0.0.0', port=port)
-    
-    # Keep the server running
-    logger.info("API server started, waiting for requests...")
     try:
-        await asyncio.Event().wait()  # Wait indefinitely
-    except KeyboardInterrupt:
-        logger.info("Shutting down API server...")
+        # Get port from Heroku environment variable
+        port = int(os.environ.get('PORT', 4000))
+        
+        logger.info(f"Starting API server on port {port}")
+        logger.info(f"Environment: {os.environ.get('ENVIRONMENT', 'development')}")
+        
+        # Create and initialize app
+        app = await init_app()
+        
+        # Run the server (this sets up and starts the server)
+        logger.info("Setting up web server...")
+        await run_api(app, host='0.0.0.0', port=port)
+        
+        # Keep the server running
+        logger.info("API server started successfully, waiting for requests...")
+        
+        # Wait indefinitely to keep the server alive
+        try:
+            await asyncio.Event().wait()  # Wait indefinitely
+        except KeyboardInterrupt:
+            logger.info("Shutting down API server...")
+    except Exception as e:
+        logger.error(f"Failed to start API server: {e}", exc_info=True)
+        raise
 
 
 if __name__ == '__main__':

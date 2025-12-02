@@ -25,10 +25,10 @@ class TradingBotAPI:
         self.db_manager = db_manager
         self.auth_manager = AuthManager(self.config)
         self.app = web.Application()
-        self._setup_middleware()
-        self._setup_cors()
-        self._setup_static_blocker()
-        self._setup_routes()
+        self._setup_routes()  # Setup routes first
+        self._setup_middleware()  # Then middleware
+        self._setup_cors()  # Then CORS
+        self._setup_static_blocker()  # Static blocker last
     
     def _setup_middleware(self):
         """Setup authentication middleware."""
@@ -130,15 +130,28 @@ class TradingBotAPI:
         self.app.middlewares.append(static_blocker)
     
     def _setup_cors(self):
-        """Setup CORS for API."""
-        cors = cors_setup(self.app, defaults={
-            origin: ResourceOptions(
-                allow_credentials=True,
-                expose_headers="*",
-                allow_headers="*",
-                allow_methods="*"
-            ) for origin in self.config.CORS_ORIGINS
-        })
+        """Setup CORS for API - exclude static routes to avoid HEAD conflicts."""
+        # Setup CORS only for non-static routes to avoid HEAD method conflicts
+        # Static routes handle HEAD automatically and don't need CORS wrapping
+        if self.config.CORS_ORIGINS:
+            # Get all routes except static ones
+            routes_to_wrap = [
+                route for route in self.app.router.routes()
+                if not (hasattr(route, 'name') and route.name == 'static')
+            ]
+            
+            cors = cors_setup(self.app, defaults={
+                origin: ResourceOptions(
+                    allow_credentials=True,
+                    expose_headers="*",
+                    allow_headers="*",
+                    allow_methods="*"
+                ) for origin in self.config.CORS_ORIGINS
+            })
+            
+            # Only add CORS for non-static routes
+            for route in routes_to_wrap:
+                cors.add(route)
     
     def _setup_routes(self):
         """Setup API routes."""
