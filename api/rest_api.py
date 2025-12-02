@@ -26,9 +26,8 @@ class TradingBotAPI:
         self.auth_manager = AuthManager(self.config)
         self.app = web.Application()
         self._setup_middleware()  # Setup middleware first
-        self._setup_routes_without_static()  # Routes without static files
-        self._setup_cors()  # Setup CORS (before static routes)
-        self._setup_static_routes()  # Add static routes AFTER CORS
+        self._setup_routes()  # Setup all routes
+        self._setup_cors()  # Setup CORS middleware (doesn't wrap routes)
         self._setup_static_blocker()  # Static blocker last
     
     def _setup_middleware(self):
