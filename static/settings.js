@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadSettings();
     await loadTemplates();
     await loadAvailableCoins();
+    await loadSystemInfo();
+    loadUserInfo();
     
     // Form submission
     document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -18,6 +20,186 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Logs filter and search (not used on settings page, but kept for compatibility)
     // These elements don't exist on settings page, so these listeners won't be attached
 });
+
+// Load system information
+async function loadSystemInfo() {
+    try {
+        const [statusResponse, settingsResponse] = await Promise.all([
+            fetch(`${API_BASE}/status`).catch(() => null),
+            fetch(`${API_BASE}/settings`).catch(() => null)
+        ]);
+        
+        // Bot status
+        const botStatusEl = document.getElementById('botStatus');
+        if (botStatusEl) {
+            if (statusResponse && statusResponse.ok) {
+                const status = await statusResponse.json();
+                botStatusEl.textContent = status.status || 'Unknown';
+                botStatusEl.style.color = status.status === 'running' ? 'var(--success-green)' : 
+                                         status.status === 'paused' ? 'var(--accent-gold)' : 'var(--danger-red)';
+            } else {
+                botStatusEl.textContent = 'Not Available';
+                botStatusEl.style.color = 'var(--gray-500)';
+            }
+        }
+        
+        // Database status
+        const dbStatusEl = document.getElementById('dbStatus');
+        if (dbStatusEl) {
+            dbStatusEl.textContent = 'Connected';
+            dbStatusEl.style.color = 'var(--success-green)';
+        }
+        
+        // API status
+        const apiStatusEl = document.getElementById('apiStatus');
+        if (apiStatusEl) {
+            if (statusResponse && statusResponse.ok) {
+                apiStatusEl.textContent = 'Connected';
+                apiStatusEl.style.color = 'var(--success-green)';
+            } else {
+                apiStatusEl.textContent = 'Disconnected';
+                apiStatusEl.style.color = 'var(--danger-red)';
+            }
+        }
+        
+        // Paper trading status
+        const paperStatusEl = document.getElementById('paperTradingStatus');
+        if (paperStatusEl) {
+            if (settingsResponse && settingsResponse.ok) {
+                const settings = await settingsResponse.json();
+                paperStatusEl.textContent = settings.paper_trading ? 'Enabled' : 'Disabled';
+                paperStatusEl.style.color = settings.paper_trading ? 'var(--accent-gold)' : 'var(--gray-600)';
+            } else {
+                paperStatusEl.textContent = 'Unknown';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading system info:', error);
+    }
+}
+
+// Load user information
+function loadUserInfo() {
+    try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        
+        // Try to decode JWT to get user info (simple base64 decode)
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userEmailEl = document.getElementById('userEmail');
+            if (userEmailEl && payload.email) {
+                userEmailEl.textContent = payload.email;
+            }
+        } catch (e) {
+            // JWT decode failed, try to get from API
+            fetch(`${API_BASE}/auth/verify`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }).then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+            }).then(data => {
+                if (data && data.email) {
+                    const userEmailEl = document.getElementById('userEmail');
+                    if (userEmailEl) {
+                        userEmailEl.textContent = data.email;
+                    }
+                }
+            }).catch(() => {
+                // Ignore errors
+            });
+        }
+        
+        // Account created date (would need API endpoint for this)
+        const accountCreatedEl = document.getElementById('accountCreated');
+        if (accountCreatedEl) {
+            accountCreatedEl.textContent = 'N/A';
+        }
+    } catch (error) {
+        console.error('Error loading user info:', error);
+    }
+}
+
+// Export settings to JSON file
+function exportSettings() {
+    try {
+        const formData = new FormData(document.getElementById('settingsForm'));
+        const settings = {};
+        
+        for (const [key, value] of formData.entries()) {
+            if (key === 'trading_pairs') {
+                settings[key] = selectedPairs;
+            } else {
+                settings[key] = value;
+            }
+        }
+        
+        const settingsJson = JSON.stringify(settings, null, 2);
+        const blob = new Blob([settingsJson], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `trading-bot-settings-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showAlert('Settings exported successfully!', 'success');
+    } catch (error) {
+        console.error('Error exporting settings:', error);
+        showAlert('Failed to export settings', 'error');
+    }
+}
+
+// Import settings from JSON file
+function importSettings() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        try {
+            const text = await file.text();
+            const settings = JSON.parse(text);
+            
+            if (!confirm('Import these settings? This will overwrite your current settings.')) {
+                return;
+            }
+            
+            // Populate form fields
+            for (const [key, value] of Object.entries(settings)) {
+                const field = document.getElementById(key);
+                if (field) {
+                    if (field.type === 'checkbox') {
+                        field.checked = value;
+                    } else {
+                        field.value = value;
+                    }
+                }
+            }
+            
+            // Handle trading pairs
+            if (settings.trading_pairs && Array.isArray(settings.trading_pairs)) {
+                selectedPairs = settings.trading_pairs;
+                updateSelectedPairsDisplay();
+                updateTradingPairsInput();
+            }
+            
+            showAlert('Settings imported successfully! Click "Save Settings" to apply.', 'success');
+        } catch (error) {
+            console.error('Error importing settings:', error);
+            showAlert('Failed to import settings. Please check the file format.', 'error');
+        }
+    };
+    input.click();
+}
 
 async function loadSettings() {
     try {

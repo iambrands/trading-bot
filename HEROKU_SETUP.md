@@ -38,25 +38,28 @@ Run these commands:
 
 ```bash
 # Set JWT secret (generate a random one)
-heroku config:set JWT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))") -a iab-optionsbot
+# Replace 'your-app-name' with your actual Heroku app name
+heroku config:set JWT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_urlsafe(32))") -a your-app-name
 
 # If using Heroku Postgres addon
-heroku addons:create heroku-postgresql:mini -a iab-optionsbot
+heroku addons:create heroku-postgresql:mini -a your-app-name
 
 # Or manually set database URL
-heroku config:set DATABASE_URL=your-database-url -a iab-optionsbot
+heroku config:set DATABASE_URL=your-database-url -a your-app-name
 ```
 
 ### 3. Check Current Config
 
 ```bash
-heroku config -a iab-optionsbot
+# Replace 'your-app-name' with your actual Heroku app name
+heroku config -a your-app-name
 ```
 
 ### 4. View Logs to Diagnose
 
 ```bash
-heroku logs --tail -a iab-optionsbot
+# Replace 'your-app-name' with your actual Heroku app name
+heroku logs --tail -a your-app-name
 ```
 
 ## Common Issues
@@ -71,4 +74,6 @@ heroku logs --tail -a iab-optionsbot
 2. Set up database (Heroku Postgres addon or external)
 3. Check logs for specific errors
 4. Restart dynos after setting config
+
+
 

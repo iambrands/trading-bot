@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<body>
+<canvas id="canvas192" width="192" height="192"></canvas>
+<canvas id="canvas512" width="512" height="512"></canvas>
+<script>
+const ctx192 = document.getElementById('canvas192').getContext('2d');
+ctx192.fillStyle = '#2563eb';
+ctx192.fillRect(0, 0, 192, 192);
+ctx192.fillStyle = '#ffffff';
+ctx192.font = 'bold 100px Arial';
+ctx192.textAlign = 'center';
+ctx192.textBaseline = 'middle';
+ctx192.fillText('TB', 96, 96);
+
+const ctx512 = document.getElementById('canvas512').getContext('2d');
+ctx512.fillStyle = '#2563eb';
+ctx512.fillRect(0, 0, 512, 512);
+ctx512.fillStyle = '#ffffff';
+ctx512.font = 'bold 300px Arial';
+ctx512.textAlign = 'center';
+ctx512.textBaseline = 'middle';
+ctx512.fillText('TB', 256, 256);
+
+// Note: This would need to be run in a browser to export
+console.log('Icons would be created here');
+</script>
+</body>
+</html>

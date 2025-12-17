@@ -191,9 +191,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
             const page = link.dataset.page;
-            // Settings is a standalone page, redirect to it
+            // Settings and Help are standalone pages, redirect to them
             if (page === 'settings') {
                 window.location.href = '/settings';
+                return;
+            }
+            if (page === 'help') {
+                window.location.href = '/help';
                 return;
             }
             e.preventDefault();
@@ -214,17 +218,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (path === '/grid') navigateToPage('grid');
     else if (path === '/logs') navigateToPage('logs');
     else if (path === '/settings') window.location.href = '/settings';
+    else if (path === '/help') window.location.href = '/help';
     else navigateToPage('overview');
 
     // Initial load
     updateCurrentPage();
     refreshInterval = setInterval(updateCurrentPage, 5000);
+    
+    // Initialize onboarding for new users (after a short delay to let page load)
+    setTimeout(() => {
+        if (typeof initOnboarding === 'function') {
+            initOnboarding();
+        }
+    }, 1500);
 });
 
 function navigateToPage(page) {
-    // Settings is a standalone page, redirect to it
+    // Settings and Help are standalone pages, redirect to them
     if (page === 'settings') {
         window.location.href = '/settings';
+        return;
+    }
+    if (page === 'help') {
+        window.location.href = '/help';
         return;
     }
     
@@ -304,7 +320,9 @@ function navigateToPage(page) {
         'orders': '/orders',
         'grid': '/grid',
         'backtest': '/backtest',
-        'logs': '/logs'
+        'logs': '/logs',
+        'help': '/help',
+        'settings': '/settings'
     };
     window.history.pushState({}, '', paths[page] || '/');
 
@@ -379,16 +397,18 @@ async function fetchAPI(endpoint, options = {}) {
     }
 }
 
-// Logout function
-function logout() {
+// Logout function - make it globally available immediately
+window.logout = function logout() {
     localStorage.removeItem('auth_token');
     fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
+    }).catch(() => {
+        // Ignore errors, still redirect
     }).finally(() => {
         window.location.href = '/landing';
     });
-}
+};
 
 async function controlBot(action) {
     try {
@@ -440,7 +460,10 @@ function formatCurrency(value) {
 }
 
 function formatPercent(value) {
-    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+    if (value === undefined || value === null || isNaN(value)) {
+        return '0.00%';
+    }
+    return `${value >= 0 ? '+' : ''}${Number(value).toFixed(2)}%`;
 }
 
 function escapeHtml(text) {
@@ -512,6 +535,12 @@ async function updateCurrentPage() {
         console.warn('Failed to update status badge:', error);
     }
     
+    // Hide AI Analysis card on all pages except market conditions
+    const aiAnalysisCard = document.getElementById('aiAnalysisCard');
+    if (aiAnalysisCard && currentPage !== 'market') {
+        aiAnalysisCard.style.display = 'none';
+    }
+    
     switch(currentPage) {
         case 'overview':
             await updateOverview();
@@ -544,7 +573,12 @@ async function updateCurrentPage() {
             await updateBacktestPage();
             break;
         case 'settings':
-            // Don't update charts on settings page
+            // Settings is a standalone page, redirect to it
+            window.location.href = '/settings';
+            break;
+        case 'help':
+            // Help is a standalone page, redirect to it
+            window.location.href = '/help';
             break;
         case 'logs':
             await updateLogsPage();
@@ -653,36 +687,43 @@ async function updatePerformance() {
 
     const perf = document.getElementById('performanceMetrics');
     if (perf) {
+        const totalPnl = data.total_pnl || 0;
+        const dailyPnl = data.daily_pnl || 0;
+        const roiPct = data.roi_pct || data.total_roi || 0;
+        const winRate = data.win_rate || 0;
+        const totalTrades = data.total_trades || 0;
+        const profitFactor = data.profit_factor || 0;
+        
         perf.innerHTML = `
             <div class="metric">
                 <span class="metric-label">Total P&L</span>
-                <span class="metric-value ${data.total_pnl >= 0 ? 'positive' : 'negative'}">
-                    ${formatCurrency(data.total_pnl)}
+                <span class="metric-value ${totalPnl >= 0 ? 'positive' : 'negative'}">
+                    ${formatCurrency(totalPnl)}
                 </span>
             </div>
             <div class="metric">
                 <span class="metric-label">Daily P&L</span>
-                <span class="metric-value ${data.daily_pnl >= 0 ? 'positive' : 'negative'}">
-                    ${formatCurrency(data.daily_pnl)}
+                <span class="metric-value ${dailyPnl >= 0 ? 'positive' : 'negative'}">
+                    ${formatCurrency(dailyPnl)}
                 </span>
             </div>
             <div class="metric">
                 <span class="metric-label">ROI</span>
-                <span class="metric-value ${data.roi_pct >= 0 ? 'positive' : 'negative'}">
-                    ${formatPercent(data.roi_pct)}
+                <span class="metric-value ${roiPct >= 0 ? 'positive' : 'negative'}">
+                    ${formatPercent(roiPct)}
                 </span>
             </div>
             <div class="metric">
                 <span class="metric-label">Win Rate</span>
-                <span class="metric-value">${data.win_rate.toFixed(2)}%</span>
+                <span class="metric-value">${Number(winRate).toFixed(2)}%</span>
             </div>
             <div class="metric">
                 <span class="metric-label">Total Trades</span>
-                <span class="metric-value">${data.total_trades}</span>
+                <span class="metric-value">${totalTrades}</span>
             </div>
             <div class="metric">
                 <span class="metric-label">Profit Factor</span>
-                <span class="metric-value">${data.profit_factor.toFixed(2)}</span>
+                <span class="metric-value">${Number(profitFactor).toFixed(2)}</span>
             </div>
         `;
     }
@@ -695,24 +736,30 @@ async function updateRisk() {
 
     const risk = document.getElementById('riskMetrics');
     if (risk) {
+        const exposure = data.total_exposure || 0;
+        const exposurePct = data.exposure_pct || data.total_exposure_pct || 0;
+        const dailyPnl = data.daily_pnl || 0;
+        const positionsCount = data.positions_count || 0;
+        const maxPositions = data.max_positions || 0;
+        
         risk.innerHTML = `
             <div class="metric">
                 <span class="metric-label">Total Exposure</span>
-                <span class="metric-value">${formatCurrency(data.total_exposure)}</span>
+                <span class="metric-value">${formatCurrency(exposure)}</span>
             </div>
             <div class="metric">
                 <span class="metric-label">Exposure %</span>
-                <span class="metric-value">${data.total_exposure_pct.toFixed(2)}%</span>
+                <span class="metric-value">${Number(exposurePct).toFixed(2)}%</span>
             </div>
             <div class="metric">
                 <span class="metric-label">Daily P&L</span>
-                <span class="metric-value ${data.daily_pnl >= 0 ? 'positive' : 'negative'}">
-                    ${formatCurrency(data.daily_pnl)}
+                <span class="metric-value ${dailyPnl >= 0 ? 'positive' : 'negative'}">
+                    ${formatCurrency(dailyPnl)}
                 </span>
             </div>
             <div class="metric">
                 <span class="metric-label">Open Positions</span>
-                <span class="metric-value">${data.open_positions} / ${data.max_positions}</span>
+                <span class="metric-value">${positionsCount} / ${maxPositions}</span>
             </div>
         `;
     }
@@ -825,7 +872,23 @@ async function updateMarketConditions() {
             html += `</div>`;
         }
 
+        // Show AI Analysis section
+        const aiAnalysisCard = document.getElementById('aiAnalysisCard');
+        if (aiAnalysisCard) {
+            aiAnalysisCard.style.display = 'block';
+            // Auto-load AI analysis when page loads
+            setTimeout(() => {
+                getAIAnalysis();
+            }, 500);
+        }
+
         container.innerHTML = html;
+        
+        // Show AI Analysis section on Market Conditions page
+        const aiAnalysisCard = document.getElementById('aiAnalysisCard');
+        if (aiAnalysisCard) {
+            aiAnalysisCard.style.display = 'block';
+        }
     } catch (error) {
         console.error('Error updating market conditions:', error);
         container.innerHTML = `<div class="error">Error loading market conditions: ${error.message}</div>`;

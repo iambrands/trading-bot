@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help & FAQs - Crypto Scalping Trading Bot</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .help-container {
+            max-width: 1200px;
+        }
+        
+        .help-hero {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+            color: var(--white);
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .help-hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .help-hero p {
+            font-size: 1.125rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .help-search {
+            margin-bottom: 2rem;
+        }
+        
+        .help-search input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        
+        .help-search input:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        
+        .help-category {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .help-category h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid var(--primary-blue);
+        }
+        
+        .faq-item {
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+            padding-bottom: 1.5rem;
+        }
+        
+        .faq-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .faq-question {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--gray-900);
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: color 0.2s;
+        }
+        
+        .faq-question:hover {
+            color: var(--primary-blue);
+        }
+        
+        .faq-question::after {
+            content: '+';
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--gray-400);
+            transition: transform 0.3s;
+        }
+        
+        .faq-item.active .faq-question::after {
+            transform: rotate(45deg);
+            color: var(--primary-blue);
+        }
+        
+        .faq-answer {
+            color: var(--gray-700);
+            line-height: 1.7;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        
+        .faq-item.active .faq-answer {
+            max-height: 1000px;
+            padding-top: 0.75rem;
+        }
+        
+        .help-section {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--gray-200);
+        }
+        
+        .help-section h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+        }
+        
+        .help-section p,
+        .help-section ul,
+        .help-section ol {
+            color: var(--gray-700);
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+        
+        .help-section ul,
+        .help-section ol {
+            padding-left: 2rem;
+        }
+        
+        .help-section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .help-section code {
+            background: var(--gray-100);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.875rem;
+            color: var(--primary-blue);
+        }
+        
+        .help-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .help-link:hover {
+            text-decoration: underline;
+        }
+        
+        .help-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .help-card {
+            background: var(--white);
+            border: 2px solid var(--gray-200);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--gray-900);
+            display: block;
+        }
+        
+        .help-card:hover {
+            border-color: var(--primary-blue);
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .help-card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .help-card h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .help-card p {
+            color: var(--gray-600);
+            font-size: 0.9375rem;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-container">
+                <span class="logo">TB</span>
+                <span class="brand-name">Crypto Scalping Trading Bot</span>
+            </div>
+        </div>
+        
+        <nav class="sidebar-nav">
+            <ul class="nav-menu">
+                <li>
+                    <a href="/" class="nav-link" data-page="overview">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Overview</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/market-conditions" class="nav-link" data-page="market">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Market Conditions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/positions" class="nav-link" data-page="positions">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Positions</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/trades" class="nav-link" data-page="trades">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Trade History</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/performance" class="nav-link" data-page="performance">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Performance</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/portfolio" class="nav-link" data-page="portfolio">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Portfolio</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/charts" class="nav-link" data-page="charts">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Charts</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/orders" class="nav-link" data-page="orders">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Advanced Orders</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/help" class="nav-link active" data-page="help">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Help & FAQs</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/settings" class="nav-link" data-page="settings">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="connection-status-sidebar" id="connectionStatusSidebar">
+                <span class="status-dot"></span>
+                <span class="status-text">Connected</span>
+            </div>
+            <button class="nav-link logout-btn" onclick="localStorage.removeItem('auth_token'); window.location.href='/landing'">
+                <span class="nav-icon"></span>
+                <span class="nav-text">Logout</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+            <div class="top-bar-left">
+                <h1 class="page-title">Help & FAQs</h1>
+            </div>
+            <div class="top-bar-right">
+                <div class="demo-banner-top">
+                    <span class="demo-icon"></span>
+                    <span class="demo-text">DEMO MODE</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="container help-container">
+            <div class="help-hero">
+                <h1>How can we help you?</h1>
+                <p>Find answers to common questions and learn how to use the trading bot</p>
+            </div>
+
+            <div class="help-search">
+                <input type="text" id="helpSearch" placeholder="Search for help topics...">
+            </div>
+
+            <div class="help-grid">
+                <a href="#getting-started" class="help-card">
+                    <div class="help-card-icon">🚀</div>
+                    <h3>Getting Started</h3>
+                    <p>Learn the basics and set up your trading bot</p>
+                </a>
+                <a href="#trading-strategy" class="help-card">
+                    <div class="help-card-icon">📈</div>
+                    <h3>Trading Strategy</h3>
+                    <p>Understand how the bot makes trading decisions</p>
+                </a>
+                <a href="#risk-management" class="help-card">
+                    <div class="help-card-icon">🛡️</div>
+                    <h3>Risk Management</h3>
+                    <p>Configure safety settings and limits</p>
+                </a>
+                <a href="#troubleshooting" class="help-card">
+                    <div class="help-card-icon">🔧</div>
+                    <h3>Troubleshooting</h3>
+                    <p>Solve common issues and errors</p>
+                </a>
+                <a href="#api-integration" class="help-card">
+                    <div class="help-card-icon">🔌</div>
+                    <h3>API Integration</h3>
+                    <p>Connect Coinbase and configure API keys</p>
+                </a>
+                <a href="#settings" class="help-card">
+                    <div class="help-card-icon">⚙️</div>
+                    <h3>Settings & Configuration</h3>
+                    <p>Customize your bot's behavior</p>
+                </a>
+            </div>
+
+            <!-- Getting Started -->
+            <div class="help-category" id="getting-started">
+                <h2>🚀 Getting Started</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How do I get started with the trading bot?</div>
+                    <div class="faq-answer">
+                        <ol>
+                            <li><strong>Sign up</strong> for an account if you haven't already</li>
+                            <li><strong>Configure your settings</strong> - Go to Settings page and review/update your trading parameters</li>
+                            <li><strong>Start in paper trading mode</strong> - This is enabled by default and lets you test without risking real money</li>
+                            <li><strong>Connect Coinbase API</strong> (optional) - Add your API keys in Settings for real market data</li>
+                            <li><strong>Start the bot</strong> - Click the "Start" button on the Overview page</li>
+                            <li><strong>Monitor performance</strong> - Watch the dashboard for positions, trades, and performance metrics</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What is paper trading mode?</div>
+                    <div class="faq-answer">
+                        <p>Paper trading is a simulation mode where the bot executes trades with virtual money. It uses real market data (when configured) but doesn't place actual orders on Coinbase. This allows you to:</p>
+                        <ul>
+                            <li>Test your strategy risk-free</li>
+                            <li>Learn how the bot works</li>
+                            <li>Validate your settings before going live</li>
+                            <li>Practice without financial risk</li>
+                        </ul>
+                        <p>You can enable/disable paper trading in the Settings page under "Trading Mode".</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I navigate the dashboard?</div>
+                    <div class="faq-answer">
+                        <p>The dashboard has several key pages:</p>
+                        <ul>
+                            <li><strong>Overview</strong> - Main dashboard showing bot status, quick stats, and recent activity</li>
+                            <li><strong>Market Conditions</strong> - Real-time analysis of why trades are or aren't triggering</li>
+                            <li><strong>Positions</strong> - View and manage active trading positions</li>
+                            <li><strong>Trade History</strong> - Complete log of all executed trades</li>
+                            <li><strong>Performance</strong> - Detailed analytics and charts</li>
+                            <li><strong>Portfolio</strong> - Portfolio analytics and asset allocation</li>
+                            <li><strong>Charts</strong> - Technical charts with indicators</li>
+                            <li><strong>Settings</strong> - Configure trading parameters and preferences</li>
+                            <li><strong>Help</strong> - This page with FAQs and guides</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trading Strategy -->
+            <div class="help-category" id="trading-strategy">
+                <h2>📈 Trading Strategy</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How does the trading bot decide when to trade?</div>
+                    <div class="faq-answer">
+                        <p>The bot uses a combination of technical indicators:</p>
+                        <ul>
+                            <li><strong>EMA (Exponential Moving Average)</strong> - Identifies trend direction</li>
+                            <li><strong>RSI (Relative Strength Index)</strong> - Measures momentum and overbought/oversold conditions</li>
+                            <li><strong>Volume Analysis</strong> - Confirms trade signals with volume spikes</li>
+                        </ul>
+                        <p><strong>For LONG positions:</strong></p>
+                        <ul>
+                            <li>Price must be above EMA(50)</li>
+                            <li>RSI must be between 55-70 (bullish but not overbought)</li>
+                            <li>Volume must be at least 1.5x the average volume</li>
+                            <li>Confidence score must be ≥70%</li>
+                        </ul>
+                        <p><strong>For SHORT positions:</strong></p>
+                        <ul>
+                            <li>Price must be below EMA(50)</li>
+                            <li>RSI must be between 30-45 (bearish but not oversold)</li>
+                            <li>Volume must be at least 1.5x the average volume</li>
+                            <li>Confidence score must be ≥70%</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What is the confidence score?</div>
+                    <div class="faq-answer">
+                        <p>The confidence score is a calculated percentage (0-100%) that measures how strongly all trading signals align. It's based on:</p>
+                        <ul>
+                            <li>How well price aligns with EMA trend</li>
+                            <li>How optimal the RSI reading is within the entry range</li>
+                            <li>How strong the volume confirmation is</li>
+                            <li>Overall market conditions</li>
+                        </ul>
+                        <p>The bot only executes trades when the confidence score meets your minimum threshold (default: 70%). Higher confidence = higher probability of a successful trade, but may result in fewer trades.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How does the bot exit positions?</div>
+                    <div class="faq-answer">
+                        <p>Positions are closed when any of these conditions are met:</p>
+                        <ul>
+                            <li><strong>Take Profit</strong> - Price reaches the target profit level (default: 0.15-0.40%)</li>
+                            <li><strong>Stop Loss</strong> - Price hits the stop loss level (default: 0.10-0.50%)</li>
+                            <li><strong>Time-based</strong> - Position is held longer than the timeout period (default: 10 minutes)</li>
+                            <li><strong>Signal Reversal</strong> - Trading signals reverse, indicating trend change</li>
+                        </ul>
+                        <p>Take profit and stop loss levels are dynamically calculated based on market volatility and confidence score.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What trading pairs does the bot support?</div>
+                    <div class="faq-answer">
+                        <p>The bot supports all trading pairs available on Coinbase Advanced Trade. By default, it's configured to trade BTC-USD and ETH-USD, but you can:</p>
+                        <ul>
+                            <li>Add any Coinbase trading pair in the Settings page</li>
+                            <li>Click "Refresh List" to see all available pairs</li>
+                            <li>Add or remove pairs as needed</li>
+                            <li>Trade multiple pairs simultaneously (up to your max positions limit)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Management -->
+            <div class="help-category" id="risk-management">
+                <h2>🛡️ Risk Management</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">What safety features does the bot have?</div>
+                    <div class="faq-answer">
+                        <p>The bot includes multiple layers of risk protection:</p>
+                        <ul>
+                            <li><strong>Position Sizing</strong> - Each trade risks only a small percentage of your account (default: 0.25%)</li>
+                            <li><strong>Daily Loss Limit</strong> - Bot stops trading after reaching the daily loss limit (default: $2,000)</li>
+                            <li><strong>Maximum Positions</strong> - Limits how many positions can be open at once (default: 2)</li>
+                            <li><strong>Position Timeout</strong> - Forces positions to close after maximum hold time (default: 10 minutes)</li>
+                            <li><strong>Maximum Position Size</strong> - Prevents overexposure on a single trade (default: 50% of account)</li>
+                            <li><strong>Emergency Kill Switch</strong> - Instantly stops all trading activity</li>
+                            <li><strong>Pre-trade Validation</strong> - All trades are validated before execution</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I set my risk per trade?</div>
+                    <div class="faq-answer">
+                        <p>Risk per trade is configured in Settings under "Risk Management":</p>
+                        <ul>
+                            <li>Go to <strong>Settings</strong> → <strong>Risk Management</strong></li>
+                            <li>Find <strong>"Risk Per Trade (%)"</strong></li>
+                            <li>Enter your desired percentage (default: 0.25%)</li>
+                            <li>Click <strong>"Save Settings"</strong></li>
+                            <li>Click <strong>"Apply & Restart Bot"</strong> to apply changes</li>
+                        </ul>
+                        <p><strong>Recommendations:</strong></p>
+                        <ul>
+                            <li>Conservative: 0.1-0.25%</li>
+                            <li>Moderate: 0.25-0.5%</li>
+                            <li>Aggressive: 0.5-1.0% (not recommended for beginners)</li>
+                        </ul>
+                        <p><strong>Warning:</strong> Higher risk per trade means larger potential losses if a trade goes against you.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What happens when I reach the daily loss limit?</div>
+                    <div class="faq-answer">
+                        <p>When your daily P&L reaches the configured daily loss limit:</p>
+                        <ul>
+                            <li>The bot automatically <strong>stops opening new positions</strong></li>
+                            <li>Existing positions remain open until they hit their stop loss or take profit</li>
+                            <li>The bot status changes to <strong>"Paused"</strong></li>
+                            <li>You'll see a notification in the dashboard</li>
+                            <li>The bot will resume automatically the next day (loss limit resets daily)</li>
+                        </ul>
+                        <p>You can manually resume the bot before the next day if needed, but this is not recommended as it defeats the purpose of the safety limit.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I use the emergency kill switch?</div>
+                    <div class="faq-answer">
+                        <p>The kill switch immediately stops all trading activity:</p>
+                        <ol>
+                            <li>Go to the <strong>Overview</strong> page</li>
+                            <li>Find the <strong>"Emergency Kill Switch"</strong> button (red)</li>
+                            <li>Click it and confirm the action</li>
+                        </ol>
+                        <p>When activated, the kill switch will:</p>
+                        <ul>
+                            <li>Stop the bot immediately</li>
+                            <li>Close all open positions (if configured)</li>
+                            <li>Prevent new trades from being placed</li>
+                            <li>Require manual intervention to restart</li>
+                        </ul>
+                        <p><strong>Use the kill switch if:</strong></p>
+                        <ul>
+                            <li>You notice unexpected behavior</li>
+                            <li>Market conditions are extremely volatile</li>
+                            <li>You need to stop trading immediately for any reason</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="help-category" id="troubleshooting">
+                <h2>🔧 Troubleshooting</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Why isn't the bot making any trades?</div>
+                    <div class="faq-answer">
+                        <p>If the bot isn't trading, check these common issues:</p>
+                        <ol>
+                            <li><strong>Bot Status</strong> - Make sure the bot is "RUNNING" (not stopped or paused)</li>
+                            <li><strong>Market Conditions</strong> - Go to "Market Conditions" page to see why trades aren't triggering</li>
+                            <li><strong>Confidence Threshold</strong> - Your minimum confidence may be too high (check Settings)</li>
+                            <li><strong>RSI Range</strong> - Current market conditions may not meet your RSI entry requirements</li>
+                            <li><strong>Volume</strong> - Volume may not be sufficient (needs 1.5x average by default)</li>
+                            <li><strong>Maximum Positions</strong> - You may already have the maximum number of positions open</li>
+                            <li><strong>Daily Loss Limit</strong> - You may have reached your daily loss limit</li>
+                            <li><strong>Account Balance</strong> - Insufficient balance for position sizing</li>
+                        </ol>
+                        <p>The <strong>Market Conditions</strong> page shows exactly why trades aren't triggering for each trading pair.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">The bot shows "Insufficient Data" for a trading pair</div>
+                    <div class="faq-answer">
+                        <p>This means the bot doesn't have enough historical candle data to calculate indicators. This happens when:</p>
+                        <ul>
+                            <li>A trading pair was just added</li>
+                            <li>The Coinbase API connection is having issues</li>
+                            <li>The pair is new or has low trading volume</li>
+                        </ul>
+                        <p><strong>Solutions:</strong></p>
+                        <ul>
+                            <li>Wait a few minutes for the bot to collect enough data</li>
+                            <li>Check your API connection in Settings</li>
+                            <li>Try refreshing the market conditions page</li>
+                            <li>If using paper trading, ensure "Use Real Market Data" is enabled</li>
+                        </ul>
+                        <p>The bot typically needs about 50+ candles (50 minutes for 1-minute candles) to start making trading decisions.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">I'm getting API errors or connection issues</div>
+                    <div class="faq-answer">
+                        <p>If you see API errors:</p>
+                        <ol>
+                            <li><strong>Check API Keys</strong> - Verify your Coinbase API keys are correct in Settings</li>
+                            <li><strong>Check Permissions</strong> - Ensure your API keys have "View" and "Trade" permissions</li>
+                            <li><strong>Check Rate Limits</strong> - Coinbase has rate limits; if exceeded, wait a few minutes</li>
+                            <li><strong>Check Network</strong> - Ensure your internet connection is stable</li>
+                            <li><strong>Check Coinbase Status</strong> - Visit Coinbase status page to see if there are outages</li>
+                            <li><strong>Paper Trading</strong> - If using paper trading mode, API keys are optional</li>
+                        </ol>
+                        <p>If issues persist, check the <strong>Logs</strong> page for detailed error messages.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I view system logs?</div>
+                    <div class="faq-answer">
+                        <p>To view logs:</p>
+                        <ol>
+                            <li>Click <strong>"Logs"</strong> in the navigation menu</li>
+                            <li>Use the dropdown to filter by log level (INFO, WARNING, ERROR, DEBUG)</li>
+                            <li>Use the search box to find specific log messages</li>
+                            <li>Click <strong>"Download Logs"</strong> to save a copy</li>
+                        </ol>
+                        <p>Logs auto-refresh every 5 seconds when you're on the Logs page.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Integration -->
+            <div class="help-category" id="api-integration">
+                <h2>🔌 API Integration</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Do I need Coinbase API keys?</div>
+                    <div class="faq-answer">
+                        <p><strong>For Paper Trading:</strong> API keys are optional. The bot can work with synthetic data or public market data.</p>
+                        <p><strong>For Live Trading:</strong> API keys are required. You'll need:</p>
+                        <ul>
+                            <li>API Key</li>
+                            <li>API Secret</li>
+                            <li>API Passphrase</li>
+                        </ul>
+                        <p><strong>Even in paper trading, API keys are recommended because:</strong></p>
+                        <ul>
+                            <li>You get real market prices</li>
+                            <li>You can test with actual market conditions</li>
+                            <li>You can practice with real trading pairs</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I get Coinbase API keys?</div>
+                    <div class="faq-answer">
+                        <ol>
+                            <li>Log in to your Coinbase account</li>
+                            <li>Go to <strong>Settings</strong> → <strong>API</strong></li>
+                            <li>Click <strong>"New API Key"</strong></li>
+                            <li>Select permissions:
+                                <ul>
+                                    <li><strong>View</strong> - Required to see account balance and market data</li>
+                                    <li><strong>Trade</strong> - Required to place orders (only needed for live trading)</li>
+                                </ul>
+                            </li>
+                            <li>Copy your <strong>API Key</strong>, <strong>API Secret</strong>, and <strong>Passphrase</strong></li>
+                            <li>In the bot's Settings page, enter these credentials</li>
+                            <li>Click <strong>"Save Settings"</strong></li>
+                        </ol>
+                        <p><strong>Security Tips:</strong></p>
+                        <ul>
+                            <li>Never share your API keys</li>
+                            <li>Use "View" only permissions for paper trading</li>
+                            <li>Enable IP whitelisting if available</li>
+                            <li>Rotate keys regularly</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What permissions do I need for my API keys?</div>
+                    <div class="faq-answer">
+                        <p><strong>For Paper Trading:</strong></p>
+                        <ul>
+                            <li><strong>View</strong> - Required (to get real market data)</li>
+                            <li>Trade permissions are NOT needed</li>
+                        </ul>
+                        <p><strong>For Live Trading:</strong></p>
+                        <ul>
+                            <li><strong>View</strong> - Required</li>
+                            <li><strong>Trade</strong> - Required (to place orders)</li>
+                        </ul>
+                        <p><strong>Recommended:</strong> Start with "View" only permissions for paper trading. Only enable "Trade" when you're ready for live trading.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings & Configuration -->
+            <div class="help-category" id="settings">
+                <h2>⚙️ Settings & Configuration</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">How do I change trading parameters?</div>
+                    <div class="faq-answer">
+                        <ol>
+                            <li>Go to the <strong>Settings</strong> page</li>
+                            <li>Modify any parameter you want to change:
+                                <ul>
+                                    <li>Strategy parameters (EMA, RSI, Volume)</li>
+                                    <li>Risk management settings</li>
+                                    <li>Exit parameters</li>
+                                    <li>Trading pairs</li>
+                                    <li>Trading mode</li>
+                                </ul>
+                            </li>
+                            <li>Click <strong>"Save Settings"</strong></li>
+                            <li>Click <strong>"Apply & Restart Bot"</strong> to restart the bot with new settings</li>
+                        </ol>
+                        <p><strong>Note:</strong> Settings changes require restarting the bot to take effect.</p>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">What are configuration templates?</div>
+                    <div class="faq-answer">
+                        <p>Configuration templates allow you to save and quickly switch between different trading configurations:</p>
+                        <ul>
+                            <li><strong>Save Template</strong> - Save your current settings with a name (e.g., "Conservative", "Aggressive", "BTC Only")</li>
+                            <li><strong>Load Template</strong> - Quickly apply a saved configuration</li>
+                            <li><strong>Delete Template</strong> - Remove templates you no longer need</li>
+                        </ul>
+                        <p><strong>Use cases:</strong></p>
+                        <ul>
+                            <li>Test different strategies</li>
+                            <li>Switch between conservative and aggressive settings</li>
+                            <li>Quickly configure for different market conditions</li>
+                            <li>Save proven configurations</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="faq-item">
+                    <div class="faq-question">How do I reset settings to defaults?</div>
+                    <div class="faq-answer">
+                        <ol>
+                            <li>Go to the <strong>Settings</strong> page</li>
+                            <li>Scroll to the bottom</li>
+                            <li>Click <strong>"Reset to Defaults"</strong></li>
+                            <li>Confirm the action</li>
+                            <li>Click <strong>"Save Settings"</strong></li>
+                            <li>Click <strong>"Apply & Restart Bot"</strong> to apply</li>
+                        </ol>
+                        <p><strong>Default values:</strong></p>
+                        <ul>
+                            <li>EMA Period: 50</li>
+                            <li>RSI Period: 14</li>
+                            <li>Risk Per Trade: 0.25%</li>
+                            <li>Max Positions: 2</li>
+                            <li>Daily Loss Limit: $2,000</li>
+                            <li>Min Confidence: 70%</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Links -->
+            <div class="help-section">
+                <h2>Quick Links</h2>
+                <p>Need more help? Here are some useful links:</p>
+                <ul>
+                    <li><a href="/settings" class="help-link">Settings Page</a> - Configure your bot</li>
+                    <li><a href="/market-conditions" class="help-link">Market Conditions</a> - See why trades aren't triggering</li>
+                    <li><a href="/performance" class="help-link">Performance</a> - View trading statistics</li>
+                    <li><a href="/logs" class="help-link">Logs</a> - Check system logs for errors</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Mobile menu toggle
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.createElement('div');
+        overlay.className = 'overlay';
+        overlay.id = 'overlay';
+        document.body.appendChild(overlay);
+
+        function openMobileMenu() {
+            sidebar.classList.add('active');
+            overlay.classList.add('active');
+            document.body.classList.add('no-scroll');
+        }
+
+        function closeMobileMenu() {
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.classList.remove('no-scroll');
+        }
+
+        if (mobileMenuToggle) {
+            mobileMenuToggle.addEventListener('click', openMobileMenu);
+        }
+        if (overlay) {
+            overlay.addEventListener('click', closeMobileMenu);
+        }
+
+        // FAQ accordion functionality
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const faqItem = question.parentElement;
+                const isActive = faqItem.classList.contains('active');
+                
+                // Close all FAQ items
+                document.querySelectorAll('.faq-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Open clicked item if it wasn't active
+                if (!isActive) {
+                    faqItem.classList.add('active');
+                    // Smooth scroll to the opened FAQ
+                    setTimeout(() => {
+                        faqItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                }
+            });
+        });
+
+        // Search functionality
+        const searchInput = document.getElementById('helpSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                
+                if (searchTerm.length < 2) {
+                    // Show all items
+                    document.querySelectorAll('.faq-item, .help-category').forEach(item => {
+                        item.style.display = '';
+                    });
+                    return;
+                }
+                
+                // Search through questions and answers
+                document.querySelectorAll('.faq-item').forEach(item => {
+                    const question = item.querySelector('.faq-question').textContent.toLowerCase();
+                    const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
+                    const matches = question.includes(searchTerm) || answer.includes(searchTerm);
+                    item.style.display = matches ? '' : 'none';
+                });
+                
+                // Show/hide categories based on visible items
+                document.querySelectorAll('.help-category').forEach(category => {
+                    const visibleItems = category.querySelectorAll('.faq-item[style=""]').length;
+                    category.style.display = visibleItems > 0 ? '' : 'none';
+                });
+            });
+        }
+
+        // Smooth scroll for help cards
+        document.querySelectorAll('.help-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = card.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Open first FAQ in the category
+                    setTimeout(() => {
+                        const firstFaq = targetElement.querySelector('.faq-item');
+                        if (firstFaq) {
+                            firstFaq.classList.add('active');
+                        }
+                    }, 500);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

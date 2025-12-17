@@ -7,6 +7,8 @@ import asyncio
 import logging
 from aiohttp import web
 from api.rest_api import create_app, run_api
+from database.db_manager import DatabaseManager
+from config import get_config
 
 # Configure logging
 logging.basicConfig(
@@ -20,8 +22,20 @@ logger = logging.getLogger(__name__)
 async def init_app():
     """Initialize the web application."""
     try:
-        # Create app without bot instance (API-only mode)
-        app = create_app(bot_instance=None, db_manager=None)
+        config = get_config()
+        
+        # Create database manager and initialize it
+        db_manager = DatabaseManager(config)
+        logger.info("Initializing database...")
+        db_initialized = await db_manager.initialize()
+        
+        if not db_initialized:
+            logger.warning("Database initialization failed, but continuing anyway. Some features may not work.")
+        else:
+            logger.info("Database initialized successfully")
+        
+        # Create app without bot instance (API-only mode), but with database manager
+        app = create_app(bot_instance=None, db_manager=db_manager)
         logger.info("Application initialized successfully")
         return app
     except Exception as e:

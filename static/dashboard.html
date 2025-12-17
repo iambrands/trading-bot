@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Trading Bot">
     <title>Crypto Scalping Trading Bot Dashboard</title>
@@ -40,6 +41,21 @@
                 });
             }
         })();
+    </script>
+    <script>
+        // Define logout function early to prevent "logout is not defined" errors
+        window.logout = function() {
+            localStorage.removeItem('auth_token');
+            const apiBase = '/api';
+            fetch(`${apiBase}/auth/logout`, {
+                method: 'POST',
+                credentials: 'include'
+            }).catch(() => {
+                // Ignore errors, still redirect
+            }).finally(() => {
+                window.location.href = '/landing';
+            });
+        };
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
@@ -141,6 +157,12 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/help" class="nav-link" data-page="help">
+                        <span class="nav-icon"></span>
+                        <span class="nav-text">Help & FAQs</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/settings" class="nav-link" data-page="settings">
                         <span class="nav-icon"></span>
                         <span class="nav-text">Settings</span>
@@ -154,7 +176,7 @@
                 <span class="status-dot"></span>
                 <span class="status-text">Connected</span>
             </div>
-            <button class="nav-link logout-btn" onclick="logout(); return false;">
+            <button class="nav-link logout-btn" onclick="if(typeof logout === 'function') { logout(); } else { localStorage.removeItem('auth_token'); window.location.href='/landing'; } return false;">
                 <span class="nav-icon"></span>
                 <span class="nav-text">Logout</span>
             </button>
@@ -878,6 +900,18 @@
     <!-- Overlay for mobile menu -->
     <div class="overlay" id="overlay"></div>
 
+    <script src="/static/onboarding.js"></script>
     <script src="/static/dashboard.js"></script>
+    <script>
+        // Initialize onboarding when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait for dashboard to initialize
+            setTimeout(() => {
+                if (typeof initOnboarding === 'function') {
+                    initOnboarding();
+                }
+            }, 500);
+        });
+    </script>
 </body>
 </html>

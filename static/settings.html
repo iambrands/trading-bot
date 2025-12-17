@@ -484,6 +484,53 @@
                     </div>
                 </div>
 
+                <!-- Account & Security -->
+                <div class="settings-section">
+                    <h2>Account & Security</h2>
+                    <div class="form-group">
+                        <label>Account Information</label>
+                        <div style="padding: 1rem; background: var(--gray-50); border-radius: 8px; margin-bottom: 1rem;">
+                            <p style="margin: 0.5rem 0;"><strong>Email:</strong> <span id="userEmail">Loading...</span></p>
+                            <p style="margin: 0.5rem 0;"><strong>Account Created:</strong> <span id="accountCreated">Loading...</span></p>
+                        </div>
+                        <div class="form-help">Your account information (change password feature coming soon)</div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="settings-section">
+                    <h2>Quick Actions</h2>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                        <button type="button" class="btn btn-primary" onclick="window.location.href='/help'">
+                            📖 View Help & FAQs
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="if(typeof showOnboardingAgain === 'function') showOnboardingAgain()">
+                            🚀 Show Onboarding Tour
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="exportSettings()">
+                            💾 Export Settings
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="importSettings()">
+                            📥 Import Settings
+                        </button>
+                    </div>
+                </div>
+
+                <!-- System Information -->
+                <div class="settings-section">
+                    <h2>System Information</h2>
+                    <div class="form-group">
+                        <label>Bot Version & Status</label>
+                        <div style="padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                            <p style="margin: 0.5rem 0;"><strong>Bot Status:</strong> <span id="botStatus">Loading...</span></p>
+                            <p style="margin: 0.5rem 0;"><strong>Database:</strong> <span id="dbStatus">Loading...</span></p>
+                            <p style="margin: 0.5rem 0;"><strong>API Connection:</strong> <span id="apiStatus">Loading...</span></p>
+                            <p style="margin: 0.5rem 0;"><strong>Paper Trading:</strong> <span id="paperTradingStatus">Loading...</span></p>
+                        </div>
+                        <div class="form-help">System status information</div>
+                    </div>
+                </div>
+
                 <div class="settings-actions">
                     <div>
                         <button type="submit" class="btn btn-primary">Save Settings</button>

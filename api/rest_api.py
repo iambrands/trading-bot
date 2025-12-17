@@ -146,9 +146,6 @@ class TradingBotAPI:
         self.app.router.add_get('/signin', self.serve_signin)
         self.app.router.add_get('/test-runner', self.serve_test_runner)
         
-        # Test runner page
-        self.app.router.add_get('/test-runner', self.serve_test_runner)
-        
         # Authentication API endpoints (public)
         self.app.router.add_post('/api/auth/signup', self.signup)
         self.app.router.add_post('/api/auth/signin', self.signin)
@@ -167,6 +164,7 @@ class TradingBotAPI:
         self.app.router.add_get('/grid', self.serve_grid)
         self.app.router.add_get('/logs', self.serve_logs)
         self.app.router.add_get('/settings', self.serve_settings)
+        self.app.router.add_get('/help', self.serve_help)
         self.app.router.add_get('/backtest', self.serve_backtest)
         
         # Static files (if needed for additional assets)
@@ -325,7 +323,15 @@ class TradingBotAPI:
     async def get_status(self, request):
         """Get bot status and account information."""
         if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
+            # Return default status when bot is not running
+            config = self.config
+            return web.json_response({
+                'status': 'stopped',
+                'balance': config.ACCOUNT_SIZE,
+                'positions_count': 0,
+                'paper_trading': config.PAPER_TRADING,
+                'environment': config.ENVIRONMENT
+            })
         
         try:
             balance = await self.bot.exchange.get_account_balance()
@@ -345,7 +351,8 @@ class TradingBotAPI:
     async def get_positions(self, request):
         """Get active positions with current P&L."""
         if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
+            # Return empty positions when bot is not running
+            return web.json_response([])
         
         try:
             positions = []
@@ -517,7 +524,26 @@ class TradingBotAPI:
     async def get_performance(self, request):
         """Get performance metrics."""
         if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
+            # Return default performance metrics when bot is not running
+            config = self.config
+            return web.json_response({
+                'total_pnl': 0.0,
+                'daily_pnl': 0.0,
+                'roi_pct': 0.0,
+                'total_roi': 0.0,  # Also include for backward compatibility
+                'win_rate': 0.0,
+                'profit_factor': 0.0,
+                'sharpe_ratio': 0.0,
+                'max_drawdown': 0.0,
+                'total_trades': 0,
+                'winning_trades': 0,
+                'losing_trades': 0,
+                'average_win': 0.0,
+                'average_loss': 0.0,
+                'account_balance': config.ACCOUNT_SIZE,
+                'current_balance': config.ACCOUNT_SIZE,
+                'initial_balance': config.ACCOUNT_SIZE
+            })
         
         try:
             balance = await self.bot.exchange.get_account_balance()
@@ -532,7 +558,19 @@ class TradingBotAPI:
     async def get_risk(self, request):
         """Get risk exposure metrics."""
         if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
+            # Return default risk metrics when bot is not running
+            config = self.config
+            return web.json_response({
+                'total_exposure': 0.0,
+                'exposure_pct': 0.0,
+                'positions_count': 0,
+                'max_positions': config.MAX_POSITIONS,
+                'daily_pnl': 0.0,
+                'daily_loss_limit': config.DAILY_LOSS_LIMIT,
+                'daily_loss_pct': 0.0,
+                'risk_per_trade_pct': config.RISK_PER_TRADE_PCT,
+                'max_position_size_pct': config.MAX_POSITION_SIZE_PCT
+            })
         
         try:
             balance = await self.bot.exchange.get_account_balance()
@@ -765,7 +803,10 @@ class TradingBotAPI:
     async def start_bot(self, request):
         """Start trading bot."""
         if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
+            return web.json_response({
+                'error': 'Trading bot is not running. Please start the bot using: python main.py',
+                'message': 'The API server is running, but the trading bot instance is not available. Use main.py to run the full trading bot.'
+            }, status=503)
         
         try:
             if self.bot.status == 'running':
@@ -1578,9 +1619,34 @@ class TradingBotAPI:
         settings_path = os.path.join(project_root, 'static', 'settings.html')
         
         if os.path.exists(settings_path):
-            return web.FileResponse(settings_path)
+            return web.FileResponse(
+                settings_path,
+                headers={
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            )
         else:
             return await self.serve_dashboard(request)  # Fallback
+    
+    async def serve_help(self, request):
+        """Serve help page."""
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        help_path = os.path.join(project_root, 'static', 'help.html')
+        
+        if os.path.exists(help_path):
+            return web.FileResponse(
+                help_path,
+                headers={
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            )
+        else:
+            return web.Response(text='Help page not found', status=404)
     
     # Authentication endpoints
     async def signup(self, request):
