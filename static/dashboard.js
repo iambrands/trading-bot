@@ -883,12 +883,6 @@ async function updateMarketConditions() {
         }
 
         container.innerHTML = html;
-        
-        // Show AI Analysis section on Market Conditions page
-        const aiAnalysisCard = document.getElementById('aiAnalysisCard');
-        if (aiAnalysisCard) {
-            aiAnalysisCard.style.display = 'block';
-        }
     } catch (error) {
         console.error('Error updating market conditions:', error);
         container.innerHTML = `<div class="error">Error loading market conditions: ${error.message}</div>`;
