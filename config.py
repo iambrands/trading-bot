@@ -2,6 +2,7 @@
 
 import os
 from typing import List
+from urllib.parse import urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -54,11 +55,23 @@ class Config:
     LOOP_INTERVAL_SECONDS = 5  # Check every 5 seconds
     
     # Database Settings
-    DB_HOST = os.getenv('DB_HOST', 'localhost')
-    DB_PORT = int(os.getenv('DB_PORT', '5432'))
-    DB_NAME = os.getenv('DB_NAME', 'tradingbot')
-    DB_USER = os.getenv('DB_USER', 'postgres')
-    DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+    # Support DATABASE_URL (Railway, Heroku) or individual variables
+    _db_url = os.getenv('DATABASE_URL')
+    if _db_url:
+        # Parse DATABASE_URL (format: postgresql://user:password@host:port/dbname)
+        _parsed = urlparse(_db_url)
+        DB_HOST = _parsed.hostname or 'localhost'
+        DB_PORT = _parsed.port or 5432
+        DB_NAME = _parsed.path.lstrip('/') if _parsed.path else 'tradingbot'
+        DB_USER = _parsed.username or 'postgres'
+        DB_PASSWORD = _parsed.password or ''
+    else:
+        # Fallback to individual environment variables
+        DB_HOST = os.getenv('DB_HOST', 'localhost')
+        DB_PORT = int(os.getenv('DB_PORT', '5432'))
+        DB_NAME = os.getenv('DB_NAME', 'tradingbot')
+        DB_USER = os.getenv('DB_USER', 'postgres')
+        DB_PASSWORD = os.getenv('DB_PASSWORD', '')
     
     # API Server Settings
     API_HOST = '0.0.0.0'
