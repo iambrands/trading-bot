@@ -43,6 +43,21 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
+function buildAuthedUrl(path) {
+    try {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return path;
+        const url = new URL(path, window.location.origin);
+        // Only add if not already present
+        if (!url.searchParams.get('token')) {
+            url.searchParams.set('token', token);
+        }
+        return url.pathname + url.search + url.hash;
+    } catch (e) {
+        return path;
+    }
+}
+
 // Mobile Menu Toggle
 function toggleMobileMenu() {
     const sidebar = document.getElementById('sidebar');
@@ -198,11 +213,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             const page = link.dataset.page;
             // Settings and Help are standalone pages, redirect to them
             if (page === 'settings') {
-                window.location.href = '/settings';
+                window.location.href = buildAuthedUrl('/settings');
                 return;
             }
             if (page === 'help') {
-                window.location.href = '/help';
+                window.location.href = buildAuthedUrl('/help');
                 return;
             }
             e.preventDefault();
@@ -222,8 +237,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (path === '/orders') navigateToPage('orders');
     else if (path === '/grid') navigateToPage('grid');
     else if (path === '/logs') navigateToPage('logs');
-    else if (path === '/settings') window.location.href = '/settings';
-    else if (path === '/help') window.location.href = '/help';
+    else if (path === '/settings') window.location.href = buildAuthedUrl('/settings');
+    else if (path === '/help') window.location.href = buildAuthedUrl('/help');
     else navigateToPage('overview');
 
     // Initial load
@@ -241,11 +256,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 function navigateToPage(page) {
     // Settings and Help are standalone pages, redirect to them
     if (page === 'settings') {
-        window.location.href = '/settings';
+        window.location.href = buildAuthedUrl('/settings');
         return;
     }
     if (page === 'help') {
-        window.location.href = '/help';
+        window.location.href = buildAuthedUrl('/help');
         return;
     }
     
