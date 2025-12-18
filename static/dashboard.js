@@ -2,6 +2,11 @@ const API_BASE = '/api';
 let refreshInterval;
 let currentPage = 'overview';
 
+// Guard flags to prevent AI Analysis auto-refresh loops on Market Conditions page
+// (updateMarketConditions runs on the global 5s refresh interval)
+let marketAiAutoLoaded = false;
+let aiAnalysisInFlight = false;
+
 // Track previous state for change detection
 let previousPositions = [];
 let previousTrades = [];
@@ -289,6 +294,11 @@ function navigateToPage(page) {
         }
     }
     
+    // Reset AI auto-load flag when leaving market page so it can auto-run once next time
+    if (currentPage === 'market' && page !== 'market') {
+        marketAiAutoLoaded = false;
+    }
+
     currentPage = page;
     
     // Update page title
@@ -876,10 +886,14 @@ async function updateMarketConditions() {
         const aiAnalysisCard = document.getElementById('aiAnalysisCard');
         if (aiAnalysisCard) {
             aiAnalysisCard.style.display = 'block';
-            // Auto-load AI analysis when page loads
-            setTimeout(() => {
-                getAIAnalysis();
-            }, 500);
+            // Auto-load AI analysis only ONCE per visit to the Market page.
+            // Without this guard it re-runs every 5 seconds (page refresh interval).
+            if (!marketAiAutoLoaded) {
+                marketAiAutoLoaded = true;
+                setTimeout(() => {
+                    getAIAnalysis();
+                }, 500);
+            }
         }
 
         container.innerHTML = html;
@@ -2124,6 +2138,10 @@ async function getAIAnalysis() {
     if (!analysisCard || !analysisContent) return;
     
     try {
+        // Prevent concurrent runs (e.g. refresh loop + user click)
+        if (aiAnalysisInFlight) return;
+        aiAnalysisInFlight = true;
+
         analysisCard.style.display = 'block';
         analysisContent.innerHTML = '<div class="loading">Analyzing market conditions with AI...</div>';
         
@@ -2169,6 +2187,8 @@ async function getAIAnalysis() {
             <p><small>Make sure CLAUDE_API_KEY is configured in .env file</small></p>
         </div>`;
         showToast('AI analysis failed', 'error');
+    } finally {
+        aiAnalysisInFlight = false;
     }
 }
 
