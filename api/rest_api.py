@@ -250,6 +250,9 @@ class TradingBotAPI:
         
         # Available coins endpoint
         self.app.router.add_get('/api/available-coins', self.get_available_coins)
+
+        # Diagnostics (helps confirm whether deployment is API-only or full-bot)
+        self.app.router.add_get('/api/runtime', self.get_runtime_info)
         
         # Control endpoints
         self.app.router.add_post('/api/start', self.start_bot)
@@ -330,7 +333,9 @@ class TradingBotAPI:
                 'balance': config.ACCOUNT_SIZE,
                 'positions_count': 0,
                 'paper_trading': config.PAPER_TRADING,
-                'environment': config.ENVIRONMENT
+                'environment': config.ENVIRONMENT,
+                'mode': 'api-only',
+                'use_real_market_data': bool(getattr(config, 'USE_REAL_MARKET_DATA', False))
             })
         
         try:
@@ -342,10 +347,30 @@ class TradingBotAPI:
                 'balance': balance,
                 'positions_count': len(positions),
                 'paper_trading': self.bot.config.PAPER_TRADING,
-                'environment': self.bot.config.ENVIRONMENT
+                'environment': self.bot.config.ENVIRONMENT,
+                'mode': 'full-bot',
+                'use_real_market_data': bool(getattr(self.bot.config, 'USE_REAL_MARKET_DATA', False))
             })
         except Exception as e:
             logger.error(f"Error getting status: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def get_runtime_info(self, request):
+        """Return lightweight runtime diagnostics (safe to expose)."""
+        try:
+            cfg = self.config
+            return web.json_response({
+                'mode': 'full-bot' if self.bot else 'api-only',
+                'bot_attached': bool(self.bot),
+                'paper_trading': bool(getattr(cfg, 'PAPER_TRADING', False)),
+                'use_real_market_data': bool(getattr(cfg, 'USE_REAL_MARKET_DATA', False)),
+                'has_coinbase_api_key': bool(getattr(cfg, 'COINBASE_API_KEY', '')),
+                'api_host': getattr(cfg, 'API_HOST', None),
+                'api_port': getattr(cfg, 'API_PORT', None),
+                'timestamp': datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            logger.error(f"Error getting runtime info: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
     async def get_positions(self, request):
