@@ -2159,7 +2159,8 @@ class TradingBotAPI:
                 '5m': 'FIVE_MINUTE',
                 '15m': 'FIFTEEN_MINUTE',
                 '1h': 'ONE_HOUR',
-                '4h': 'FOUR_HOUR',
+                # Coinbase public candles API doesn't support 4h directly; use 6h as the closest
+                '4h': 'SIX_HOUR',
                 '1d': 'ONE_DAY'
             }
             granularity = timeframe_map.get(timeframe, 'ONE_HOUR')
@@ -2182,12 +2183,12 @@ class TradingBotAPI:
             else:
                 start_time = end_time - timedelta(hours=limit)
             
-            # Fetch candles - get_candles takes (pair, granularity, start_time, end_time, limit)
-            candles = await self.bot.exchange.get_candles(pair, granularity, start_time, end_time, limit=limit)
+            # Fetch candles (CoinbaseClient.get_candles signature: pair, granularity, start, end)
+            candles = await self.bot.exchange.get_candles(pair, granularity, start_time, end_time)
             
             # Format for charting library
             formatted_candles = []
-            for candle in candles[-limit:]:  # Take last N candles
+            for candle in (candles[-limit:] if candles else []):  # Take last N candles
                 # Get time value - handle different formats
                 time_val = 0
                 if 'time' in candle:
@@ -2228,7 +2229,8 @@ class TradingBotAPI:
             timeframe = request.query.get('timeframe', '1h')
             
             # Get current market data which includes indicators
-            market_data = await self.bot.exchange.get_market_data(pair)
+            market_data_all = await self.bot.exchange.get_market_data([pair])
+            market_data = market_data_all.get(pair, {})
             
             indicators = {
                 'price': float(market_data.get('price', 0)),
