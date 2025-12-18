@@ -23,6 +23,10 @@ async def init_app():
     """Initialize the web application."""
     try:
         config = get_config()
+
+        # If RUN_BOT=true, we boot the full TradingBot instance (initialized but not started).
+        # This is useful on Railway where Start Command / CMD selection can be confusing.
+        run_bot = os.getenv('RUN_BOT', 'false').lower() == 'true'
         
         # Create database manager and initialize it
         db_manager = DatabaseManager(config)
@@ -34,8 +38,24 @@ async def init_app():
         else:
             logger.info("Database initialized successfully")
         
-        # Create app without bot instance (API-only mode), but with database manager
-        app = create_app(bot_instance=None, db_manager=db_manager)
+        bot_instance = None
+        if run_bot:
+            try:
+                from main import TradingBot
+                bot_instance = TradingBot()
+                logger.info("RUN_BOT=true: initializing TradingBot (paper trading supported)")
+                ok = await bot_instance.initialize()
+                if not ok:
+                    logger.error("TradingBot initialization failed; continuing in API-only mode")
+                    bot_instance = None
+                else:
+                    logger.info("TradingBot initialized successfully (waiting for /api/start)")
+            except Exception as e:
+                logger.error(f"Failed to initialize TradingBot; continuing in API-only mode: {e}", exc_info=True)
+                bot_instance = None
+
+        # If we created a bot, prefer its DB manager; otherwise use the API-only db_manager.
+        app = create_app(bot_instance=bot_instance, db_manager=(getattr(bot_instance, 'db', None) or db_manager))
         logger.info("Application initialized successfully")
         return app
     except Exception as e:
