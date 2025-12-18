@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import signal
 import sys
 from datetime import datetime, timedelta
@@ -568,10 +569,14 @@ class TradingBot:
     async def run_api_server(self):
         """Run REST API server."""
         try:
-            logger.info(f"Starting API server on {self.config.API_HOST}:{self.config.API_PORT}")
+            # IMPORTANT (Railway/Heroku):
+            # Many PaaS providers require binding to the port provided via $PORT.
+            # If we bind to a fixed port (e.g. 4000), the process may be "up" but unreachable.
+            port = int(os.environ.get('PORT', self.config.API_PORT))
+            logger.info(f"Starting API server on {self.config.API_HOST}:{port}")
             from api.rest_api import create_app, run_api
             app = create_app(bot_instance=self, db_manager=self.db)
-            await run_api(app, self.config.API_HOST, self.config.API_PORT)
+            await run_api(app, self.config.API_HOST, port)
         except Exception as e:
             logger.error(f"Failed to start API server: {e}", exc_info=True)
             # Send critical error alert
