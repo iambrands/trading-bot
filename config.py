@@ -123,7 +123,10 @@ class ProductionConfig(Config):
     """Production configuration with live trading and optimized settings."""
     
     ENVIRONMENT = 'production'
-    PAPER_TRADING = False
+    # IMPORTANT:
+    # In production we default to live-trading behavior, but still allow explicitly enabling
+    # paper trading via env var (e.g. Railway demo / user testing).
+    PAPER_TRADING = os.getenv('PAPER_TRADING', 'false').lower() == 'true'
     LOG_LEVEL = 'WARNING'
     DEBUG = False
     LOOP_INTERVAL_SECONDS = 3  # Faster in production
