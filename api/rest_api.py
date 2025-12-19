@@ -272,20 +272,29 @@ class TradingBotAPI:
         if not os.path.exists(dashboard_path):
             dashboard_path = os.path.join(project_root, 'static', 'index.html')
         
-        if os.path.exists(dashboard_path):
-            return web.FileResponse(
-                dashboard_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return web.Response(
-                text=f'Dashboard not found. Please ensure static/dashboard.html or static/index.html exists.',
-                status=404
-            )
+        try:
+            if os.path.exists(dashboard_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(dashboard_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.error(f"Dashboard not found at: {dashboard_path} or {os.path.join(project_root, 'static', 'index.html')}")
+                return web.Response(
+                    text=f'Dashboard not found. Please ensure static/dashboard.html or static/index.html exists.',
+                    status=404
+                )
+        except Exception as e:
+            logger.error(f"Error serving dashboard: {e}", exc_info=True)
+            return web.Response(text=f'Error loading dashboard: {str(e)}', status=500)
     
     async def serve_market_conditions(self, request):
         """Serve market conditions page (same as dashboard with routing)."""
@@ -1578,17 +1587,26 @@ class TradingBotAPI:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         landing_path = os.path.join(project_root, 'static', 'landing.html')
         
-        if os.path.exists(landing_path):
-            return web.FileResponse(
-                landing_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return web.Response(text='Landing page not found', status=404)
+        try:
+            if os.path.exists(landing_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(landing_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.error(f"Landing page not found at: {landing_path}")
+                return web.Response(text='Landing page not found', status=404)
+        except Exception as e:
+            logger.error(f"Error serving landing page: {e}", exc_info=True)
+            return web.Response(text=f'Error loading landing page: {str(e)}', status=500)
     
     async def serve_signup(self, request):
         """Serve signup page."""
@@ -1596,17 +1614,26 @@ class TradingBotAPI:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         signup_path = os.path.join(project_root, 'static', 'signup.html')
         
-        if os.path.exists(signup_path):
-            return web.FileResponse(
-                signup_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return web.Response(text='Signup page not found', status=404)
+        try:
+            if os.path.exists(signup_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(signup_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.error(f"Signup page not found at: {signup_path}")
+                return web.Response(text='Signup page not found', status=404)
+        except Exception as e:
+            logger.error(f"Error serving signup page: {e}", exc_info=True)
+            return web.Response(text=f'Error loading signup page: {str(e)}', status=500)
     
     async def serve_signin(self, request):
         """Serve signin page."""
@@ -1614,17 +1641,26 @@ class TradingBotAPI:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         signin_path = os.path.join(project_root, 'static', 'signin.html')
         
-        if os.path.exists(signin_path):
-            return web.FileResponse(
-                signin_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return web.Response(text='Signin page not found', status=404)
+        try:
+            if os.path.exists(signin_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(signin_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.error(f"Signin page not found at: {signin_path}")
+                return web.Response(text='Signin page not found', status=404)
+        except Exception as e:
+            logger.error(f"Error serving signin page: {e}", exc_info=True)
+            return web.Response(text=f'Error loading signin page: {str(e)}', status=500)
     
     async def serve_test_runner(self, request):
         """Serve test runner page."""
@@ -1643,17 +1679,26 @@ class TradingBotAPI:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         settings_path = os.path.join(project_root, 'static', 'settings.html')
         
-        if os.path.exists(settings_path):
-            return web.FileResponse(
-                settings_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return await self.serve_dashboard(request)  # Fallback
+        try:
+            if os.path.exists(settings_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.warning(f"Settings page not found at: {settings_path}, falling back to dashboard")
+                return await self.serve_dashboard(request)  # Fallback
+        except Exception as e:
+            logger.error(f"Error serving settings page: {e}", exc_info=True)
+            return await self.serve_dashboard(request)  # Fallback on error
     
     async def serve_help(self, request):
         """Serve help page."""
@@ -1661,17 +1706,26 @@ class TradingBotAPI:
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         help_path = os.path.join(project_root, 'static', 'help.html')
         
-        if os.path.exists(help_path):
-            return web.FileResponse(
-                help_path,
-                headers={
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache',
-                    'Expires': '0'
-                }
-            )
-        else:
-            return web.Response(text='Help page not found', status=404)
+        try:
+            if os.path.exists(help_path):
+                # Read file content and serve as text to avoid FileResponse issues
+                with open(help_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                return web.Response(
+                    text=content,
+                    content_type='text/html',
+                    headers={
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
+                )
+            else:
+                logger.error(f"Help page not found at: {help_path}")
+                return web.Response(text='Help page not found', status=404)
+        except Exception as e:
+            logger.error(f"Error serving help page: {e}", exc_info=True)
+            return web.Response(text=f'Error loading help page: {str(e)}', status=500)
     
     # Authentication endpoints
     async def signup(self, request):
