@@ -1881,6 +1881,8 @@ class TradingBotAPI:
             
             from backtesting import BacktestEngine, HistoricalDataFetcher
             from datetime import datetime, timedelta
+            import asyncio
+            import concurrent.futures
             
             # Get parameters
             pair = data.get('pair', 'BTC-USD')
@@ -1889,16 +1891,28 @@ class TradingBotAPI:
             name = data.get('name', f'Backtest {pair} {days}d')
             user_id = request.get('user_id')
             
+            # Determine granularity based on days (optimize for performance)
+            # For longer backtests, use larger candles to reduce processing time
+            if days > 30:
+                granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 30+ days
+                logger.info(f"Using 15-minute candles for {days}-day backtest to optimize performance")
+            elif days > 7:
+                granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-30 days
+                logger.info(f"Using 5-minute candles for {days}-day backtest to optimize performance")
+            else:
+                granularity = data.get('granularity', 'ONE_MINUTE')  # Use 1-minute for short backtests
+            
             # Fetch historical data
             fetcher = HistoricalDataFetcher(self.config)
             start_date = datetime.utcnow() - timedelta(days=days)
             end_date = datetime.utcnow()
             
+            logger.info(f"Fetching historical data for {pair} from {start_date} to {end_date} ({days} days, {granularity})")
             candles = await fetcher.fetch_candles(
                 pair,
                 start_date,
                 end_date,
-                granularity='ONE_MINUTE'
+                granularity=granularity
             )
             
             if not candles or len(candles) < 100:
@@ -1906,9 +1920,39 @@ class TradingBotAPI:
                     'error': f'Insufficient historical data. Got {len(candles) if candles else 0} candles. Need at least 100.'
                 }, status=400)
             
-            # Run backtest
-            engine = BacktestEngine(self.config, initial_balance=initial_balance)
-            results = engine.run_backtest(candles, pair=pair)
+            logger.info(f"Fetched {len(candles)} candles. Starting backtest in background thread...")
+            
+            # Run backtest in executor to avoid blocking the event loop
+            # This is critical for long backtests that process thousands of candles
+            def run_backtest_sync():
+                """Run backtest synchronously in thread pool."""
+                try:
+                    engine = BacktestEngine(self.config, initial_balance=initial_balance)
+                    results = engine.run_backtest(candles, pair=pair)
+                    return results
+                except Exception as e:
+                    logger.error(f"Error in backtest execution: {e}", exc_info=True)
+                    raise
+            
+            # Use thread pool executor to run blocking backtest
+            loop = asyncio.get_event_loop()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                # Run with timeout based on number of candles (estimate 1ms per candle + overhead)
+                estimated_timeout = max(300, len(candles) * 0.001 + 60)  # At least 5 minutes, or estimate based on candles
+                logger.info(f"Running backtest with estimated timeout of {estimated_timeout:.0f} seconds")
+                
+                try:
+                    results = await asyncio.wait_for(
+                        loop.run_in_executor(executor, run_backtest_sync),
+                        timeout=estimated_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"Backtest timed out after {estimated_timeout:.0f} seconds")
+                    return web.json_response({
+                        'error': f'Backtest timed out after {estimated_timeout:.0f} seconds. Try using a shorter time period or larger candle granularity.'
+                    }, status=504)
+            
+            logger.info(f"Backtest completed successfully: {results['total_trades']} trades, P&L: ${results['total_pnl']:.2f}")
             
             # Save to database
             backtest_data = {
