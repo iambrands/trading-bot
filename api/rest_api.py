@@ -1918,20 +1918,31 @@ class TradingBotAPI:
             start_date = datetime.utcnow() - timedelta(days=days)
             end_date = datetime.utcnow()
             
-            logger.info(f"Fetching historical data for {pair} from {start_date} to {end_date} ({days} days, {granularity})")
-            candles = await fetcher.fetch_candles(
-                pair,
-                start_date,
-                end_date,
-                granularity=granularity
-            )
+            logger.info(f"📊 Fetching historical data for {pair} from {start_date} to {end_date} ({days} days, {granularity})")
+            try:
+                candles = await asyncio.wait_for(
+                    fetcher.fetch_candles(pair, start_date, end_date, granularity=granularity),
+                    timeout=120  # 2 minute timeout for data fetch
+                )
+                logger.info(f"✅ Successfully fetched {len(candles)} candles")
+            except asyncio.TimeoutError:
+                logger.error(f"❌ Historical data fetch timed out after 120 seconds")
+                return web.json_response({
+                    'error': 'Historical data fetch timed out. Please try a shorter time period or larger granularity.'
+                }, status=504)
+            except Exception as fetch_error:
+                logger.error(f"❌ Error fetching historical data: {fetch_error}", exc_info=True)
+                return web.json_response({
+                    'error': f'Failed to fetch historical data: {str(fetch_error)}'
+                }, status=500)
             
             if not candles or len(candles) < 100:
+                logger.warning(f"⚠️ Insufficient historical data: got {len(candles) if candles else 0} candles, need at least 100")
                 return web.json_response({
                     'error': f'Insufficient historical data. Got {len(candles) if candles else 0} candles. Need at least 100.'
                 }, status=400)
             
-            logger.info(f"Fetched {len(candles)} candles. Starting backtest in background thread...")
+            logger.info(f"🔄 Fetched {len(candles)} candles. Starting backtest processing...")
             
             # Run backtest in executor to avoid blocking the event loop
             # This is critical for long backtests that process thousands of candles
