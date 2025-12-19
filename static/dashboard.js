@@ -1636,14 +1636,21 @@ async function runBacktest(event) {
                 // Handle both result.results and result.backtest formats
                 const backtestResults = result.results || result.backtest;
                 if (backtestResults) {
+                    console.log('Backtest completed successfully:', backtestResults);
                     // Only update UI if we're still on the backtest page
                     if (currentPage === 'backtest') {
                         displayBacktestResults(backtestResults);
                         showToast('Backtest completed successfully!', 'success');
                     }
+                } else {
+                    console.warn('Backtest completed but no results in response:', result);
+                    // Still refresh the list to see if it was saved
+                    if (currentPage === 'backtest') {
+                        showToast('Backtest completed but no results returned. Check the backtest list below.', 'warning');
+                    }
                 }
                 
-                // Always refresh the list
+                // Always refresh the list to show saved backtests
                 await loadBacktestList();
             } else {
                 throw new Error(result.error || 'Backtest failed');

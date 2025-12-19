@@ -1970,12 +1970,21 @@ class TradingBotAPI:
                 'profit_factor': results['profit_factor'],
                 'max_drawdown': results['max_drawdown'],
                 'roi_pct': results['roi_pct'],
-                'results': results
+                'results': results  # Store full results for detailed view
             }
+            
+            # Extract additional fields from results for display
+            backtest_data['avg_win'] = results.get('avg_win', 0)
+            backtest_data['avg_loss'] = results.get('avg_loss', 0)
+            backtest_data['sharpe_ratio'] = results.get('performance', {}).get('sharpe_ratio', 0) if isinstance(results.get('performance'), dict) else 0
+            backtest_data['gross_profit'] = sum(t.get('pnl', 0) for t in results.get('trades', []) if t.get('pnl', 0) > 0)
             
             if self.db_manager:
                 backtest_id = await self.db_manager.save_backtest(backtest_data, user_id)
                 backtest_data['id'] = backtest_id
+                logger.info(f"Backtest saved to database with ID: {backtest_id}")
+            else:
+                logger.warning("Database manager not available, backtest not saved to database")
             
             # Format results for JSON (convert datetime objects)
             formatted_results = self._format_backtest_results(backtest_data)
