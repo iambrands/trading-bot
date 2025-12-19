@@ -1903,14 +1903,14 @@ class TradingBotAPI:
             # Determine granularity based on days (optimize for performance)
             # For longer backtests, use larger candles to reduce processing time
             # This is CRITICAL to avoid timeouts and container kills
-            if days > 30:
+            if days >= 30:
                 granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 30+ days
                 logger.info(f"⚡ Using 15-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 4} candles)")
-            elif days > 7:
+            elif days >= 7:
                 granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-30 days
                 logger.info(f"⚡ Using 5-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 12} candles)")
             else:
-                granularity = 'ONE_MINUTE'  # 1-minute candles for short backtests (1-7 days)
+                granularity = 'ONE_MINUTE'  # 1-minute candles for short backtests (1-6 days)
                 logger.info(f"Using 1-minute candles for {days}-day backtest (~{days * 24 * 60} candles)")
             
             # Fetch historical data
