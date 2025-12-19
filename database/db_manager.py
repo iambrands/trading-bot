@@ -510,6 +510,10 @@ class DatabaseManager:
             logger.info(f"Saving backtest to database: name={backtest_data.get('name')}, user_id={user_id}, pair={backtest_data.get('pair')}")
             
             async with self.pool.acquire() as conn:
+                # If user_id is None, try to use a default or allow NULL (check schema first)
+                # Log what we're about to insert
+                logger.info(f"Inserting backtest with user_id={user_id} (type: {type(user_id)})")
+                
                 backtest_id = await conn.fetchval("""
                     INSERT INTO backtests (
                         user_id, name, pair, start_date, end_date,
@@ -519,7 +523,7 @@ class DatabaseManager:
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                     RETURNING id
                 """,
-                    user_id,  # Can be None, but database should handle it
+                    user_id,  # If None, will be NULL in database
                     backtest_data.get('name'),
                     backtest_data.get('pair'),
                     backtest_data.get('start_date'),
