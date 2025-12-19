@@ -1468,7 +1468,9 @@ async function loadBacktestList() {
         }
         
         const data = await fetchAPI('/backtest/list');
+        console.log('Backtest list API response:', data);
         if (!data || !data.backtests) {
+            console.warn('No backtest data received:', data);
             // Only show empty state if we don't have cached data
             if (!isShowingData) {
                 container.innerHTML = '<div class="empty-state">No backtests yet. Run your first backtest above!</div>';
