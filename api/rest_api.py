@@ -2021,14 +2021,22 @@ class TradingBotAPI:
     
     async def list_backtests(self, request):
         """List all backtests for the current user."""
-        if not self.db_manager:
-            return web.json_response({'error': 'Database not initialized'}, status=500)
-        
         try:
             user_id = request.get('user_id')
+            logger.info(f"Listing backtests for user_id: {user_id}")
+            
+            if not self.db_manager:
+                logger.error("Database manager not available for list_backtests")
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
+            if not self.db_manager.initialized:
+                logger.error("Database manager not initialized for list_backtests")
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
             limit = int(request.query.get('limit', 20))
             
             backtests = await self.db_manager.get_backtests(user_id, limit)
+            logger.info(f"Retrieved {len(backtests)} backtests from database for user_id: {user_id}")
             
             # Format for JSON
             formatted_backtests = []
@@ -2036,6 +2044,7 @@ class TradingBotAPI:
                 formatted = self._format_backtest_results(bt)
                 formatted_backtests.append(formatted)
             
+            logger.info(f"Returning {len(formatted_backtests)} formatted backtests")
             return web.json_response({'backtests': formatted_backtests})
             
         except Exception as e:
