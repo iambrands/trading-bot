@@ -503,10 +503,12 @@ class DatabaseManager:
     async def save_backtest(self, backtest_data: Dict[str, Any], user_id: Optional[int] = None) -> Optional[int]:
         """Save backtest results to database."""
         if not self.initialized or not self.pool:
-            logger.warning("Database not initialized, skipping backtest save")
+            logger.error(f"❌ Database not initialized or pool is None. initialized={self.initialized}, pool={self.pool is not None}")
             return None
         
         try:
+            logger.info(f"Saving backtest to database: name={backtest_data.get('name')}, user_id={user_id}, pair={backtest_data.get('pair')}")
+            
             async with self.pool.acquire() as conn:
                 backtest_id = await conn.fetchval("""
                     INSERT INTO backtests (
@@ -517,7 +519,7 @@ class DatabaseManager:
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
                     RETURNING id
                 """,
-                    user_id,
+                    user_id,  # Can be None, but database should handle it
                     backtest_data.get('name'),
                     backtest_data.get('pair'),
                     backtest_data.get('start_date'),
@@ -534,10 +536,16 @@ class DatabaseManager:
                     backtest_data.get('roi_pct'),
                     json.dumps(backtest_data.get('results', {}))
                 )
-                logger.debug(f"Saved backtest {backtest_id} to database")
+                
+                if backtest_id:
+                    logger.info(f"✅ Successfully saved backtest {backtest_id} to database (user_id: {user_id})")
+                else:
+                    logger.error(f"❌ INSERT returned None - backtest NOT saved (user_id: {user_id})")
+                
                 return backtest_id
         except Exception as e:
-            logger.error(f"Failed to save backtest: {e}", exc_info=True)
+            logger.error(f"❌ Exception saving backtest to database: {e}", exc_info=True)
+            logger.error(f"   user_id: {user_id}, name: {backtest_data.get('name')}, pair: {backtest_data.get('pair')}")
             return None
     
     async def get_backtests(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:

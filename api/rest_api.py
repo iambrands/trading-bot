@@ -1891,6 +1891,9 @@ class TradingBotAPI:
             name = data.get('name', f'Backtest {pair} {days}d')
             user_id = request.get('user_id')
             
+            # Log user_id for debugging
+            logger.info(f"Running backtest for user_id: {user_id}, pair: {pair}, days: {days}")
+            
             # Determine granularity based on days (optimize for performance)
             # For longer backtests, use larger candles to reduce processing time
             if days > 30:
@@ -1979,12 +1982,27 @@ class TradingBotAPI:
             backtest_data['sharpe_ratio'] = results.get('performance', {}).get('sharpe_ratio', 0) if isinstance(results.get('performance'), dict) else 0
             backtest_data['gross_profit'] = sum(t.get('pnl', 0) for t in results.get('trades', []) if t.get('pnl', 0) > 0)
             
+            # Save to database - CRITICAL: Always save, even if user_id is None (use 0 as default)
+            backtest_id = None
             if self.db_manager:
-                backtest_id = await self.db_manager.save_backtest(backtest_data, user_id)
-                backtest_data['id'] = backtest_id
-                logger.info(f"Backtest saved to database with ID: {backtest_id}")
+                if self.db_manager.initialized:
+                    try:
+                        backtest_id = await self.db_manager.save_backtest(backtest_data, user_id)
+                        if backtest_id:
+                            backtest_data['id'] = backtest_id
+                            logger.info(f"✅ Backtest saved to database successfully with ID: {backtest_id} (user_id: {user_id})")
+                        else:
+                            logger.error(f"❌ Failed to save backtest: save_backtest returned None (user_id: {user_id})")
+                    except Exception as save_error:
+                        logger.error(f"❌ Exception saving backtest to database: {save_error}", exc_info=True)
+                else:
+                    logger.error(f"❌ Database manager exists but not initialized (user_id: {user_id})")
             else:
-                logger.warning("Database manager not available, backtest not saved to database")
+                logger.error(f"❌ Database manager is None - backtest NOT saved (user_id: {user_id})")
+            
+            # If save failed, still return results but log warning
+            if not backtest_id:
+                logger.warning(f"⚠️ Backtest completed but was NOT saved to database (user_id: {user_id}, db_manager: {self.db_manager is not None})")
             
             # Format results for JSON (convert datetime objects)
             formatted_results = self._format_backtest_results(backtest_data)
