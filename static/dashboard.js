@@ -1479,10 +1479,9 @@ async function loadBacktestList() {
         }
         
         if (data.backtests.length === 0) {
-            // Only show empty state if we don't have cached data
-            if (!isShowingData) {
-                container.innerHTML = '<div class="empty-state">No backtests yet. Run your first backtest above!</div>';
-            }
+            // Show empty state
+            container.innerHTML = '<div class="empty-state">No backtests yet. Run your first backtest above!</div>';
+            console.log('No backtests found in database');
             return;
         }
         
