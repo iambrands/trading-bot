@@ -1876,8 +1876,14 @@ class TradingBotAPI:
     # Backtesting endpoints
     async def run_backtest(self, request):
         """Run a backtest with specified parameters."""
+        logger.info("=" * 80)
+        logger.info("🔥 BACKTEST RUN REQUEST RECEIVED 🔥")
+        logger.info(f"Request method: {request.method}, path: {request.path}")
+        logger.info("=" * 80)
+        
         try:
             data = await request.json()
+            logger.info(f"Backtest request data: {data}")
             
             from backtesting import BacktestEngine, HistoricalDataFetcher
             from datetime import datetime, timedelta
@@ -1892,7 +1898,7 @@ class TradingBotAPI:
             user_id = request.get('user_id')
             
             # Log user_id for debugging
-            logger.info(f"Running backtest for user_id: {user_id}, pair: {pair}, days: {days}")
+            logger.info(f"🔵 Starting backtest: user_id={user_id}, pair={pair}, days={days}, name={name}, balance=${initial_balance}")
             
             # Determine granularity based on days (optimize for performance)
             # For longer backtests, use larger candles to reduce processing time
