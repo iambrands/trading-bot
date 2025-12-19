@@ -1600,6 +1600,14 @@ async function runBacktest(event) {
     // Run backtest in background - don't block on navigation
     runningBacktestPromise = (async () => {
         try {
+            const requestBody = {
+                pair,
+                days,
+                initial_balance: balance,
+                name
+            };
+            console.log('🚀 Sending backtest request to:', `${API_BASE}/backtest/run`, requestBody);
+            
             const response = await fetch(`${API_BASE}/backtest/run`, {
                 method: 'POST',
                 headers: {
@@ -1607,13 +1615,10 @@ async function runBacktest(event) {
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
                 },
                 credentials: 'include',
-                body: JSON.stringify({
-                    pair,
-                    days,
-                    initial_balance: balance,
-                    name
-                })
+                body: JSON.stringify(requestBody)
             });
+            
+            console.log('📡 Backtest response status:', response.status, response.statusText);
             
             // Only process if this is still the current backtest
             if (runningBacktestId !== thisBacktestId) {
@@ -1658,7 +1663,12 @@ async function runBacktest(event) {
             }
             
         } catch (error) {
-            console.error('Backtest error:', error);
+            console.error('❌ Backtest error:', error);
+            console.error('❌ Error details:', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
             
             // Clear running backtest flag on error
             try {
@@ -1672,7 +1682,7 @@ async function runBacktest(event) {
                 // Show error in results card
                 if (resultsCard && content) {
                     resultsCard.style.display = 'block';
-                    content.innerHTML = `<div class="error" style="padding: 2rem; text-align: center;">Backtest failed: ${escapeHtml(error.message)}</div>`;
+                    content.innerHTML = `<div class="error" style="padding: 2rem; text-align: center;">Backtest failed: ${escapeHtml(error.message)}<br><small>Check browser console (F12) for details</small></div>`;
                 }
             }
         } finally {
