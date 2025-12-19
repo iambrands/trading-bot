@@ -1957,11 +1957,14 @@ class TradingBotAPI:
                     raise
             
             # Use thread pool executor to run blocking backtest
+            # CRITICAL: Railway HTTP timeout is ~30-60 seconds, so we need to complete faster
             loop = asyncio.get_event_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                # Run with timeout based on number of candles (estimate 1ms per candle + overhead)
-                estimated_timeout = max(300, len(candles) * 0.001 + 60)  # At least 5 minutes, or estimate based on candles
-                logger.info(f"Running backtest with estimated timeout of {estimated_timeout:.0f} seconds")
+                # Calculate timeout: cap at 25 seconds to stay under Railway's HTTP timeout
+                # Estimate ~0.0005 seconds per candle (0.5ms), but cap total time
+                candle_processing_time = len(candles) * 0.0005  # 0.5ms per candle
+                estimated_timeout = min(25, max(10, candle_processing_time + 5))  # 10-25 seconds max
+                logger.info(f"⏱️ Running backtest with timeout of {estimated_timeout:.1f} seconds (Railway HTTP timeout protection)")
                 
                 try:
                     results = await asyncio.wait_for(
@@ -1969,9 +1972,9 @@ class TradingBotAPI:
                         timeout=estimated_timeout
                     )
                 except asyncio.TimeoutError:
-                    logger.error(f"Backtest timed out after {estimated_timeout:.0f} seconds")
+                    logger.error(f"❌ Backtest timed out after {estimated_timeout:.1f} seconds (Railway HTTP timeout)")
                     return web.json_response({
-                        'error': f'Backtest timed out after {estimated_timeout:.0f} seconds. Try using a shorter time period or larger candle granularity.'
+                        'error': f'Backtest timed out after {estimated_timeout:.1f} seconds. Railway has a 30-60 second HTTP timeout. Try using a shorter time period (1-3 days) or the system will use optimized granularity automatically.'
                     }, status=504)
             
             logger.info(f"Backtest completed successfully: {results['total_trades']} trades, P&L: ${results['total_pnl']:.2f}")
