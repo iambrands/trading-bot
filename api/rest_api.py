@@ -2005,7 +2005,11 @@ class TradingBotAPI:
             backtest_data['sharpe_ratio'] = results.get('performance', {}).get('sharpe_ratio', 0) if isinstance(results.get('performance'), dict) else 0
             backtest_data['gross_profit'] = sum(t.get('pnl', 0) for t in results.get('trades', []) if t.get('pnl', 0) > 0)
             
-            logger.info(f"💾 Backtest data prepared. db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}, user_id={user_id}")
+            # CRITICAL: Sanitize Infinity/NaN values BEFORE saving to database (JSON serialization)
+            logger.info(f"🧹 Sanitizing backtest data (converting Infinity/NaN to None)")
+            backtest_data = self._sanitize_dict(backtest_data)
+            
+            logger.info(f"💾 Backtest data prepared and sanitized. db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}, user_id={user_id}")
             
             # Save to database - CRITICAL: Always save, even if user_id is None (use 0 as default)
             backtest_id = None
