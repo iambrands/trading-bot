@@ -507,12 +507,35 @@ class DatabaseManager:
             return None
         
         try:
-            logger.info(f"Saving backtest to database: name={backtest_data.get('name')}, user_id={user_id}, pair={backtest_data.get('pair')}")
+            logger.info(f"💾💾💾 save_backtest called: name={backtest_data.get('name')}, user_id={user_id}, pair={backtest_data.get('pair')}")
             
             async with self.pool.acquire() as conn:
-                # If user_id is None, try to use a default or allow NULL (check schema first)
-                # Log what we're about to insert
-                logger.info(f"Inserting backtest with user_id={user_id} (type: {type(user_id)})")
+                logger.info(f"💾💾💾 Database connection acquired. About to INSERT backtest with user_id={user_id} (type: {type(user_id)})")
+                
+                # Serialize results to JSON, handling any Infinity/NaN that might have slipped through
+                results_json = backtest_data.get('results', {})
+                try:
+                    results_json_str = json.dumps(results_json)
+                    logger.info(f"💾💾💾 Successfully serialized results to JSON (length: {len(results_json_str)})")
+                except (ValueError, TypeError) as json_error:
+                    logger.error(f"❌❌❌ Failed to serialize results to JSON: {json_error}")
+                    logger.error(f"   results type: {type(results_json)}, keys: {list(results_json.keys()) if isinstance(results_json, dict) else 'N/A'}")
+                    # Try to sanitize and retry
+                    def sanitize_for_json(obj):
+                        if isinstance(obj, float):
+                            if obj == float('inf') or obj == float('-inf'):
+                                return None
+                            if obj != obj:  # NaN
+                                return None
+                            return obj
+                        elif isinstance(obj, dict):
+                            return {k: sanitize_for_json(v) for k, v in obj.items()}
+                        elif isinstance(obj, list):
+                            return [sanitize_for_json(item) for item in obj]
+                        return obj
+                    results_json = sanitize_for_json(results_json)
+                    results_json_str = json.dumps(results_json)
+                    logger.info(f"💾💾💾 Successfully serialized after sanitization (length: {len(results_json_str)})")
                 
                 backtest_id = await conn.fetchval("""
                     INSERT INTO backtests (
@@ -538,18 +561,20 @@ class DatabaseManager:
                     backtest_data.get('profit_factor'),
                     backtest_data.get('max_drawdown'),
                     backtest_data.get('roi_pct'),
-                    json.dumps(backtest_data.get('results', {}))
+                    results_json_str  # Use the already-serialized JSON string
                 )
                 
                 if backtest_id:
-                    logger.info(f"✅ Successfully saved backtest {backtest_id} to database (user_id: {user_id})")
+                    logger.info(f"✅✅✅✅✅✅ BACKTEST SAVED TO DATABASE! ID: {backtest_id}, user_id: {user_id}, name: {backtest_data.get('name')}")
                 else:
-                    logger.error(f"❌ INSERT returned None - backtest NOT saved (user_id: {user_id})")
+                    logger.error(f"❌❌❌❌❌❌ INSERT RETURNED NONE - backtest NOT saved (user_id: {user_id}, name: {backtest_data.get('name')})")
                 
                 return backtest_id
         except Exception as e:
-            logger.error(f"❌ Exception saving backtest to database: {e}", exc_info=True)
+            logger.error(f"❌❌❌❌❌❌ EXCEPTION IN save_backtest: {e}", exc_info=True)
             logger.error(f"   user_id: {user_id}, name: {backtest_data.get('name')}, pair: {backtest_data.get('pair')}")
+            import traceback
+            logger.error(f"   Full traceback: {traceback.format_exc()}")
             return None
     
     async def get_backtests(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
