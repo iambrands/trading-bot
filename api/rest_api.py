@@ -2094,7 +2094,7 @@ class TradingBotAPI:
             return web.json_response({'error': str(e)}, status=500)
     
     def _format_backtest_results(self, backtest_data: Dict) -> Dict:
-        """Format backtest results for JSON response (handle datetime objects)."""
+        """Format backtest results for JSON response (handle datetime objects, Infinity, NaN)."""
         formatted = dict(backtest_data)
         
         # Convert datetime objects to ISO strings
@@ -2102,6 +2102,27 @@ class TradingBotAPI:
             if key in formatted and formatted[key]:
                 if hasattr(formatted[key], 'isoformat'):
                     formatted[key] = formatted[key].isoformat()
+        
+        # Convert Infinity and NaN to JSON-safe values
+        def sanitize_value(value):
+            """Convert Infinity/NaN to JSON-safe values."""
+            if isinstance(value, float):
+                if value == float('inf') or value == float('-inf'):
+                    return None  # or 999999.0 if you prefer a large number
+                if value != value:  # NaN check
+                    return None
+            return value
+        
+        # Sanitize all numeric values in the top-level dict
+        for key, value in formatted.items():
+            if isinstance(value, (int, float)):
+                formatted[key] = sanitize_value(value)
+            elif isinstance(value, dict):
+                # Recursively sanitize dict values
+                formatted[key] = self._sanitize_dict(value)
+            elif isinstance(value, list):
+                # Sanitize list items
+                formatted[key] = [self._sanitize_dict(item) if isinstance(item, dict) else sanitize_value(item) if isinstance(item, (int, float)) else item for item in value]
         
         # Format results dictionary if it exists
         if 'results' in formatted and isinstance(formatted['results'], dict):
@@ -2112,16 +2133,43 @@ class TradingBotAPI:
                 for point in results['equity_curve']:
                     if 'timestamp' in point and hasattr(point['timestamp'], 'isoformat'):
                         point['timestamp'] = point['timestamp'].isoformat()
+                    # Sanitize numeric values
+                    for k, v in point.items():
+                        if isinstance(v, (int, float)):
+                            point[k] = sanitize_value(v)
             
-            # Format trade timestamps
+            # Format trade timestamps and sanitize values
             if 'trades' in results:
                 for trade in results['trades']:
                     for time_key in ['entry_time', 'exit_time']:
                         if time_key in trade and trade[time_key]:
                             if hasattr(trade[time_key], 'isoformat'):
                                 trade[time_key] = trade[time_key].isoformat()
+                    # Sanitize all numeric values in trades
+                    for k, v in trade.items():
+                        if isinstance(v, (int, float)):
+                            trade[k] = sanitize_value(v)
         
         return formatted
+    
+    def _sanitize_dict(self, d: Dict) -> Dict:
+        """Recursively sanitize a dictionary, converting Infinity/NaN to None."""
+        result = {}
+        for key, value in d.items():
+            if isinstance(value, float):
+                if value == float('inf') or value == float('-inf'):
+                    result[key] = None
+                elif value != value:  # NaN
+                    result[key] = None
+                else:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result[key] = self._sanitize_dict(value)
+            elif isinstance(value, list):
+                result[key] = [self._sanitize_dict(item) if isinstance(item, dict) else (None if isinstance(item, float) and (item != item or item == float('inf') or item == float('-inf')) else item) for item in value]
+            else:
+                result[key] = value
+        return result
     
     # AI Endpoints
     async def ai_analyze_market(self, request):
