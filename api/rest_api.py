@@ -1930,19 +1930,26 @@ class TradingBotAPI:
             end_date = datetime.utcnow()
             
             logger.info(f"📊 Fetching historical data for {pair} from {start_date} to {end_date} ({days} days, {granularity})")
+            logger.info(f"📊 About to call fetcher.fetch_candles() with timeout=120s")
+            fetch_start_time = datetime.utcnow()
             try:
                 candles = await asyncio.wait_for(
                     fetcher.fetch_candles(pair, start_date, end_date, granularity=granularity),
                     timeout=120  # 2 minute timeout for data fetch
                 )
-                logger.info(f"✅ Successfully fetched {len(candles)} candles")
+                fetch_duration = (datetime.utcnow() - fetch_start_time).total_seconds()
+                logger.info(f"✅ Successfully fetched {len(candles)} candles in {fetch_duration:.2f} seconds")
             except asyncio.TimeoutError:
-                logger.error(f"❌ Historical data fetch timed out after 120 seconds")
+                fetch_duration = (datetime.utcnow() - fetch_start_time).total_seconds()
+                logger.error(f"❌❌❌ Historical data fetch timed out after 120 seconds (actual wait: {fetch_duration:.2f}s)")
                 return web.json_response({
                     'error': 'Historical data fetch timed out. Please try a shorter time period or larger granularity.'
                 }, status=504)
             except Exception as fetch_error:
-                logger.error(f"❌ Error fetching historical data: {fetch_error}", exc_info=True)
+                fetch_duration = (datetime.utcnow() - fetch_start_time).total_seconds()
+                logger.error(f"❌❌❌ Error fetching historical data after {fetch_duration:.2f}s: {fetch_error}", exc_info=True)
+                import traceback
+                logger.error(f"   Full traceback: {traceback.format_exc()}")
                 return web.json_response({
                     'error': f'Failed to fetch historical data: {str(fetch_error)}'
                 }, status=500)
