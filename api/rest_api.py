@@ -2067,6 +2067,10 @@ class TradingBotAPI:
             # Format results for JSON (convert datetime objects)
             formatted_results = self._format_backtest_results(backtest_data)
             
+            # Final log before returning response
+            logger.info(f"📤📤📤 RETURNING BACKTEST RESPONSE: success=True, backtest_id={backtest_data.get('id')}, user_id={user_id}, saved={backtest_id is not None}")
+            logger.info(f"📤 Results summary: {formatted_results.get('total_trades', 0)} trades, P&L: ${formatted_results.get('total_pnl', 0):.2f}")
+            
             return web.json_response({
                 'success': True,
                 'backtest_id': backtest_data.get('id'),
