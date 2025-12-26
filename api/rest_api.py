@@ -1877,10 +1877,13 @@ class TradingBotAPI:
     async def run_backtest(self, request):
         """Run a backtest with specified parameters."""
         logger.info("=" * 80)
+        logger.info("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
         logger.info("🔥 BACKTEST RUN REQUEST RECEIVED 🔥")
         logger.info(f"Request method: {request.method}, path: {request.path}")
         logger.info(f"Request headers: {dict(request.headers)}")
         logger.info(f"Request content_type: {request.content_type}")
+        logger.info(f"User ID from request: {request.get('user_id')} (type: {type(request.get('user_id'))})")
+        logger.info("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
         logger.info("=" * 80)
         
         try:
