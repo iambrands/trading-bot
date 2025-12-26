@@ -2033,21 +2033,25 @@ class TradingBotAPI:
             
             logger.info(f"💾 Backtest data prepared and sanitized. db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}, user_id={user_id}")
             
-            # Save to database - CRITICAL: Always save, even if user_id is None (use 0 as default)
+            # Save to database - CRITICAL: Log user_id at every step for debugging
+            logger.info(f"🔍🔍🔍 PRE-SAVE CHECK: user_id={user_id} (type: {type(user_id)}), db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}")
+            
             backtest_id = None
             if self.db_manager:
                 if self.db_manager.initialized:
                     try:
-                        logger.info(f"💾 Calling save_backtest with user_id={user_id}, name={name}")
+                        logger.info(f"💾💾💾 Calling save_backtest with user_id={user_id}, name={name}, pair={pair}")
                         backtest_id = await self.db_manager.save_backtest(backtest_data, user_id)
-                        logger.info(f"💾 save_backtest returned: {backtest_id}")
+                        logger.info(f"💾💾💾 save_backtest returned: {backtest_id} (type: {type(backtest_id)})")
                         if backtest_id:
                             backtest_data['id'] = backtest_id
-                            logger.info(f"✅✅✅ BACKTEST SAVED SUCCESSFULLY! ID: {backtest_id}, user_id: {user_id}, name: {name}")
+                            logger.info(f"✅✅✅✅✅✅✅✅✅✅✅✅ BACKTEST SAVED SUCCESSFULLY! ID: {backtest_id}, user_id: {user_id}, name: {name}, pair: {pair}")
                         else:
-                            logger.error(f"❌❌❌ FAILED TO SAVE BACKTEST: save_backtest returned None (user_id: {user_id}, name: {name})")
+                            logger.error(f"❌❌❌❌❌❌ FAILED TO SAVE BACKTEST: save_backtest returned None (user_id: {user_id}, name: {name}, pair: {pair})")
                     except Exception as save_error:
-                        logger.error(f"❌❌❌ EXCEPTION SAVING BACKTEST: {save_error}", exc_info=True)
+                        logger.error(f"❌❌❌❌❌❌ EXCEPTION SAVING BACKTEST: {save_error}", exc_info=True)
+                        import traceback
+                        logger.error(f"Full traceback: {traceback.format_exc()}")
                 else:
                     logger.error(f"❌❌❌ Database manager exists but NOT INITIALIZED (user_id: {user_id})")
             else:
@@ -2074,7 +2078,7 @@ class TradingBotAPI:
         """List all backtests for the current user."""
         try:
             user_id = request.get('user_id')
-            logger.info(f"Listing backtests for user_id: {user_id}")
+            logger.info(f"🔍🔍🔍 LIST BACKTESTS: user_id={user_id} (type: {type(user_id)}), db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}")
             
             if not self.db_manager:
                 logger.error("Database manager not available for list_backtests")
@@ -2086,8 +2090,12 @@ class TradingBotAPI:
             
             limit = int(request.query.get('limit', 20))
             
+            # Log before and after query
+            logger.info(f"🔍 Querying database for backtests: user_id={user_id}, limit={limit}")
             backtests = await self.db_manager.get_backtests(user_id, limit)
-            logger.info(f"Retrieved {len(backtests)} backtests from database for user_id: {user_id}")
+            logger.info(f"🔍🔍🔍 Retrieved {len(backtests)} backtests from database for user_id: {user_id}")
+            if len(backtests) == 0:
+                logger.warning(f"⚠️⚠️⚠️ NO BACKTESTS FOUND for user_id: {user_id} - This might mean backtests were saved with a different user_id or NULL")
             
             # Format for JSON
             formatted_backtests = []

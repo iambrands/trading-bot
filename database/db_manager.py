@@ -580,23 +580,29 @@ class DatabaseManager:
     async def get_backtests(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
         """Get recent backtests."""
         if not self.initialized or not self.pool:
+            logger.warning(f"🔍 get_backtests: Database not initialized (user_id: {user_id})")
             return []
         
         try:
             async with self.pool.acquire() as conn:
+                # IMPORTANT: If user_id is provided, also check for NULL user_id backtests
+                # This handles cases where backtests were saved before user_id was properly set
                 if user_id:
                     rows = await conn.fetch("""
                         SELECT * FROM backtests
-                        WHERE user_id = $1
+                        WHERE user_id = $1 OR user_id IS NULL
                         ORDER BY created_at DESC
                         LIMIT $2
                     """, user_id, limit)
+                    logger.info(f"🔍 get_backtests: Querying with user_id={user_id} (including NULL backtests), found {len(rows)} rows")
                 else:
                     rows = await conn.fetch("""
                         SELECT * FROM backtests
+                        WHERE user_id IS NULL
                         ORDER BY created_at DESC
                         LIMIT $1
                     """, limit)
+                    logger.info(f"🔍 get_backtests: Querying for NULL user_id backtests, found {len(rows)} rows")
                 
                 results = []
                 for row in rows:
