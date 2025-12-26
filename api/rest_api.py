@@ -1879,6 +1879,8 @@ class TradingBotAPI:
         logger.info("=" * 80)
         logger.info("🔥 BACKTEST RUN REQUEST RECEIVED 🔥")
         logger.info(f"Request method: {request.method}, path: {request.path}")
+        logger.info(f"Request headers: {dict(request.headers)}")
+        logger.info(f"Request content_type: {request.content_type}")
         logger.info("=" * 80)
         
         try:
@@ -1967,12 +1969,14 @@ class TradingBotAPI:
             loop = asyncio.get_event_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
                 # Calculate timeout: cap at 28 seconds to stay under Railway's HTTP timeout (30s)
-                # Estimate ~0.0015 seconds per candle (1.5ms) - more realistic for scalping with indicators
+                # Estimate ~0.002 seconds per candle (2ms) - conservative for scalping with indicators
                 # Scalping strategies process each candle with multiple indicators (RSI, EMA, volume), so it's slower
-                candle_processing_time = len(candles) * 0.0015  # 1.5ms per candle (more realistic)
-                estimated_timeout = min(28, max(10, candle_processing_time + 8))  # 10-28 seconds max
+                # For 1-minute candles, each candle requires full indicator recalculation
+                candle_processing_time = len(candles) * 0.002  # 2ms per candle (conservative estimate)
+                estimated_timeout = min(28, max(15, candle_processing_time + 10))  # 15-28 seconds max (increased buffer)
                 logger.info(f"⏱️ Running backtest with timeout of {estimated_timeout:.1f} seconds (Railway HTTP timeout protection)")
-                logger.info(f"   Processing {len(candles)} candles at ~1.5ms per candle (estimated {candle_processing_time:.1f}s)")
+                logger.info(f"   Processing {len(candles)} candles at ~2ms per candle (estimated {candle_processing_time:.1f}s)")
+                logger.info(f"   Timeout buffer: +10s safety margin (total: {estimated_timeout:.1f}s)")
                 
                 try:
                     results = await asyncio.wait_for(

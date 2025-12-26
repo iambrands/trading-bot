@@ -1607,18 +1607,39 @@ async function runBacktest(event) {
                 name
             };
             console.log('🚀 Sending backtest request to:', `${API_BASE}/backtest/run`, requestBody);
+            console.log('🚀 Auth token exists:', !!localStorage.getItem('auth_token'));
             
-            const response = await fetch(`${API_BASE}/backtest/run`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                },
-                credentials: 'include',
-                body: JSON.stringify(requestBody)
-            });
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
             
-            console.log('📡 Backtest response status:', response.status, response.statusText);
+            let response;
+            try {
+                response = await fetch(`${API_BASE}/backtest/run`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId); // Clear timeout if request succeeds
+                console.log('📡 Backtest response received - status:', response.status, response.statusText);
+                console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+            } catch (fetchError) {
+                clearTimeout(timeoutId); // Clear timeout on error
+                console.error('❌❌❌ FETCH ERROR (network/connection):', fetchError);
+                if (fetchError.name === 'AbortError') {
+                    throw new Error('Backtest request timed out after 60 seconds. The server may be processing a long backtest. Please try a shorter period (1-3 days) or check back later.');
+                } else if (fetchError.name === 'TypeError' && fetchError.message.includes('fetch')) {
+                    throw new Error('Network error: Could not connect to server. Please check your internet connection and try again.');
+                } else {
+                    throw new Error(`Request failed: ${fetchError.message}`);
+                }
+            }
             
             // Only process if this is still the current backtest
             if (runningBacktestId !== thisBacktestId) {
