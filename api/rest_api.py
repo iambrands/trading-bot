@@ -1903,15 +1903,21 @@ class TradingBotAPI:
             # Determine granularity based on days (optimize for performance)
             # For longer backtests, use larger candles to reduce processing time
             # This is CRITICAL to avoid timeouts and container kills
-            if days >= 30:
-                granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 30+ days
+            # NOTE: For scalping strategies, 1-7 day backtests are most relevant
+            if days >= 60:
+                granularity = 'ONE_HOUR'  # 1-hour candles for 60+ days (very long backtests)
+                logger.info(f"⚡ Using 1-hour candles for {days}-day backtest to optimize performance (~{days * 24} candles)")
+                logger.warning(f"⚠️ For scalping strategies, backtests longer than 30 days may not be representative. Consider 1-7 days for best results.")
+            elif days >= 30:
+                granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 30-59 days
                 logger.info(f"⚡ Using 15-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 4} candles)")
+                logger.warning(f"⚠️ For scalping strategies, backtests longer than 7 days may not be representative. Consider 1-7 days for best results.")
             elif days >= 7:
-                granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-30 days
+                granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-29 days
                 logger.info(f"⚡ Using 5-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 12} candles)")
             else:
-                granularity = 'ONE_MINUTE'  # 1-minute candles for short backtests (1-6 days)
-                logger.info(f"Using 1-minute candles for {days}-day backtest (~{days * 24 * 60} candles)")
+                granularity = 'ONE_MINUTE'  # 1-minute candles for short backtests (1-6 days) - BEST for scalping
+                logger.info(f"✅ Using 1-minute candles for {days}-day backtest (~{days * 24 * 60} candles) - Optimal for scalping strategies")
             
             # Fetch historical data
             fetcher = HistoricalDataFetcher(self.config)
@@ -1960,11 +1966,13 @@ class TradingBotAPI:
             # CRITICAL: Railway HTTP timeout is ~30-60 seconds, so we need to complete faster
             loop = asyncio.get_event_loop()
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                # Calculate timeout: cap at 25 seconds to stay under Railway's HTTP timeout
-                # Estimate ~0.0005 seconds per candle (0.5ms), but cap total time
-                candle_processing_time = len(candles) * 0.0005  # 0.5ms per candle
-                estimated_timeout = min(25, max(10, candle_processing_time + 5))  # 10-25 seconds max
+                # Calculate timeout: cap at 28 seconds to stay under Railway's HTTP timeout (30s)
+                # Estimate ~0.0015 seconds per candle (1.5ms) - more realistic for scalping with indicators
+                # Scalping strategies process each candle with multiple indicators (RSI, EMA, volume), so it's slower
+                candle_processing_time = len(candles) * 0.0015  # 1.5ms per candle (more realistic)
+                estimated_timeout = min(28, max(10, candle_processing_time + 8))  # 10-28 seconds max
                 logger.info(f"⏱️ Running backtest with timeout of {estimated_timeout:.1f} seconds (Railway HTTP timeout protection)")
+                logger.info(f"   Processing {len(candles)} candles at ~1.5ms per candle (estimated {candle_processing_time:.1f}s)")
                 
                 try:
                     results = await asyncio.wait_for(
@@ -1973,8 +1981,18 @@ class TradingBotAPI:
                     )
                 except asyncio.TimeoutError:
                     logger.error(f"❌ Backtest timed out after {estimated_timeout:.1f} seconds (Railway HTTP timeout)")
+                    # Provide specific guidance based on backtest length
+                    if days >= 30:
+                        recommendation = "For scalping strategies, use 1-7 day backtests for best results. Longer periods (30+ days) are less relevant for scalping."
+                    elif days >= 7:
+                        recommendation = "Try a 1-7 day backtest for scalping strategies. This provides better accuracy and faster results."
+                    else:
+                        recommendation = "The backtest may be too intensive. Try reducing the time period slightly."
+                    
                     return web.json_response({
-                        'error': f'Backtest timed out after {estimated_timeout:.1f} seconds. Railway has a 30-60 second HTTP timeout. Try using a shorter time period (1-3 days) or the system will use optimized granularity automatically.'
+                        'error': f'Backtest timed out after {estimated_timeout:.1f} seconds. Railway has a 30-60 second HTTP timeout.',
+                        'recommendation': recommendation,
+                        'optimal_periods': 'For crypto scalping: 1-3 days (best), 3-7 days (good), 7-30 days (acceptable but less representative)'
                     }, status=504)
             
             logger.info(f"✅ Backtest processing completed: {results['total_trades']} trades, P&L: ${results['total_pnl']:.2f}")

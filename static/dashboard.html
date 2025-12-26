@@ -356,8 +356,11 @@
                         </div>
                         <div class="form-group">
                             <label for="backtestDays">Historical Period (Days)</label>
-                            <input type="number" id="backtestDays" class="form-input" value="30" min="7" max="90" required>
-                            <small>7-90 days of historical data</small>
+                            <input type="number" id="backtestDays" class="form-input" value="7" min="1" max="90" required>
+                            <small>1-90 days of historical data</small>
+                            <div style="margin-top: 0.5rem; padding: 0.75rem; background: var(--blue-50); border-left: 3px solid var(--blue-500); border-radius: 4px; font-size: 0.875rem; color: var(--gray-700);">
+                                <strong>💡 Optimal for Scalping:</strong> 1-3 days (best), 3-7 days (good), 7-30 days (acceptable). Longer periods (30+ days) may timeout and are less representative for scalping strategies.
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="backtestBalance">Initial Balance ($)</label>

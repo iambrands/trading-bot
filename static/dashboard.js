@@ -1627,8 +1627,13 @@ async function runBacktest(event) {
             }
             
             if (!response.ok) {
-                const error = await response.json().catch(() => ({error: 'Backtest failed'}));
-                throw new Error(error.error || 'Backtest failed');
+                const errorData = await response.json().catch(() => ({error: 'Backtest failed'}));
+                const errorMsg = errorData.error || 'Backtest failed';
+                // Include recommendation if provided
+                if (errorData.recommendation) {
+                    throw new Error(`${errorMsg}\n\n${errorData.recommendation}\n\nOptimal periods: ${errorData.optimal_periods || '1-7 days for scalping'}`);
+                }
+                throw new Error(errorMsg);
             }
             
             const result = await response.json();
@@ -1677,12 +1682,14 @@ async function runBacktest(event) {
             
             // Only show error if we're still on the backtest page
             if (currentPage === 'backtest') {
-                showToast(`Backtest failed: ${error.message}`, 'error');
+                // Format error message (replace \n with <br> for HTML display)
+                const errorHtml = error.message.replace(/\n/g, '<br>');
+                showToast(`Backtest failed: ${error.message.split('\n')[0]}`, 'error');
                 
-                // Show error in results card
+                // Show error in results card with full details
                 if (resultsCard && content) {
                     resultsCard.style.display = 'block';
-                    content.innerHTML = `<div class="error" style="padding: 2rem; text-align: center;">Backtest failed: ${escapeHtml(error.message)}<br><small>Check browser console (F12) for details</small></div>`;
+                    content.innerHTML = `<div class="error" style="padding: 2rem; text-align: center; color: var(--red-600);">${errorHtml}<br><small style="color: var(--gray-500);">Check browser console (F12) for details</small></div>`;
                 }
             }
         } finally {
