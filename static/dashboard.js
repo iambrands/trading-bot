@@ -1681,16 +1681,22 @@ async function runBacktest(event) {
     const pair = document.getElementById('backtestPair').value;
     const days = parseInt(document.getElementById('backtestDays').value);
     const balance = parseFloat(document.getElementById('backtestBalance').value);
-    const name = document.getElementById('backtestName').value || `${pair} ${days}d`;
+    const name = document.getElementById('backtestName').value || `${pair.split('-')[0]} ${days}-day test`;
     
+    await runBacktestInternal(pair, days, balance, name);
+}
+
+async function runBacktestInternal(pair, days, balance, name) {
     const runBtn = document.getElementById('runBacktestBtn');
     const btnText = document.getElementById('backtestBtnText');
     const loadingText = document.getElementById('backtestLoading');
     
     // Show running state immediately
-    runBtn.disabled = true;
-    btnText.style.display = 'none';
-    loadingText.style.display = 'inline';
+    if (runBtn) {
+        runBtn.disabled = true;
+        if (btnText) btnText.style.display = 'none';
+        if (loadingText) loadingText.style.display = 'inline';
+    }
     
     // Show results card with running message
     const resultsCard = document.getElementById('backtestResultsCard');
