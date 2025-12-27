@@ -1929,16 +1929,17 @@ class TradingBotAPI:
             # For longer backtests, use larger candles to reduce processing time
             # This is CRITICAL to avoid timeouts and container kills
             # NOTE: For scalping strategies, 1-7 day backtests are most relevant
+            # Use larger granularity for longer periods to reduce candle count and processing time
             if days >= 60:
                 granularity = 'ONE_HOUR'  # 1-hour candles for 60+ days (very long backtests)
                 logger.info(f"⚡ Using 1-hour candles for {days}-day backtest to optimize performance (~{days * 24} candles)")
                 logger.warning(f"⚠️ For scalping strategies, backtests longer than 30 days may not be representative. Consider 1-7 days for best results.")
-            elif days >= 30:
-                granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 30-59 days
+            elif days >= 14:
+                granularity = 'FIFTEEN_MINUTE'  # 15-minute candles for 14-59 days (reduced from 30 to handle 21-day tests better)
                 logger.info(f"⚡ Using 15-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 4} candles)")
                 logger.warning(f"⚠️ For scalping strategies, backtests longer than 7 days may not be representative. Consider 1-7 days for best results.")
             elif days >= 7:
-                granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-29 days
+                granularity = 'FIVE_MINUTE'  # 5-minute candles for 7-13 days
                 logger.info(f"⚡ Using 5-minute candles for {days}-day backtest to optimize performance (~{days * 24 * 12} candles)")
             else:
                 granularity = 'ONE_MINUTE'  # 1-minute candles for short backtests (1-6 days) - BEST for scalping
