@@ -541,6 +541,22 @@ class DatabaseManager:
                     results_json_str = json.dumps(results_json)
                     logger.info(f"💾💾💾 Successfully serialized after sanitization (length: {len(results_json_str)})")
                 
+                # Ensure start_date and end_date are datetime objects, not strings
+                start_date = backtest_data.get('start_date')
+                end_date = backtest_data.get('end_date')
+                
+                # Convert string dates back to datetime if needed (shouldn't happen, but safety check)
+                if isinstance(start_date, str):
+                    logger.warning(f"⚠️ start_date is a string, converting to datetime: {start_date}")
+                    from dateutil.parser import parse as parse_date
+                    start_date = parse_date(start_date)
+                if isinstance(end_date, str):
+                    logger.warning(f"⚠️ end_date is a string, converting to datetime: {end_date}")
+                    from dateutil.parser import parse as parse_date
+                    end_date = parse_date(end_date)
+                
+                logger.info(f"💾💾💾 Inserting with start_date type: {type(start_date)}, end_date type: {type(end_date)}")
+                
                 backtest_id = await conn.fetchval("""
                     INSERT INTO backtests (
                         user_id, name, pair, start_date, end_date,
@@ -553,8 +569,8 @@ class DatabaseManager:
                     user_id,  # If None, will be NULL in database
                     backtest_data.get('name'),
                     backtest_data.get('pair'),
-                    backtest_data.get('start_date'),
-                    backtest_data.get('end_date'),
+                    start_date,  # Now guaranteed to be datetime object
+                    end_date,  # Now guaranteed to be datetime object
                     backtest_data.get('initial_balance'),
                     backtest_data.get('final_balance'),
                     backtest_data.get('total_pnl'),
