@@ -35,6 +35,14 @@ class TradingBotAPI:
         """Setup authentication middleware."""
         @web.middleware
         async def auth_middleware(request, handler):
+            # LOG ALL REQUESTS - especially POST to /api/backtest/run
+            if request.method == 'POST' and '/api/backtest/run' in request.path:
+                import sys
+                print(f"🔵🔵🔵 MIDDLEWARE: POST to /api/backtest/run detected!", file=sys.stderr)
+                print(f"   Path: {request.path}, Method: {request.method}", file=sys.stderr)
+                sys.stderr.flush()
+                logger.info(f"🔵🔵🔵 MIDDLEWARE: POST to /api/backtest/run - Path: {request.path}")
+            
             # Public routes that don't require authentication
             public_routes = [
                 '/api/auth/signup',
