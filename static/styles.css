@@ -280,6 +280,21 @@ body {
     flex: 1;
 }
 
+.page-header-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.breadcrumb {
+    margin-bottom: 0.25rem;
+}
+
+.breadcrumb a:hover {
+    color: var(--primary-blue);
+    text-decoration: underline;
+}
+
 .page-title {
     font-size: 1.75rem;
     font-weight: 700;
@@ -753,6 +768,12 @@ tr:hover {
     border-radius: 8px;
     padding: 1rem;
     text-align: center;
+    transition: all 0.2s ease;
+}
+
+.indicator-box:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .indicator-label {
@@ -760,12 +781,98 @@ tr:hover {
     color: var(--gray-600);
     margin-bottom: 0.5rem;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .indicator-value {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--gray-900);
+}
+
+/* RSI Indicator Styles */
+.rsi-indicator {
+    position: relative;
+}
+
+.rsi-status-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.rsi-indicator.rsi-overbought .rsi-status-badge {
+    background: var(--danger-red);
+    color: var(--white);
+}
+
+.rsi-indicator.rsi-oversold .rsi-status-badge {
+    background: var(--success-green);
+    color: var(--white);
+}
+
+.rsi-indicator.rsi-long-range .rsi-status-badge {
+    background: var(--success-green-dark);
+    color: var(--white);
+}
+
+.rsi-indicator.rsi-short-range .rsi-status-badge {
+    background: var(--danger-red-dark);
+    color: var(--white);
+}
+
+.rsi-indicator.rsi-neutral .rsi-status-badge {
+    background: var(--gray-400);
+    color: var(--white);
+}
+
+.rsi-indicator.rsi-overbought .indicator-value {
+    color: var(--danger-red);
+}
+
+.rsi-indicator.rsi-oversold .indicator-value {
+    color: var(--success-green);
+}
+
+.rsi-bar {
+    margin-top: 0.5rem;
+    height: 6px;
+    background: var(--gray-200);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.rsi-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.rsi-indicator.rsi-overbought .rsi-fill {
+    background: var(--danger-red);
+}
+
+.rsi-indicator.rsi-oversold .rsi-fill {
+    background: var(--success-green);
+}
+
+.rsi-indicator.rsi-long-range .rsi-fill {
+    background: var(--success-green-dark);
+}
+
+.rsi-indicator.rsi-short-range .rsi-fill {
+    background: var(--danger-red-dark);
+}
+
+.rsi-indicator.rsi-neutral .rsi-fill {
+    background: var(--gray-400);
 }
 
 .signal-box {

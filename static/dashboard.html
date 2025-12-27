@@ -188,7 +188,16 @@
         <!-- Top Bar -->
         <header class="top-bar">
             <div class="top-bar-left">
-                <h1 class="page-title" id="pageTitle">Overview</h1>
+                <div class="page-header-section">
+                    <nav class="breadcrumb" id="breadcrumb" aria-label="Breadcrumb">
+                        <ol style="display: flex; align-items: center; gap: 0.5rem; list-style: none; padding: 0; margin: 0; font-size: 0.875rem;">
+                            <li><a href="/" onclick="event.preventDefault(); navigateToPage('overview');" style="color: var(--gray-500); text-decoration: none;">Home</a></li>
+                            <li style="color: var(--gray-400);">/</li>
+                            <li id="breadcrumbCurrent" style="color: var(--gray-700); font-weight: 600;">Overview</li>
+                        </ol>
+                    </nav>
+                    <h1 class="page-title" id="pageTitle">Overview</h1>
+                </div>
                 <div class="status-badge-container">
                     <span id="statusBadge" class="status-badge status-stopped">Loading...</span>
                     <span id="lastUpdate" class="update-time">Never</span>

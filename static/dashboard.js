@@ -837,10 +837,11 @@ async function updateMarketConditions() {
         }
 
         let html = '<div class="summary-box card" style="margin-bottom: 1.5rem;"><h2>Summary</h2>';
-        html += `<p>Bot Status: <strong>${data.bot_status}</strong></p>`;
-        html += `<p>Ready to Trade: <strong>${data.summary.ready_to_trade ? 'Yes' : 'No'}</strong></p>`;
-        html += `<p>Current Positions: <strong>${data.summary.current_positions} / ${data.summary.max_positions}</strong></p>`;
-        html += '</div>';
+        html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">';
+        html += `<div><strong>Bot Status:</strong><br><span style="color: ${data.bot_status === 'running' ? 'var(--success-green)' : data.bot_status === 'paused' ? 'var(--accent-gold)' : 'var(--danger-red)'};">${data.bot_status.toUpperCase()}</span></div>`;
+        html += `<div><strong>Ready to Trade:</strong><br><span style="color: ${data.summary.ready_to_trade ? 'var(--success-green)' : 'var(--gray-500)'};">${data.summary.ready_to_trade ? 'Yes ✓' : 'No ✗'}</span></div>`;
+        html += `<div><strong>Positions:</strong><br>${data.summary.current_positions} / ${data.summary.max_positions}</div>`;
+        html += '</div></div>';
 
         for (const [pair, condition] of Object.entries(data.conditions)) {
             if (condition.status === 'insufficient_data') {
@@ -852,17 +853,38 @@ async function updateMarketConditions() {
             }
 
             const ind = condition.indicators;
-            html += `<div class="market-pair">`;
-            html += `<div class="pair-header">`;
-            html += `<span class="pair-name">${pair}</span>`;
-            html += `<span class="current-price">${formatCurrency(ind.price)}</span>`;
+            html += `<div class="market-pair card" style="margin-bottom: 1.5rem; padding: 1.5rem;">`;
+            html += `<div class="pair-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--gray-200);">`;
+            html += `<h2 style="margin: 0; font-size: 1.5rem; color: var(--gray-900);">${pair}</h2>`;
+            html += `<div style="text-align: right;"><div style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.25rem;">Current Price</div><div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-blue);">${formatCurrency(ind.price)}</div></div>`;
             html += `</div>`;
 
+            // Determine RSI status for better visual display
+            const rsi = parseFloat(ind.rsi);
+            let rsiStatus = 'neutral';
+            let rsiLabel = '';
+            if (rsi >= 70) {
+                rsiStatus = 'overbought';
+                rsiLabel = 'Overbought';
+            } else if (rsi <= 30) {
+                rsiStatus = 'oversold';
+                rsiLabel = 'Oversold';
+            } else if (rsi >= 55 && rsi <= 70) {
+                rsiStatus = 'long-range';
+                rsiLabel = 'Long Range';
+            } else if (rsi >= 30 && rsi <= 45) {
+                rsiStatus = 'short-range';
+                rsiLabel = 'Short Range';
+            } else {
+                rsiStatus = 'neutral';
+                rsiLabel = 'Neutral';
+            }
+            
             html += `<div class="indicators-grid">`;
             html += `<div class="indicator-box"><div class="indicator-label">Price</div><div class="indicator-value">${formatCurrency(ind.price)}</div></div>`;
             html += `<div class="indicator-box"><div class="indicator-label">EMA(50)</div><div class="indicator-value">${formatCurrency(ind.ema)}</div></div>`;
-            html += `<div class="indicator-box"><div class="indicator-label">RSI(14)</div><div class="indicator-value">${ind.rsi.toFixed(2)}</div></div>`;
-            html += `<div class="indicator-box"><div class="indicator-label">Volume Ratio</div><div class="indicator-value">${ind.volume_ratio.toFixed(2)}x</div></div>`;
+            html += `<div class="indicator-box rsi-indicator rsi-${rsiStatus}"><div class="indicator-label">RSI(14) <span class="rsi-status-badge">${rsiLabel}</span></div><div class="indicator-value">${rsi.toFixed(2)}</div><div class="rsi-bar"><div class="rsi-fill" style="width: ${rsi}%"></div></div></div>`;
+            html += `<div class="indicator-box"><div class="indicator-label">Volume Ratio</div><div class="indicator-value ${ind.volume_ratio >= 1.5 ? 'positive' : 'neutral'}">${ind.volume_ratio.toFixed(2)}x</div></div>`;
             html += `</div>`;
 
             // Long signal
@@ -954,7 +976,8 @@ async function updatePositionsPage() {
             return;
         }
 
-        let html = '<div class="card"><h2>Active Positions</h2><div class="table-wrapper"><table><thead><tr>';
+        let html = '<div class="card" style="margin-bottom: 1rem;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;"><h2 style="margin: 0;">Active Positions</h2><div style="color: var(--gray-600); font-size: 0.875rem;">Total: ' + currentPositions.length + '</div></div>';
+        html += '<div class="table-wrapper"><table><thead><tr>';
         html += '<th>Pair</th><th>Side</th><th>Entry Price</th><th>Current Price</th>';
         html += '<th>Size</th><th>P&L</th><th>P&L %</th><th>Entry Time</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
@@ -1023,7 +1046,7 @@ async function updateTradesPage() {
         html += '</tr>';
     });
 
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error updating trades:', error);
@@ -2716,7 +2739,7 @@ function updatePairStatistics(data) {
             html += '</tr>';
         });
         
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error in updatePairStatistics:', error);
@@ -2966,7 +2989,7 @@ async function generateTaxReport() {
             html += '</tr>';
         });
         
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
         
         showToast('Tax report generated successfully', 'success');
@@ -3563,7 +3586,7 @@ async function listAdvancedOrders() {
             html += '</tr>';
         });
         
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error listing orders:', error);
@@ -3734,7 +3757,7 @@ async function listGridStrategies() {
             html += '</tr>';
         });
         
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error listing grids:', error);
@@ -3777,7 +3800,7 @@ async function listDCAStrategies() {
             html += '</tr>';
         });
         
-        html += '</tbody></table></div>';
+        html += '</tbody></table></div></div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error listing DCA strategies:', error);
