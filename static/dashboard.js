@@ -2418,9 +2418,37 @@ async function getAIAnalysis() {
             })
         });
         
+        // Handle 503 Service Unavailable - API key not configured
+        if (response.status === 503) {
+            const error = await response.json().catch(() => ({error: 'AI analysis not available'}));
+            const errorMessage = error.error || 'AI analysis is not available';
+            
+            analysisContent.innerHTML = `
+                <div class="error" style="padding: 2rem; text-align: center; max-width: 600px; margin: 0 auto;">
+                    <h3 style="margin: 0 0 1rem 0; color: var(--danger-red);">AI Analysis Not Available</h3>
+                    <p style="margin: 0 0 1rem 0; color: var(--gray-700);">${escapeHtml(errorMessage)}</p>
+                    <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; text-align: left; margin-top: 1rem;">
+                        <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--gray-900);">To enable AI Analysis:</p>
+                        <ol style="margin: 0; padding-left: 1.5rem; color: var(--gray-700);">
+                            <li>Get a Claude API key from <a href="https://console.anthropic.com/" target="_blank" style="color: var(--primary-blue);">Anthropic Console</a></li>
+                            <li>Add <code style="background: var(--gray-200); padding: 0.125rem 0.25rem; border-radius: 4px;">CLAUDE_API_KEY=your_key_here</code> to your Railway environment variables</li>
+                            <li>Redeploy the application</li>
+                        </ol>
+                    </div>
+                    <p style="margin: 1rem 0 0 0; font-size: 0.875rem; color: var(--gray-500);">
+                        💡 AI Analysis is optional - you can still use all other TradePilot features without it.
+                    </p>
+                </div>
+            `;
+            showToast('AI Analysis not configured', 'warning');
+            aiAnalysisInFlight = false;
+            return;
+        }
+        
+        // Handle other errors
         if (!response.ok) {
-            const error = await response.json().catch(() => ({error: 'AI analysis failed'}));
-            throw new Error(error.error || 'AI analysis not available');
+            const error = await response.json().catch(() => ({error: `AI analysis failed (HTTP ${response.status})`}));
+            throw new Error(error.error || `AI analysis failed (HTTP ${response.status})`);
         }
         
         const result = await response.json();
@@ -2431,16 +2459,29 @@ async function getAIAnalysis() {
             analysisContent.innerHTML = formattedAnalysis;
             showToast('AI analysis complete!', 'success');
         } else {
-            throw new Error('No analysis received');
+            throw new Error(result.error || 'No analysis received');
         }
         
     } catch (error) {
         console.error('AI analysis error:', error);
-        analysisContent.innerHTML = `<div class="error">
-            <p>${error.message}</p>
-            <p><small>Make sure CLAUDE_API_KEY is configured in .env file</small></p>
-        </div>`;
-        showToast('AI analysis failed', 'error');
+        let errorMessage = error.message || 'Unknown error occurred';
+        
+        // Don't show duplicate error if we already handled it
+        if (errorMessage.includes('503') || errorMessage.includes('Service Unavailable')) {
+            aiAnalysisInFlight = false;
+            return;
+        }
+        
+        analysisContent.innerHTML = `
+            <div class="error" style="padding: 2rem; text-align: center;">
+                <h3 style="margin: 0 0 1rem 0; color: var(--danger-red);">AI Analysis Error</h3>
+                <p style="margin: 0; color: var(--gray-700);">${escapeHtml(errorMessage)}</p>
+                <p style="margin: 1rem 0 0 0; font-size: 0.875rem; color: var(--gray-500);">
+                    Please check that CLAUDE_API_KEY is configured correctly in your Railway environment variables.
+                </p>
+            </div>
+        `;
+        showToast(`AI analysis failed: ${errorMessage}`, 'error');
     } finally {
         aiAnalysisInFlight = false;
     }
