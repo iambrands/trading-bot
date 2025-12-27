@@ -2188,6 +2188,30 @@ class TradingBotAPI:
             'db_manager_initialized': self.db_manager.initialized if self.db_manager else False
         })
     
+    async def test_backtest_post(self, request):
+        """Test POST endpoint to verify POST requests are working."""
+        import sys
+        print("=" * 80, file=sys.stderr)
+        print("🧪🧪🧪 TEST POST ENDPOINT CALLED 🧪🧪🧪", file=sys.stderr)
+        print(f"Method: {request.method}, Path: {request.path}", file=sys.stderr)
+        sys.stderr.flush()
+        logger.info("🧪 TEST POST ENDPOINT CALLED")
+        
+        try:
+            data = await request.json()
+            logger.info(f"🧪 POST data received: {data}")
+        except:
+            logger.info("🧪 No JSON data in POST request")
+        
+        return web.json_response({
+            'status': 'success',
+            'message': 'POST request received successfully!',
+            'method': request.method,
+            'path': request.path,
+            'user_id': request.get('user_id'),
+            'timestamp': datetime.utcnow().isoformat()
+        })
+    
     async def debug_backtest_count(self, request):
         """Diagnostic endpoint to check total backtests in database."""
         try:
