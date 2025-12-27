@@ -241,6 +241,7 @@ class TradingBotAPI:
         self.app.router.add_post('/api/backtest/run', self.run_backtest)
         self.app.router.add_get('/api/backtest/list', self.list_backtests)
         self.app.router.add_get('/api/backtest/results/{id}', self.get_backtest_results)
+        self.app.router.add_get('/api/backtest/debug-count', self.debug_backtest_count)  # Diagnostic endpoint
         
         # AI endpoints
         self.app.router.add_post('/api/ai/analyze-market', self.ai_analyze_market)
@@ -2132,6 +2133,37 @@ class TradingBotAPI:
             
         except Exception as e:
             logger.error(f"Error listing backtests: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    async def debug_backtest_count(self, request):
+        """Diagnostic endpoint to check total backtests in database."""
+        try:
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
+            async with self.db_manager.pool.acquire() as conn:
+                total_count = await conn.fetchval("SELECT COUNT(*) FROM backtests")
+                user_id_count = await conn.fetchval("SELECT COUNT(*) FROM backtests WHERE user_id = $1", request.get('user_id'))
+                null_user_count = await conn.fetchval("SELECT COUNT(*) FROM backtests WHERE user_id IS NULL")
+                
+                # Get most recent backtest
+                recent = await conn.fetchrow("""
+                    SELECT id, name, user_id, created_at FROM backtests 
+                    ORDER BY created_at DESC LIMIT 1
+                """)
+                
+                result = {
+                    'total_backtests': total_count,
+                    'user_id_backtests': user_id_count,
+                    'null_user_id_backtests': null_user_count,
+                    'current_user_id': request.get('user_id'),
+                    'most_recent': dict(recent) if recent else None
+                }
+                
+                logger.info(f"🔍 DEBUG BACKTEST COUNT: {result}")
+                return web.json_response(result)
+        except Exception as e:
+            logger.error(f"Error in debug_backtest_count: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
     async def get_backtest_results(self, request):
