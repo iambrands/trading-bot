@@ -2052,12 +2052,32 @@ class TradingBotAPI:
                 if self.db_manager.initialized:
                     try:
                         logger.info(f"💾💾💾 Calling save_backtest with user_id={user_id}, name={name}, pair={pair}")
+                        
+                        # Get count BEFORE save
+                        async with self.db_manager.pool.acquire() as conn:
+                            count_before = await conn.fetchval("SELECT COUNT(*) FROM backtests")
+                            logger.info(f"🔍 Database has {count_before} backtests BEFORE save")
+                        
                         backtest_id = await self.db_manager.save_backtest(backtest_data, user_id)
                         logger.info(f"💾💾💾 save_backtest returned: {backtest_id} (type: {type(backtest_id)})")
+                        
+                        # Verify save by querying database
                         if backtest_id:
+                            async with self.db_manager.pool.acquire() as conn:
+                                count_after = await conn.fetchval("SELECT COUNT(*) FROM backtests")
+                                saved_record = await conn.fetchrow("SELECT id, user_id, name FROM backtests WHERE id = $1", backtest_id)
+                                logger.info(f"🔍 Database has {count_after} backtests AFTER save (was {count_before})")
+                                if saved_record:
+                                    logger.info(f"✅✅✅✅✅✅✅✅✅✅✅✅ BACKTEST VERIFIED IN DATABASE! ID: {backtest_id}, user_id: {saved_record['user_id']}, name: {saved_record['name']}")
+                                else:
+                                    logger.error(f"❌❌❌ BACKTEST ID RETURNED BUT NOT FOUND IN DATABASE! ID: {backtest_id}")
+                            
                             backtest_data['id'] = backtest_id
                             logger.info(f"✅✅✅✅✅✅✅✅✅✅✅✅ BACKTEST SAVED SUCCESSFULLY! ID: {backtest_id}, user_id: {user_id}, name: {name}, pair: {pair}")
                         else:
+                            async with self.db_manager.pool.acquire() as conn:
+                                count_after = await conn.fetchval("SELECT COUNT(*) FROM backtests")
+                                logger.info(f"🔍 Database still has {count_after} backtests AFTER failed save (was {count_before})")
                             logger.error(f"❌❌❌❌❌❌ FAILED TO SAVE BACKTEST: save_backtest returned None (user_id: {user_id}, name: {name}, pair: {pair})")
                     except Exception as save_error:
                         logger.error(f"❌❌❌❌❌❌ EXCEPTION SAVING BACKTEST: {save_error}", exc_info=True)
