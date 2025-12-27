@@ -316,10 +316,15 @@ function navigateToPage(page) {
 
     currentPage = page;
     
-    // Update page title
+    // Update page title and breadcrumb
     const pageTitleEl = document.getElementById('pageTitle');
     if (pageTitleEl && pageTitles[page]) {
         pageTitleEl.textContent = pageTitles[page];
+    }
+    
+    const breadcrumbCurrentEl = document.getElementById('breadcrumbCurrent');
+    if (breadcrumbCurrentEl && pageTitles[page]) {
+        breadcrumbCurrentEl.textContent = pageTitles[page];
     }
     
     // Update nav
@@ -972,7 +977,7 @@ async function updatePositionsPage() {
         previousPositions = [...currentPositions];
     
         if (currentPositions.length === 0) {
-            container.innerHTML = '<div class="empty-state">No active positions</div>';
+            container.innerHTML = '<div class="card"><div class="empty-state"><h3>No active positions</h3><p style="color: var(--gray-600); margin-top: 0.5rem;">Open positions will appear here when the bot starts trading.</p></div></div>';
             return;
         }
 
@@ -1022,11 +1027,12 @@ async function updateTradesPage() {
         }
 
         if (!data.trades || data.trades.length === 0) {
-            container.innerHTML = '<div class="empty-state">No trades yet</div>';
+            container.innerHTML = '<div class="card"><div class="empty-state"><h3>No trades yet</h3><p style="color: var(--gray-600); margin-top: 0.5rem;">Your trade history will appear here once you start trading.</p></div></div>';
             return;
         }
 
-    let html = '<div class="table-wrapper"><table><thead><tr>';
+        let html = '<div class="card" style="margin-bottom: 1rem;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;"><h2 style="margin: 0;">Trade History</h2><div style="color: var(--gray-600); font-size: 0.875rem;">Total: ' + data.trades.length + ' trades</div></div>';
+        html += '<div class="table-wrapper"><table><thead><tr>';
     html += '<th>Time</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th>';
     html += '<th>Size</th><th>P&L</th><th>P&L %</th><th>Reason</th></tr></thead><tbody>';
 
