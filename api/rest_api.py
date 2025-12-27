@@ -264,6 +264,7 @@ class TradingBotAPI:
 
         # Diagnostics (helps confirm whether deployment is API-only or full-bot)
         self.app.router.add_get('/api/runtime', self.get_runtime_info)
+        self.app.router.add_get('/api/ai/status', self.ai_status)
         
         # Control endpoints
         self.app.router.add_post('/api/start', self.start_bot)
