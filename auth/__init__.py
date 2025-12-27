@@ -1,2 +1,2 @@
-"""Authentication module for Crypto Scalping Trading Bot."""
+"""Authentication module for TradePilot."""
 

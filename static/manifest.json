@@ -1,7 +1,7 @@
 {
-  "name": "Crypto Scalping Trading Bot",
-  "short_name": "Trading Bot",
-  "description": "Professional cryptocurrency trading bot with automated scalping strategies",
+  "name": "TradePilot",
+  "short_name": "TradePilot",
+  "description": "Professional cryptocurrency trading platform with automated scalping strategies",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

@@ -204,7 +204,7 @@ Use markdown headers (##) for each section. Keep each section concise and action
     
     def _create_strategy_explanation_prompt(self, strategy_config: Dict, metrics: Dict) -> str:
         """Create prompt for strategy explanation."""
-        return f"""You are a friendly trading bot assistant. Explain the current trading strategy configuration and performance in simple, easy-to-understand terms.
+        return f"""You are a friendly TradePilot assistant. Explain the current trading strategy configuration and performance in simple, easy-to-understand terms.
 
 Strategy Configuration:
 {json.dumps(strategy_config, indent=2)}
@@ -226,12 +226,12 @@ Write in a conversational, helpful tone."""
         if context:
             context_str = f"\n\nCurrent Bot Context:\n{json.dumps(context, indent=2)}"
         
-        return f"""You are a helpful assistant for a cryptocurrency trading bot. Answer the user's question clearly and provide useful guidance.
+        return f"""You are a helpful assistant for TradePilot. Answer the user's question clearly and provide useful guidance.
 
 User Question: {question}
 {context_str}
 
-Provide a clear, helpful answer that helps the user understand and use the trading bot effectively."""
+Provide a clear, helpful answer that helps the user understand and use TradePilot effectively."""
     
     def _create_backtest_analysis_prompt(self, backtest_results: Dict, strategy_config: Optional[Dict] = None) -> str:
         """Create prompt for backtest results analysis."""

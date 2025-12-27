@@ -1,4 +1,4 @@
-"""Backtesting engine for Crypto Scalping Trading Bot."""
+"""Backtesting engine for TradePilot."""
 
 from .backtest_engine import BacktestEngine
 from .historical_data import HistoricalDataFetcher

@@ -1,4 +1,4 @@
-// Service Worker for Crypto Scalping Trading Bot PWA
+// Service Worker for TradePilot PWA
 const CACHE_NAME = 'trading-bot-v2-2024-12'; // Updated version to clear old caches
 const urlsToCache = [
   '/',
@@ -126,7 +126,7 @@ self.addEventListener('fetch', (event) => {
 // Push notification event
 self.addEventListener('push', (event) => {
   const options = {
-    body: event.data ? event.data.text() : 'New notification from Trading Bot',
+    body: event.data ? event.data.text() : 'New notification from TradePilot',
     icon: '/static/icon-192.png',
     badge: '/static/icon-192.png',
     vibrate: [200, 100, 200],
@@ -145,7 +145,7 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification('Trading Bot', options)
+    self.registration.showNotification('TradePilot', options)
   );
 });
 

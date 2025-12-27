@@ -1,4 +1,4 @@
-"""AI integration module for Crypto Scalping Trading Bot."""
+"""AI integration module for TradePilot."""
 
 from .claude_ai import ClaudeAIAnalyst
 

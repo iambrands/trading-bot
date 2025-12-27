@@ -9,9 +9,9 @@ let onboardingData = {
 // Onboarding steps
 const onboardingSteps = [
     {
-        title: "Welcome to Crypto Scalping Trading Bot! 🚀",
+        title: "Welcome to TradePilot! 🚀",
         content: `
-            <p>Let's get you started with your automated trading bot. This quick tour will help you understand the key features.</p>
+            <p>Let's get you started with TradePilot. This quick tour will help you understand the key features.</p>
             <p><strong>What you'll learn:</strong></p>
             <ul style="text-align: left; display: inline-block; margin-top: 1rem;">
                 <li>How to navigate the dashboard</li>

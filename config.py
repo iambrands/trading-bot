@@ -1,4 +1,4 @@
-"""Configuration management for Crypto Scalping Trading Bot."""
+"""Configuration management for TradePilot."""
 
 import os
 from typing import List

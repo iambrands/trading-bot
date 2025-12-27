@@ -1,4 +1,4 @@
-# Crypto Scalping Trading Bot
+# TradePilot
 
 A production-ready automated cryptocurrency trading bot system for Coinbase Advanced Trade with comprehensive risk management, performance tracking, and REST API controls.
 

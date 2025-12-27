@@ -1,4 +1,4 @@
-"""Alert system for Crypto Scalping Trading Bot."""
+"""Alert system for TradePilot."""
 
 from .alert_manager import AlertManager
 

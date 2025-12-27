@@ -1,4 +1,4 @@
-"""JWT Authentication Manager for Crypto Scalping Trading Bot."""
+"""JWT Authentication Manager for TradePilot."""
 
 import jwt
 import bcrypt
