@@ -2071,6 +2071,34 @@ class TradingBotAPI:
             
             logger.info(f"💾 Backtest data prepared and sanitized. db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}, user_id={user_id}")
             
+            # CRITICAL: Verify start_date and end_date are datetime objects (not strings) before save
+            start_date_obj = backtest_data.get('start_date')
+            end_date_obj = backtest_data.get('end_date')
+            
+            if not isinstance(start_date_obj, datetime):
+                logger.error(f"❌❌❌ start_date is NOT a datetime object! Type: {type(start_date_obj)}, Value: {start_date_obj}")
+                if isinstance(start_date_obj, str):
+                    try:
+                        start_date_obj = datetime.fromisoformat(start_date_obj.replace('Z', '+00:00'))
+                        backtest_data['start_date'] = start_date_obj
+                        logger.warning(f"⚠️ Converted start_date string to datetime: {start_date_obj}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to convert start_date string to datetime: {e}")
+            else:
+                logger.info(f"✅ start_date is datetime object: {start_date_obj}")
+                
+            if not isinstance(end_date_obj, datetime):
+                logger.error(f"❌❌❌ end_date is NOT a datetime object! Type: {type(end_date_obj)}, Value: {end_date_obj}")
+                if isinstance(end_date_obj, str):
+                    try:
+                        end_date_obj = datetime.fromisoformat(end_date_obj.replace('Z', '+00:00'))
+                        backtest_data['end_date'] = end_date_obj
+                        logger.warning(f"⚠️ Converted end_date string to datetime: {end_date_obj}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to convert end_date string to datetime: {e}")
+            else:
+                logger.info(f"✅ end_date is datetime object: {end_date_obj}")
+            
             # Save to database - CRITICAL: Log user_id at every step for debugging
             logger.info(f"🔍🔍🔍 PRE-SAVE CHECK: user_id={user_id} (type: {type(user_id)}), db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}")
             
