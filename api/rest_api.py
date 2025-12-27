@@ -242,6 +242,7 @@ class TradingBotAPI:
         self.app.router.add_get('/api/backtest/list', self.list_backtests)
         self.app.router.add_get('/api/backtest/results/{id}', self.get_backtest_results)
         self.app.router.add_get('/api/backtest/debug-count', self.debug_backtest_count)  # Diagnostic endpoint
+        self.app.router.add_get('/api/backtest/test-route', self.test_backtest_route)  # Simple test endpoint
         
         # AI endpoints
         self.app.router.add_post('/api/ai/analyze-market', self.ai_analyze_market)
@@ -1877,6 +1878,15 @@ class TradingBotAPI:
     # Backtesting endpoints
     async def run_backtest(self, request):
         """Run a backtest with specified parameters."""
+        # CRITICAL: Log to BOTH stdout AND stderr to ensure it appears
+        import sys
+        print("=" * 80, file=sys.stderr)
+        print("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥", file=sys.stderr)
+        print("🔥 BACKTEST RUN REQUEST RECEIVED 🔥", file=sys.stderr)
+        print(f"Request method: {request.method}, path: {request.path}", file=sys.stderr)
+        print("=" * 80, file=sys.stderr)
+        sys.stderr.flush()
+        
         logger.info("=" * 80)
         logger.info("🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥")
         logger.info("🔥 BACKTEST RUN REQUEST RECEIVED 🔥")
@@ -2154,6 +2164,20 @@ class TradingBotAPI:
         except Exception as e:
             logger.error(f"Error listing backtests: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
+    
+    async def test_backtest_route(self, request):
+        """Simple test endpoint to verify routing is working."""
+        import sys
+        print("TEST ROUTE CALLED", file=sys.stderr)
+        sys.stderr.flush()
+        logger.info("TEST BACKTEST ROUTE CALLED - Routing is working!")
+        return web.json_response({
+            'status': 'success',
+            'message': 'Backtest route is accessible',
+            'user_id': request.get('user_id'),
+            'db_manager_exists': self.db_manager is not None,
+            'db_manager_initialized': self.db_manager.initialized if self.db_manager else False
+        })
     
     async def debug_backtest_count(self, request):
         """Diagnostic endpoint to check total backtests in database."""
