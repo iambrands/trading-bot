@@ -73,7 +73,18 @@ class BacktestEngine:
             if len(self.positions) < self.config.MAX_POSITIONS:
                 signal = self.strategy.generate_signal(historical_candles)
                 
+                # Log diagnostic info periodically (every 100 candles) to help debug why no signals
+                if i % 100 == 0 and signal is None:
+                    indicators = self.strategy.calculate_indicators(historical_candles)
+                    if indicators:
+                        logger.debug(f"Candle {i}/{len(candles)}: price={current_price:.2f}, "
+                                   f"EMA={indicators.get('ema', 0):.2f}, "
+                                   f"RSI={indicators.get('rsi', 0):.1f}, "
+                                   f"vol_ratio={indicators.get('volume_ratio', 0):.2f}, "
+                                   f"signal=None")
+                
                 if signal:
+                    logger.info(f"✅ Signal generated at candle {i}: {signal['type']} @ ${current_price:.2f}, confidence={signal.get('confidence', 0):.1f}%")
                     # Check risk management
                     position_size = self._calculate_position_size(current_price, signal)
                     
@@ -85,6 +96,8 @@ class BacktestEngine:
                             current_price,
                             current_time
                         )
+                    else:
+                        logger.debug(f"Signal generated but position_size={position_size}, skipping")
             
             # Update equity curve
             self._update_equity_curve(current_time)
