@@ -624,21 +624,26 @@ async function updateCurrentPage() {
 
 // Overview Page
 async function updateOverview() {
-    const [statusData, performanceData] = await Promise.all([
-        updateStatus(),
-        updatePerformance(),
-        updateRisk(),
-        updatePositions()
-    ]);
-    
-    // Update quick stats with data
-    if (statusData || performanceData) {
-        updateQuickStats(statusData, performanceData);
-    }
-    
-    const lastUpdateEl = document.getElementById('lastUpdate');
-    if (lastUpdateEl) {
-        lastUpdateEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+    try {
+        const [statusData, performanceData, riskData, positionsData] = await Promise.allSettled([
+            updateStatus(),
+            updatePerformance(),
+            updateRisk(),
+            updatePositions()
+        ]).then(results => results.map(r => r.status === 'fulfilled' ? r.value : null));
+        
+        // Update quick stats with data (handle failures gracefully)
+        if (statusData || performanceData) {
+            updateQuickStats(statusData, performanceData);
+        }
+        
+        const lastUpdateEl = document.getElementById('lastUpdate');
+        if (lastUpdateEl) {
+            lastUpdateEl.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+    } catch (error) {
+        console.error('Error updating overview:', error);
+        // Don't show error to user, individual sections handle their own errors
     }
 }
 
@@ -809,16 +814,26 @@ async function updatePositions() {
     html += '<th>Pair</th><th>Side</th><th>Size</th><th>Entry Price</th><th>Current Price</th>';
     html += '<th>P&L</th><th>P&L %</th><th>Entry Time</th></tr></thead><tbody>';
 
-    data.positions.forEach(pos => {
+    (data.positions || []).forEach(pos => {
+        if (!pos || !pos.pair) {
+            console.warn('Invalid position data:', pos);
+            return;
+        }
+        const pnl = parseFloat(pos.current_pnl || 0);
+        const pnlPct = parseFloat(pos.current_pnl_pct || 0);
+        const entryPrice = parseFloat(pos.entry_price || 0);
+        const currentPrice = parseFloat(pos.current_price || entryPrice);
+        const size = parseFloat(pos.size || 0);
+        
         html += '<tr>';
-        html += `<td><strong>${pos.pair}</strong></td>`;
-        html += `<td><span style="color: ${pos.side === 'LONG' ? 'var(--success)' : 'var(--danger)'}">${pos.side}</span></td>`;
-        html += `<td>${parseFloat(pos.size).toFixed(6)}</td>`;
-        html += `<td>${formatCurrency(pos.entry_price)}</td>`;
-        html += `<td>${formatCurrency(pos.current_price)}</td>`;
-        html += `<td class="${pos.current_pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pos.current_pnl)}</td>`;
-        html += `<td class="${pos.current_pnl_pct >= 0 ? 'positive' : 'negative'}">${formatPercent(pos.current_pnl_pct)}</td>`;
-        html += `<td>${formatDate(pos.entry_time)}</td>`;
+        html += `<td><strong>${escapeHtml(pos.pair || 'N/A')}</strong></td>`;
+        html += `<td><span style="color: ${pos.side === 'LONG' ? 'var(--success)' : 'var(--danger)'}">${pos.side || 'N/A'}</span></td>`;
+        html += `<td>${size.toFixed(6)}</td>`;
+        html += `<td>${formatCurrency(entryPrice)}</td>`;
+        html += `<td>${formatCurrency(currentPrice)}</td>`;
+        html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</td>`;
+        html += `<td class="${pnlPct >= 0 ? 'positive' : 'negative'}">${formatPercent(pnlPct)}</td>`;
+        html += `<td>${formatDate(pos.entry_time || pos.created_at || new Date())}</td>`;
         html += '</tr>';
     });
 
@@ -865,19 +880,23 @@ async function updateMarketConditions() {
             html += `</div>`;
 
             // Determine RSI status for better visual display
-            const rsi = parseFloat(ind.rsi);
+            const rsi = parseFloat(ind.rsi || 0);
+            if (isNaN(rsi) || rsi === null || rsi === undefined) {
+                console.warn('Invalid RSI value for', pair, ':', ind.rsi);
+            }
+            const safeRsi = isNaN(rsi) ? 50 : rsi; // Default to 50 if invalid
             let rsiStatus = 'neutral';
             let rsiLabel = '';
-            if (rsi >= 70) {
+            if (safeRsi >= 70) {
                 rsiStatus = 'overbought';
                 rsiLabel = 'Overbought';
-            } else if (rsi <= 30) {
+            } else if (safeRsi <= 30) {
                 rsiStatus = 'oversold';
                 rsiLabel = 'Oversold';
-            } else if (rsi >= 55 && rsi <= 70) {
+            } else if (safeRsi >= 55 && safeRsi <= 70) {
                 rsiStatus = 'long-range';
                 rsiLabel = 'Long Range';
-            } else if (rsi >= 30 && rsi <= 45) {
+            } else if (safeRsi >= 30 && safeRsi <= 45) {
                 rsiStatus = 'short-range';
                 rsiLabel = 'Short Range';
             } else {
@@ -888,7 +907,7 @@ async function updateMarketConditions() {
             html += `<div class="indicators-grid">`;
             html += `<div class="indicator-box"><div class="indicator-label">Price</div><div class="indicator-value">${formatCurrency(ind.price)}</div></div>`;
             html += `<div class="indicator-box"><div class="indicator-label">EMA(50)</div><div class="indicator-value">${formatCurrency(ind.ema)}</div></div>`;
-            html += `<div class="indicator-box rsi-indicator rsi-${rsiStatus}"><div class="indicator-label">RSI(14) <span class="rsi-status-badge">${rsiLabel}</span></div><div class="indicator-value">${rsi.toFixed(2)}</div><div class="rsi-bar"><div class="rsi-fill" style="width: ${rsi}%"></div></div></div>`;
+            html += `<div class="indicator-box rsi-indicator rsi-${rsiStatus}"><div class="indicator-label">RSI(14) <span class="rsi-status-badge">${rsiLabel}</span></div><div class="indicator-value">${safeRsi.toFixed(2)}</div><div class="rsi-bar"><div class="rsi-fill" style="width: ${Math.min(100, Math.max(0, safeRsi))}%"></div></div></div>`;
             html += `<div class="indicator-box"><div class="indicator-label">Volume Ratio</div><div class="indicator-value ${ind.volume_ratio >= 1.5 ? 'positive' : 'neutral'}">${ind.volume_ratio.toFixed(2)}x</div></div>`;
             html += `</div>`;
 
@@ -988,18 +1007,26 @@ async function updatePositionsPage() {
         html += '</tr></thead><tbody>';
 
         data.positions.forEach(pos => {
-            const pnl = parseFloat(pos.unrealized_pnl || 0);
-            const pnlPct = parseFloat(pos.unrealized_pnl_pct || 0);
+            if (!pos || !pos.pair) {
+                console.warn('Invalid position data:', pos);
+                return;
+            }
+            const pnl = parseFloat(pos.unrealized_pnl || pos.current_pnl || 0);
+            const pnlPct = parseFloat(pos.unrealized_pnl_pct || pos.current_pnl_pct || 0);
+            const entryPrice = parseFloat(pos.entry_price || 0);
+            const currentPrice = parseFloat(pos.current_price || entryPrice);
+            const size = parseFloat(pos.size || 0);
+            
             html += '<tr>';
-            html += `<td><strong>${pos.pair}</strong></td>`;
-            html += `<td><span class="status-badge ${pos.side === 'LONG' ? 'status-running' : 'status-stopped'}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">${pos.side}</span></td>`;
-            html += `<td>${formatCurrency(parseFloat(pos.entry_price))}</td>`;
-            html += `<td>${formatCurrency(parseFloat(pos.current_price))}</td>`;
-            html += `<td>${parseFloat(pos.size).toFixed(6)}</td>`;
+            html += `<td><strong>${escapeHtml(pos.pair || 'N/A')}</strong></td>`;
+            html += `<td><span class="status-badge ${pos.side === 'LONG' ? 'status-running' : 'status-stopped'}" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">${pos.side || 'N/A'}</span></td>`;
+            html += `<td>${formatCurrency(entryPrice)}</td>`;
+            html += `<td>${formatCurrency(currentPrice)}</td>`;
+            html += `<td>${size.toFixed(6)}</td>`;
             html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</td>`;
             html += `<td class="${pnlPct >= 0 ? 'positive' : 'negative'}">${formatPercent(pnlPct)}</td>`;
-            html += `<td>${formatDate(pos.entry_time)}</td>`;
-            html += `<td><button class="btn btn-stop" onclick="controlBot('close-position', {pair: '${pos.pair}'})" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Close</button></td>`;
+            html += `<td>${formatDate(pos.entry_time || pos.created_at || new Date())}</td>`;
+            html += `<td><button class="btn btn-stop" onclick="controlBot('close-position', {pair: '${escapeHtml(pos.pair)}'})" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Close</button></td>`;
             html += '</tr>';
         });
 
@@ -1036,19 +1063,27 @@ async function updateTradesPage() {
     html += '<th>Time</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th>';
     html += '<th>Size</th><th>P&L</th><th>P&L %</th><th>Reason</th></tr></thead><tbody>';
 
-    data.trades.slice(0, 50).forEach(trade => {
+    (data.trades || []).slice(0, 50).forEach(trade => {
+        if (!trade || !trade.pair) {
+            console.warn('Invalid trade data:', trade);
+            return;
+        }
         const pnl = parseFloat(trade.pnl || 0);
         const pnlPct = parseFloat(trade.pnl_pct || 0);
+        const entryPrice = parseFloat(trade.entry_price || 0);
+        const exitPrice = trade.exit_price ? parseFloat(trade.exit_price) : null;
+        const size = parseFloat(trade.size || 0);
+        
         html += '<tr>';
-        html += `<td>${formatDate(trade.entry_time)}</td>`;
-        html += `<td><strong>${trade.pair}</strong></td>`;
-        html += `<td><span style="color: ${trade.side === 'LONG' ? 'var(--success)' : 'var(--danger)'}">${trade.side}</span></td>`;
-        html += `<td>${formatCurrency(parseFloat(trade.entry_price))}</td>`;
-        html += `<td>${trade.exit_price ? formatCurrency(parseFloat(trade.exit_price)) : '-'}</td>`;
-        html += `<td>${parseFloat(trade.size).toFixed(6)}</td>`;
+        html += `<td>${formatDate(trade.entry_time || trade.created_at || new Date())}</td>`;
+        html += `<td><strong>${escapeHtml(trade.pair || 'N/A')}</strong></td>`;
+        html += `<td><span style="color: ${trade.side === 'LONG' ? 'var(--success)' : 'var(--danger)'}">${trade.side || 'N/A'}</span></td>`;
+        html += `<td>${formatCurrency(entryPrice)}</td>`;
+        html += `<td>${exitPrice !== null ? formatCurrency(exitPrice) : '-'}</td>`;
+        html += `<td>${size.toFixed(6)}</td>`;
         html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</td>`;
         html += `<td class="${pnlPct >= 0 ? 'positive' : 'negative'}">${formatPercent(pnlPct)}</td>`;
-        html += `<td>${trade.exit_reason || '-'}</td>`;
+        html += `<td>${escapeHtml(trade.exit_reason || '-')}</td>`;
         html += '</tr>';
     });
 
@@ -1096,11 +1131,11 @@ async function updatePerformancePage() {
                 </div>
                 <div class="card">
                     <h2>Statistics</h2>
-                    <div class="metric"><span class="metric-label">Total Trades</span><span class="metric-value">${data.total_trades}</span></div>
-                    <div class="metric"><span class="metric-label">Win Rate</span><span class="metric-value">${data.win_rate.toFixed(2)}%</span></div>
-                    <div class="metric"><span class="metric-label">Profit Factor</span><span class="metric-value">${data.profit_factor.toFixed(2)}</span></div>
-                    <div class="metric"><span class="metric-label">Sharpe Ratio</span><span class="metric-value">${data.sharpe_ratio.toFixed(2)}</span></div>
-                    <div class="metric"><span class="metric-label">Max Drawdown</span><span class="metric-value">${formatPercent(data.max_drawdown)}</span></div>
+                    <div class="metric"><span class="metric-label">Total Trades</span><span class="metric-value">${data.total_trades || 0}</span></div>
+                    <div class="metric"><span class="metric-label">Win Rate</span><span class="metric-value">${(data.win_rate || 0).toFixed(2)}%</span></div>
+                    <div class="metric"><span class="metric-label">Profit Factor</span><span class="metric-value">${(data.profit_factor || 0).toFixed(2)}</span></div>
+                    <div class="metric"><span class="metric-label">Sharpe Ratio</span><span class="metric-value">${(data.sharpe_ratio || 0).toFixed(2)}</span></div>
+                    <div class="metric"><span class="metric-label">Max Drawdown</span><span class="metric-value">${formatPercent(data.max_drawdown || 0)}</span></div>
                 </div>
             </div>
         `;
