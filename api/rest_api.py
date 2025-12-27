@@ -394,6 +394,35 @@ class TradingBotAPI:
             logger.error(f"Error getting runtime info: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
+    async def ai_status(self, request):
+        """Get AI configuration status for diagnostics."""
+        try:
+            from ai import ClaudeAIAnalyst
+            
+            api_key = self.config.CLAUDE_API_KEY or ''
+            api_key_trimmed = api_key.strip().strip('"').strip("'") if api_key else ''
+            has_key = bool(api_key_trimmed)
+            key_length = len(api_key_trimmed) if api_key_trimmed else 0
+            
+            # Try to initialize to check if it's enabled
+            ai_analyst = ClaudeAIAnalyst(self.config)
+            
+            return web.json_response({
+                'configured': has_key,
+                'enabled': ai_analyst.enabled,
+                'key_length': key_length,
+                'model': self.config.CLAUDE_MODEL,
+                'diagnostic': {
+                    'key_exists': has_key,
+                    'key_valid_format': key_length > 10 if has_key else False,
+                    'analyst_enabled': ai_analyst.enabled,
+                    'note': 'If configured=true but enabled=false, the key may be invalid or incorrectly formatted'
+                }
+            })
+        except Exception as e:
+            logger.error(f"Error getting AI status: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
     async def get_positions(self, request):
         """Get active positions with current P&L."""
         if not self.bot:
