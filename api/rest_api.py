@@ -2057,9 +2057,17 @@ class TradingBotAPI:
             backtest_data['sharpe_ratio'] = results.get('performance', {}).get('sharpe_ratio', 0) if isinstance(results.get('performance'), dict) else 0
             backtest_data['gross_profit'] = sum(t.get('pnl', 0) for t in results.get('trades', []) if t.get('pnl', 0) > 0)
             
-            # CRITICAL: Sanitize Infinity/NaN values BEFORE saving to database (JSON serialization)
-            logger.info(f"🧹 Sanitizing backtest data (converting Infinity/NaN to None)")
-            backtest_data = self._sanitize_dict(backtest_data)
+            # CRITICAL: Sanitize Infinity/NaN values in results dict ONLY (for JSON serialization)
+            # DO NOT sanitize start_date/end_date - they must remain datetime objects for database
+            logger.info(f"🧹 Sanitizing backtest results (converting Infinity/NaN to None, preserving datetime objects)")
+            # Only sanitize the 'results' dict, not the top-level datetime fields
+            if 'results' in backtest_data:
+                backtest_data['results'] = self._sanitize_dict(backtest_data['results'])
+            # Sanitize numeric fields but preserve datetime objects
+            for key in ['win_rate', 'profit_factor', 'max_drawdown', 'roi_pct', 'total_pnl', 'initial_balance', 'final_balance']:
+                if key in backtest_data and isinstance(backtest_data[key], float):
+                    if backtest_data[key] != backtest_data[key] or backtest_data[key] in (float('inf'), float('-inf')):
+                        backtest_data[key] = None
             
             logger.info(f"💾 Backtest data prepared and sanitized. db_manager={self.db_manager is not None}, initialized={self.db_manager.initialized if self.db_manager else False}, user_id={user_id}")
             
