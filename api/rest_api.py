@@ -2266,8 +2266,11 @@ class TradingBotAPI:
         # Format results dictionary if it exists
         if 'results' in formatted and isinstance(formatted['results'], dict):
             results = formatted['results']
+            # Recursively sanitize the entire results dictionary (handles datetime, Infinity, NaN)
+            formatted['results'] = self._sanitize_dict(results)
+            results = formatted['results']  # Use sanitized version
             
-            # Format equity curve timestamps
+            # Format equity curve timestamps (now redundant but safe)
             if 'equity_curve' in results:
                 for point in results['equity_curve']:
                     if 'timestamp' in point and hasattr(point['timestamp'], 'isoformat'):
@@ -2292,10 +2295,14 @@ class TradingBotAPI:
         return formatted
     
     def _sanitize_dict(self, d: Dict) -> Dict:
-        """Recursively sanitize a dictionary, converting Infinity/NaN to None."""
+        """Recursively sanitize a dictionary, converting Infinity/NaN to None and datetime to ISO strings."""
+        from datetime import datetime, date
         result = {}
         for key, value in d.items():
-            if isinstance(value, float):
+            # Handle datetime/date objects
+            if isinstance(value, (datetime, date)):
+                result[key] = value.isoformat()
+            elif isinstance(value, float):
                 if value == float('inf') or value == float('-inf'):
                     result[key] = None
                 elif value != value:  # NaN
@@ -2305,7 +2312,16 @@ class TradingBotAPI:
             elif isinstance(value, dict):
                 result[key] = self._sanitize_dict(value)
             elif isinstance(value, list):
-                result[key] = [self._sanitize_dict(item) if isinstance(item, dict) else (None if isinstance(item, float) and (item != item or item == float('inf') or item == float('-inf')) else item) for item in value]
+                def sanitize_item(item):
+                    if isinstance(item, (datetime, date)):
+                        return item.isoformat()
+                    elif isinstance(item, float):
+                        if item == float('inf') or item == float('-inf') or item != item:  # NaN
+                            return None
+                    elif isinstance(item, dict):
+                        return self._sanitize_dict(item)
+                    return item
+                result[key] = [sanitize_item(item) for item in value]
             else:
                 result[key] = value
         return result

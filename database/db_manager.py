@@ -3,7 +3,7 @@
 import json
 import logging
 import asyncio
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List, Dict, Any
 import asyncpg
 from config import get_config
@@ -522,7 +522,11 @@ class DatabaseManager:
                     logger.error(f"   results type: {type(results_json)}, keys: {list(results_json.keys()) if isinstance(results_json, dict) else 'N/A'}")
                     # Try to sanitize and retry
                     def sanitize_for_json(obj):
-                        if isinstance(obj, float):
+                        # Handle datetime/date objects
+                        if isinstance(obj, (datetime, date)):
+                            return obj.isoformat()
+                        # Handle floats (Infinity/NaN)
+                        elif isinstance(obj, float):
                             if obj == float('inf') or obj == float('-inf'):
                                 return None
                             if obj != obj:  # NaN

@@ -63,7 +63,7 @@ git commit -m "Fix: Exclude static routes from CORS to resolve HEAD conflict"
 git push origin main
 git push heroku main
 
-# Check dyno status (replace with your Heroku app name)
+image.png# Check dyno status (replace with your Heroku app name)
 heroku ps -a your-app-name
 
 # View logs
