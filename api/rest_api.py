@@ -2422,10 +2422,23 @@ class TradingBotAPI:
         try:
             from ai import ClaudeAIAnalyst
             
-            # Check if AI is enabled
-            if not self.config.CLAUDE_API_KEY:
+            # Check if AI is enabled - with better diagnostics
+            api_key = self.config.CLAUDE_API_KEY or ''
+            api_key_trimmed = api_key.strip() if api_key else ''
+            
+            if not api_key_trimmed:
+                logger.warning("CLAUDE_API_KEY is not set or is empty")
+                # Log first few chars for debugging (without exposing full key)
+                has_key = 'Yes' if api_key else 'No'
+                key_length = len(api_key) if api_key else 0
+                logger.info(f"CLAUDE_API_KEY status: exists={has_key}, length={key_length}")
                 return web.json_response({
-                    'error': 'AI analysis not available. Please configure CLAUDE_API_KEY in .env'
+                    'error': 'AI analysis not available. CLAUDE_API_KEY is not configured or is empty. Please check your Railway environment variables.',
+                    'diagnostic': {
+                        'key_exists': has_key,
+                        'key_length': key_length,
+                        'note': 'Make sure CLAUDE_API_KEY is set in Railway without quotes around the value'
+                    }
                 }, status=503)
             
             data = await request.json()
@@ -2435,8 +2448,13 @@ class TradingBotAPI:
             ai_analyst = ClaudeAIAnalyst(self.config)
             
             if not ai_analyst.enabled:
+                logger.warning(f"ClaudeAIAnalyst reports disabled despite key being present (length: {len(api_key_trimmed)})")
                 return web.json_response({
-                    'error': 'AI analysis not available. Please configure CLAUDE_API_KEY in .env'
+                    'error': 'AI analysis not available. CLAUDE_API_KEY appears to be invalid. Please verify the key is correct in Railway environment variables.',
+                    'diagnostic': {
+                        'key_length': len(api_key_trimmed),
+                        'note': 'The key exists but ClaudeAIAnalyst reports it as disabled. Check for typos or invalid key format.'
+                    }
                 }, status=503)
             
             analysis = await ai_analyst.analyze_market_conditions(market_data, trading_signals)

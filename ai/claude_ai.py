@@ -14,15 +14,19 @@ class ClaudeAIAnalyst:
     
     def __init__(self, config=None):
         self.config = config or get_config()
-        self.api_key = self.config.CLAUDE_API_KEY
+        self.api_key = (self.config.CLAUDE_API_KEY or '').strip()
+        # Remove any quotes that might have been added
+        if self.api_key:
+            self.api_key = self.api_key.strip('"').strip("'")
         self.model = self.config.CLAUDE_MODEL
         self.base_url = "https://api.anthropic.com/v1"
-        self.enabled = bool(self.api_key)
+        self.enabled = bool(self.api_key and len(self.api_key) > 10)  # Basic validation - real keys are longer
         
         if not self.enabled:
-            logger.warning("Claude AI not configured - set CLAUDE_API_KEY in .env")
+            key_status = 'empty or too short' if not self.api_key or len(self.api_key) <= 10 else 'invalid'
+            logger.warning(f"Claude AI not configured - CLAUDE_API_KEY is {key_status}. Key length: {len(self.api_key) if self.api_key else 0}")
         else:
-            logger.info(f"ClaudeAIAnalyst initialized with model: {self.model}")
+            logger.info(f"ClaudeAIAnalyst initialized with model: {self.model} (key length: {len(self.api_key)})")
     
     async def analyze_market_conditions(
         self, 

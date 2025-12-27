@@ -91,7 +91,9 @@ class Config:
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
     
     # AI Settings (Claude AI)
-    CLAUDE_API_KEY = os.getenv('CLAUDE_API_KEY', '')
+    # Strip whitespace and remove quotes if present (Railway sometimes adds quotes)
+    _claude_key = os.getenv('CLAUDE_API_KEY', '').strip()
+    CLAUDE_API_KEY = _claude_key.strip('"').strip("'") if _claude_key else ''
     CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-3-haiku-20240307')
     
     # Logging
