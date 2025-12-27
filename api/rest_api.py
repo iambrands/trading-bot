@@ -2070,13 +2070,23 @@ class TradingBotAPI:
             # If save failed, still return results but log warning
             if not backtest_id:
                 logger.warning(f"⚠️⚠️⚠️ BACKTEST COMPLETED BUT NOT SAVED TO DATABASE (user_id: {user_id}, db_manager exists: {self.db_manager is not None})")
+                # Try to query database to see if ANY backtests exist (diagnostic)
+                if self.db_manager and self.db_manager.initialized:
+                    try:
+                        async with self.db_manager.pool.acquire() as conn:
+                            total_count = await conn.fetchval("SELECT COUNT(*) FROM backtests")
+                            logger.info(f"🔍 DIAGNOSTIC: Total backtests in database: {total_count}")
+                    except Exception as diag_error:
+                        logger.error(f"🔍 Diagnostic query failed: {diag_error}")
             
             # Format results for JSON (convert datetime objects)
             formatted_results = self._format_backtest_results(backtest_data)
             
-            # Final log before returning response
-            logger.info(f"📤📤📤 RETURNING BACKTEST RESPONSE: success=True, backtest_id={backtest_data.get('id')}, user_id={user_id}, saved={backtest_id is not None}")
+            # Final log before returning response - CRITICAL: This confirms handler completed
+            logger.info(f"📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤")
+            logger.info(f"📤 RETURNING BACKTEST RESPONSE: success=True, backtest_id={backtest_data.get('id')}, user_id={user_id}, saved={backtest_id is not None}")
             logger.info(f"📤 Results summary: {formatted_results.get('total_trades', 0)} trades, P&L: ${formatted_results.get('total_pnl', 0):.2f}")
+            logger.info(f"📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤📤")
             
             return web.json_response({
                 'success': True,
