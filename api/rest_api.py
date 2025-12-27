@@ -251,6 +251,7 @@ class TradingBotAPI:
         self.app.router.add_get('/api/backtest/results/{id}', self.get_backtest_results)
         self.app.router.add_get('/api/backtest/debug-count', self.debug_backtest_count)  # Diagnostic endpoint
         self.app.router.add_get('/api/backtest/test-route', self.test_backtest_route)  # Simple test endpoint
+        self.app.router.add_post('/api/backtest/test-post', self.test_backtest_post)  # Test POST endpoint
         
         # AI endpoints
         self.app.router.add_post('/api/ai/analyze-market', self.ai_analyze_market)
