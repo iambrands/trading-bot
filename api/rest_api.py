@@ -2354,9 +2354,11 @@ class TradingBotAPI:
                 for point in results['equity_curve']:
                     if 'timestamp' in point and hasattr(point['timestamp'], 'isoformat'):
                         point['timestamp'] = point['timestamp'].isoformat()
-                    # Sanitize numeric values
+                    # Sanitize numeric values (including Decimal from PostgreSQL)
                     for k, v in point.items():
-                        if isinstance(v, (int, float)):
+                        if isinstance(v, Decimal):
+                            point[k] = float(v)
+                        elif isinstance(v, (int, float)):
                             point[k] = sanitize_value(v)
             
             # Format trade timestamps and sanitize values
@@ -2366,9 +2368,11 @@ class TradingBotAPI:
                         if time_key in trade and trade[time_key]:
                             if hasattr(trade[time_key], 'isoformat'):
                                 trade[time_key] = trade[time_key].isoformat()
-                    # Sanitize all numeric values in trades
+                    # Sanitize all numeric values in trades (including Decimal from PostgreSQL)
                     for k, v in trade.items():
-                        if isinstance(v, (int, float)):
+                        if isinstance(v, Decimal):
+                            trade[k] = float(v)
+                        elif isinstance(v, (int, float)):
                             trade[k] = sanitize_value(v)
         
         return formatted
