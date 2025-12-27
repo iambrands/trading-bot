@@ -2302,7 +2302,8 @@ class TradingBotAPI:
             return web.json_response({'error': str(e)}, status=500)
     
     def _format_backtest_results(self, backtest_data: Dict) -> Dict:
-        """Format backtest results for JSON response (handle datetime objects, Infinity, NaN)."""
+        """Format backtest results for JSON response (handle datetime objects, Infinity, NaN, Decimal)."""
+        from decimal import Decimal
         formatted = dict(backtest_data)
         
         # Convert datetime objects to ISO strings
