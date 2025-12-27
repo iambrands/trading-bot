@@ -1397,6 +1397,10 @@ function downloadLogs() {
 let backtestListInterval = null;
 let runningBacktestId = null;
 let runningBacktestPromise = null;
+let backtestListCurrentPage = 1;
+let backtestListItemsPerPage = 10;
+let backtestListFilteredData = [];
+let backtestListAllData = [];
 
 async function updateBacktestPage() {
     // Load the backtest list (it will use cache if available)
@@ -1474,6 +1478,7 @@ async function loadBacktestList() {
             // Only show empty state if we don't have cached data
             if (!isShowingData) {
                 container.innerHTML = '<div class="empty-state">No backtests yet. Run your first backtest above!</div>';
+                document.getElementById('backtestPagination')?.setAttribute('style', 'display: none !important');
             }
             return;
         }
@@ -1481,48 +1486,20 @@ async function loadBacktestList() {
         if (data.backtests.length === 0) {
             // Show empty state
             container.innerHTML = '<div class="empty-state">No backtests yet. Run your first backtest above!</div>';
+            document.getElementById('backtestPagination')?.setAttribute('style', 'display: none !important');
             console.log('No backtests found in database');
             return;
         }
         
-        let html = '<div class="table-wrapper"><table><thead><tr>';
-        html += '<th>Name</th><th>Pair</th><th>Period</th><th>Initial Balance</th>';
-        html += '<th>Final Balance</th><th>P&L</th><th>ROI</th><th>Win Rate</th><th>Date</th><th>Actions</th>';
-        html += '</tr></thead><tbody>';
-        
-        // Sort by date, newest first
-        const sortedBacktests = [...data.backtests].sort((a, b) => {
+        // Store all data
+        backtestListAllData = [...data.backtests].sort((a, b) => {
             const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
             const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
             return dateB - dateA; // Newest first
         });
         
-        sortedBacktests.forEach(bt => {
-            const pnl = parseFloat(bt.total_pnl || 0);
-            const roi = parseFloat(bt.roi_pct || 0);
-            const winRate = parseFloat(bt.win_rate || 0);
-            
-            // Calculate period
-            const startDate = bt.start_date ? new Date(bt.start_date) : null;
-            const endDate = bt.end_date ? new Date(bt.end_date) : null;
-            const days = startDate && endDate ? Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) : 'N/A';
-            
-            html += '<tr>';
-            html += `<td><strong>${escapeHtml(bt.name || 'Unnamed')}</strong></td>`;
-            html += `<td>${escapeHtml(bt.pair || 'N/A')}</td>`;
-            html += `<td>${days} days</td>`;
-            html += `<td>${formatCurrency(parseFloat(bt.initial_balance || 0))}</td>`;
-            html += `<td>${formatCurrency(parseFloat(bt.final_balance || 0))}</td>`;
-            html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</td>`;
-            html += `<td class="${roi >= 0 ? 'positive' : 'negative'}">${formatPercent(roi)}</td>`;
-            html += `<td>${winRate.toFixed(2)}%</td>`;
-            html += `<td>${bt.created_at ? formatDate(bt.created_at) : 'N/A'}</td>`;
-            html += `<td><button class="btn btn-primary btn-sm" onclick="viewBacktest(${bt.id})" style="padding: 0.5rem 1rem; font-size: 0.875rem;">View Details</button></td>`;
-            html += '</tr>';
-        });
-        
-        html += '</tbody></table></div>';
-        container.innerHTML = html;
+        // Apply filters and render
+        filterBacktestList();
         
         // Store the list in sessionStorage for persistence
         try {
@@ -1549,11 +1526,157 @@ async function loadBacktestList() {
         }
         
         container.innerHTML = `<div class="error">Error loading backtests: ${error.message}. <button onclick="loadBacktestList()" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Retry</button></div>`;
+        document.getElementById('backtestPagination')?.setAttribute('style', 'display: none !important');
     }
 }
 
+function filterBacktestList() {
+    const pairFilter = document.getElementById('backtestFilterPair')?.value || '';
+    const periodFilter = document.getElementById('backtestFilterPeriod')?.value || '';
+    
+    // Filter data
+    backtestListFilteredData = backtestListAllData.filter(bt => {
+        // Pair filter
+        if (pairFilter && bt.pair !== pairFilter) {
+            return false;
+        }
+        
+        // Period filter
+        if (periodFilter) {
+            const startDate = bt.start_date ? new Date(bt.start_date) : null;
+            const endDate = bt.end_date ? new Date(bt.end_date) : null;
+            const days = startDate && endDate ? Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) : 0;
+            
+            if (periodFilter === '14+') {
+                if (days < 14) return false;
+            } else {
+                const filterDays = parseInt(periodFilter);
+                if (days !== filterDays) return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    // Reset to page 1 when filtering
+    backtestListCurrentPage = 1;
+    
+    // Render the filtered list
+    renderBacktestList();
+}
+
+function renderBacktestList() {
+    const container = document.getElementById('backtestList');
+    if (!container) return;
+    
+    if (backtestListFilteredData.length === 0) {
+        container.innerHTML = '<div class="empty-state">No backtests match your filters. <button onclick="document.getElementById(\'backtestFilterPair\').value=\'\'; document.getElementById(\'backtestFilterPeriod\').value=\'\'; filterBacktestList();" class="btn btn-secondary btn-sm" style="margin-left: 0.5rem;">Clear Filters</button></div>';
+        document.getElementById('backtestPagination')?.setAttribute('style', 'display: none !important');
+        return;
+    }
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(backtestListFilteredData.length / backtestListItemsPerPage);
+    const startIndex = (backtestListCurrentPage - 1) * backtestListItemsPerPage;
+    const endIndex = Math.min(startIndex + backtestListItemsPerPage, backtestListFilteredData.length);
+    const paginatedData = backtestListFilteredData.slice(startIndex, endIndex);
+    
+    // Build table
+    let html = '<div class="table-wrapper" style="max-height: 600px; overflow-y: auto;"><table><thead><tr>';
+    html += '<th>Name</th><th>Pair</th><th>Period</th><th>P&L</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
+    html += '</tr></thead><tbody>';
+    
+    paginatedData.forEach(bt => {
+        const pnl = parseFloat(bt.total_pnl || 0);
+        const roi = parseFloat(bt.roi_pct || 0);
+        const winRate = parseFloat(bt.win_rate || 0);
+        const trades = parseInt(bt.total_trades || 0);
+        
+        // Calculate period
+        const startDate = bt.start_date ? new Date(bt.start_date) : null;
+        const endDate = bt.end_date ? new Date(bt.end_date) : null;
+        const days = startDate && endDate ? Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) : 'N/A';
+        
+        html += '<tr>';
+        html += `<td><strong>${escapeHtml(bt.name || 'Unnamed')}</strong></td>`;
+        html += `<td><span class="badge" style="padding: 0.25rem 0.5rem; background: var(--blue-100); color: var(--blue-700); border-radius: 4px; font-size: 0.875rem;">${escapeHtml(bt.pair || 'N/A')}</span></td>`;
+        html += `<td>${days} days</td>`;
+        html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(pnl)}</td>`;
+        html += `<td class="${roi >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatPercent(roi)}</td>`;
+        html += `<td>${winRate.toFixed(2)}%</td>`;
+        html += `<td>${trades}</td>`;
+        html += `<td style="font-size: 0.875rem; color: var(--gray-600);">${bt.created_at ? formatDate(bt.created_at) : 'N/A'}</td>`;
+        html += `<td><button class="btn btn-primary btn-sm" onclick="viewBacktest(${bt.id})" style="padding: 0.4rem 0.8rem; font-size: 0.8125rem;">View</button></td>`;
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    
+    // Update pagination controls
+    const paginationEl = document.getElementById('backtestPagination');
+    if (paginationEl) {
+        paginationEl.style.display = 'flex';
+        document.getElementById('backtestPageInfo').textContent = `${startIndex + 1}-${endIndex}`;
+        document.getElementById('backtestTotalCount').textContent = backtestListFilteredData.length;
+        document.getElementById('backtestCurrentPage').textContent = backtestListCurrentPage;
+        
+        const prevBtn = document.getElementById('backtestPrevPage');
+        const nextBtn = document.getElementById('backtestNextPage');
+        if (prevBtn) prevBtn.disabled = backtestListCurrentPage === 1;
+        if (nextBtn) nextBtn.disabled = backtestListCurrentPage >= totalPages;
+    }
+}
+
+function changeBacktestPage(direction) {
+    const totalPages = Math.ceil(backtestListFilteredData.length / backtestListItemsPerPage);
+    const newPage = backtestListCurrentPage + direction;
+    
+    if (newPage >= 1 && newPage <= totalPages) {
+        backtestListCurrentPage = newPage;
+        renderBacktestList();
+        // Scroll to top of list
+        const container = document.getElementById('backtestList');
+        if (container) {
+            container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
+
+// Quick run backtest function for common periods
+async function runQuickBacktest(days) {
+    const pair = document.getElementById('backtestPair')?.value || 'BTC-USD';
+    const balance = document.getElementById('backtestBalance')?.value || 100000;
+    const pairNames = {
+        'BTC-USD': 'BTC',
+        'ETH-USD': 'ETH',
+        'SOL-USD': 'SOL'
+    };
+    const pairName = pairNames[pair] || pair.split('-')[0];
+    const name = `${pairName} ${days}-DAY`;
+    
+    // Set form values
+    if (document.getElementById('backtestPair')) {
+        document.getElementById('backtestPair').value = pair;
+    }
+    if (document.getElementById('backtestDays')) {
+        document.getElementById('backtestDays').value = days;
+    }
+    if (document.getElementById('backtestBalance')) {
+        document.getElementById('backtestBalance').value = balance;
+    }
+    if (document.getElementById('backtestName')) {
+        document.getElementById('backtestName').value = name;
+    }
+    
+    // Run the backtest
+    await runBacktestInternal(pair, days, parseFloat(balance), name);
+}
+
 async function runBacktest(event) {
-    event.preventDefault();
+    if (event) {
+        event.preventDefault();
+    }
     
     const pair = document.getElementById('backtestPair').value;
     const days = parseInt(document.getElementById('backtestDays').value);

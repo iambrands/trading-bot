@@ -342,9 +342,29 @@
         <div id="page-backtest" class="page">
 
             <div class="grid">
+                <!-- Quick Run Backtests -->
+                <div class="card">
+                    <h2>Quick Run Backtests <span class="ai-help-icon" onclick="getAIHelp('backtest')" title="Get AI help">ℹ</span></h2>
+                    <p style="margin-bottom: 1rem; color: var(--gray-600);">Run common backtest periods with one click</p>
+                    <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;">
+                        <button type="button" class="btn btn-primary" onclick="runQuickBacktest(1)" style="flex: 1; min-width: 150px;">
+                            ⚡ 1-Day Backtest
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="runQuickBacktest(3)" style="flex: 1; min-width: 150px;">
+                            ⚡ 3-Day Backtest
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="runQuickBacktest(7)" style="flex: 1; min-width: 150px;">
+                            ⚡ 7-Day Backtest
+                        </button>
+                    </div>
+                    <div style="padding: 0.75rem; background: var(--blue-50); border-left: 3px solid var(--blue-500); border-radius: 4px; font-size: 0.875rem; color: var(--gray-700);">
+                        <strong>💡 Optimal for Scalping:</strong> 1-3 days (best), 3-7 days (good), 7-30 days (acceptable). Longer periods (30+ days) may timeout and are less representative for scalping strategies.
+                    </div>
+                </div>
+
                 <!-- Run Backtest Form -->
                 <div class="card">
-                    <h2>Run New Backtest <span class="ai-help-icon" onclick="getAIHelp('backtest')" title="Get AI help">ℹ</span></h2>
+                    <h2>Custom Backtest <span class="ai-help-icon" onclick="getAIHelp('backtest')" title="Get AI help">ℹ</span></h2>
                     <form id="backtestForm" onsubmit="runBacktest(event); return false;">
                         <div class="form-group">
                             <label for="backtestPair">Trading Pair</label>
@@ -358,9 +378,6 @@
                             <label for="backtestDays">Historical Period (Days)</label>
                             <input type="number" id="backtestDays" class="form-input" value="7" min="1" max="90" required>
                             <small>1-90 days of historical data</small>
-                            <div style="margin-top: 0.5rem; padding: 0.75rem; background: var(--blue-50); border-left: 3px solid var(--blue-500); border-radius: 4px; font-size: 0.875rem; color: var(--gray-700);">
-                                <strong>💡 Optimal for Scalping:</strong> 1-3 days (best), 3-7 days (good), 7-30 days (acceptable). Longer periods (30+ days) may timeout and are less representative for scalping strategies.
-                            </div>
                         </div>
                         <div class="form-group">
                             <label for="backtestBalance">Initial Balance ($)</label>
@@ -371,7 +388,7 @@
                             <input type="text" id="backtestName" class="form-input" placeholder="e.g., BTC 30-day test">
                         </div>
                         <button type="submit" class="btn btn-start" id="runBacktestBtn">
-                            <span id="backtestBtnText">Run Backtest</span>
+                            <span id="backtestBtnText">Run Custom Backtest</span>
                             <span id="backtestLoading" style="display: none;">Running...</span>
                         </button>
                     </form>
@@ -386,8 +403,38 @@
 
             <!-- Previous Backtests -->
             <div class="card">
-                <h2>Previous Backtests</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">Previous Backtests</h2>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <select id="backtestFilterPair" class="form-input" style="max-width: 150px; padding: 0.5rem;" onchange="filterBacktestList()">
+                            <option value="">All Pairs</option>
+                            <option value="BTC-USD">BTC-USD</option>
+                            <option value="ETH-USD">ETH-USD</option>
+                            <option value="SOL-USD">SOL-USD</option>
+                        </select>
+                        <select id="backtestFilterPeriod" class="form-input" style="max-width: 150px; padding: 0.5rem;" onchange="filterBacktestList()">
+                            <option value="">All Periods</option>
+                            <option value="1">1 Day</option>
+                            <option value="3">3 Days</option>
+                            <option value="7">7 Days</option>
+                            <option value="14+">14+ Days</option>
+                        </select>
+                        <button onclick="loadBacktestList()" class="btn btn-secondary btn-sm" style="padding: 0.5rem 1rem;">
+                            🔄 Refresh
+                        </button>
+                    </div>
+                </div>
                 <div id="backtestList" class="loading">Loading backtests...</div>
+                <div id="backtestPagination" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center;">
+                    <div style="color: var(--gray-600); font-size: 0.875rem;">
+                        Showing <span id="backtestPageInfo">0-0</span> of <span id="backtestTotalCount">0</span> backtests
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button id="backtestPrevPage" onclick="changeBacktestPage(-1)" class="btn btn-secondary btn-sm" disabled>← Previous</button>
+                        <span style="padding: 0.5rem 1rem; color: var(--gray-700);">Page <span id="backtestCurrentPage">1</span></span>
+                        <button id="backtestNextPage" onclick="changeBacktestPage(1)" class="btn btn-secondary btn-sm">Next →</button>
+                    </div>
+                </div>
             </div>
         </div>
 
