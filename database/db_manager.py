@@ -627,6 +627,11 @@ class DatabaseManager:
                 results = []
                 for row in rows:
                     backtest = dict(row)
+                    # Convert Decimal objects to float (PostgreSQL returns Decimal for numeric types)
+                    from decimal import Decimal
+                    for key, value in backtest.items():
+                        if isinstance(value, Decimal):
+                            backtest[key] = float(value)
                     # Parse JSON results
                     if backtest.get('results') and isinstance(backtest['results'], str):
                         try:
@@ -660,6 +665,11 @@ class DatabaseManager:
                 
                 if row:
                     backtest = dict(row)
+                    # Convert Decimal objects to float (PostgreSQL returns Decimal for numeric types)
+                    from decimal import Decimal
+                    for key, value in backtest.items():
+                        if isinstance(value, Decimal):
+                            backtest[key] = float(value)
                     # Parse JSON results
                     if backtest.get('results') and isinstance(backtest['results'], str):
                         try:
