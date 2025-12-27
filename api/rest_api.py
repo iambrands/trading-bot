@@ -2364,13 +2364,17 @@ class TradingBotAPI:
         return formatted
     
     def _sanitize_dict(self, d: Dict) -> Dict:
-        """Recursively sanitize a dictionary, converting Infinity/NaN to None and datetime to ISO strings."""
+        """Recursively sanitize a dictionary, converting Infinity/NaN to None, datetime to ISO strings, and Decimal to float."""
         from datetime import datetime, date
+        from decimal import Decimal
         result = {}
         for key, value in d.items():
             # Handle datetime/date objects
             if isinstance(value, (datetime, date)):
                 result[key] = value.isoformat()
+            # Handle Decimal objects (from PostgreSQL asyncpg)
+            elif isinstance(value, Decimal):
+                result[key] = float(value)
             elif isinstance(value, float):
                 if value == float('inf') or value == float('-inf'):
                     result[key] = None
