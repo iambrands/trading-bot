@@ -2321,16 +2321,26 @@ class TradingBotAPI:
                     return None
             return value
         
-        # Sanitize all numeric values in the top-level dict
+        # Sanitize all numeric values in the top-level dict (including Decimal)
         for key, value in formatted.items():
-            if isinstance(value, (int, float)):
+            if isinstance(value, Decimal):
+                formatted[key] = float(value)
+            elif isinstance(value, (int, float)):
                 formatted[key] = sanitize_value(value)
             elif isinstance(value, dict):
                 # Recursively sanitize dict values
                 formatted[key] = self._sanitize_dict(value)
             elif isinstance(value, list):
-                # Sanitize list items
-                formatted[key] = [self._sanitize_dict(item) if isinstance(item, dict) else sanitize_value(item) if isinstance(item, (int, float)) else item for item in value]
+                # Sanitize list items (handle Decimal, int, float)
+                def sanitize_list_item(item):
+                    if isinstance(item, Decimal):
+                        return float(item)
+                    elif isinstance(item, dict):
+                        return self._sanitize_dict(item)
+                    elif isinstance(item, (int, float)):
+                        return sanitize_value(item)
+                    return item
+                formatted[key] = [sanitize_list_item(item) for item in value]
         
         # Format results dictionary if it exists
         if 'results' in formatted and isinstance(formatted['results'], dict):
