@@ -989,7 +989,25 @@ class TradingBotAPI:
                 market_data = await self.bot.exchange.get_market_data([pair])
                 real_time_price = market_data.get(pair, {}).get('price', 0) if market_data.get(pair) else 0
                 
-                # Calculate indicators
+                # Update last candle with real-time price BEFORE calculating indicators
+                # This ensures EMA/RSI use the latest price data
+                if candles and real_time_price > 0:
+                    # Work with a copy to avoid modifying the cache directly
+                    candles = list(candles)  # Create a copy
+                    candles[-1] = candles[-1].copy()
+                    old_close = candles[-1].get('close', 0)
+                    candles[-1]['close'] = real_time_price
+                    # Update high/low if needed
+                    if real_time_price > candles[-1].get('high', 0):
+                        candles[-1]['high'] = real_time_price
+                    if real_time_price < candles[-1].get('low', float('inf')):
+                        candles[-1]['low'] = real_time_price
+                    
+                    # Log if there's a significant price difference (potential data issue)
+                    if abs(real_time_price - old_close) / old_close > 0.5:  # >50% difference
+                        logger.warning(f"⚠️ {pair}: Large price difference in cached candle - old_close=${old_close:.2f}, real_time=${real_time_price:.2f}. Candle cache may be stale.")
+                
+                # Calculate indicators with updated candle data
                 indicators = self.bot.strategy.calculate_indicators(candles)
                 if not indicators:
                     conditions[pair] = {
@@ -1003,6 +1021,12 @@ class TradingBotAPI:
                 ema = indicators['ema']
                 rsi = indicators['rsi']
                 volume_ratio = indicators['volume_ratio']
+                
+                # Validate EMA: if EMA is more than 30% away from current price, cache may be stale
+                if price > 0 and ema > 0:
+                    price_ema_ratio = abs(price - ema) / price
+                    if price_ema_ratio > 0.30:  # More than 30% difference suggests stale data
+                        logger.warning(f"⚠️ {pair}: EMA appears incorrect - Price=${price:.2f}, EMA=${ema:.2f} ({price_ema_ratio*100:.1f}% difference). Candle cache may need refresh.")
                 
                 # Update indicators with real-time price
                 indicators['price'] = price
