@@ -5,6 +5,9 @@ let selectedPairs = [];
 
 // Load current settings on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize selected pairs display first (even if empty)
+    updateSelectedPairsDisplay();
+    
     await loadSettings();
     await loadTemplates();
     await loadAvailableCoins();
@@ -403,6 +406,12 @@ async function loadAvailableCoins() {
 
 function addCoin() {
     const selector = document.getElementById('coinSelector');
+    if (!selector) {
+        console.error('coinSelector not found');
+        alert('Error: Coin selector not found. Please refresh the page.');
+        return;
+    }
+    
     const pair = selector.value;
     
     if (!pair) {
@@ -416,8 +425,15 @@ function addCoin() {
     }
     
     selectedPairs.push(pair);
+    console.log('Added coin:', pair, 'Total pairs:', selectedPairs); // Debug log
     updateSelectedPairsDisplay();
     updateTradingPairsInput();
+    
+    // Show success feedback
+    const container = document.getElementById('selectedPairs');
+    if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
 }
 
 function removeCoin(pair) {
@@ -428,22 +444,33 @@ function removeCoin(pair) {
 
 function updateSelectedPairsDisplay() {
     const container = document.getElementById('selectedPairs');
-    if (!container) return;
-    
-    if (selectedPairs.length === 0) {
-        container.innerHTML = '<div style="padding: 1rem; background: #f3f4f6; border-radius: 8px; color: #6b7280;">No coins selected</div>';
+    if (!container) {
+        console.error('selectedPairs container not found');
         return;
     }
     
-    let html = '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">';
+    console.log('Updating selected pairs display:', selectedPairs); // Debug log
+    
+    if (selectedPairs.length === 0) {
+        container.innerHTML = '<div style="padding: 1rem; background: #f3f4f6; border-radius: 8px; color: #6b7280;">No coins selected. Select a coin and click "+ Add Coin" to add it.</div>';
+        return;
+    }
+    
+    let html = '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 2rem;">';
     selectedPairs.forEach(pair => {
-        html += `<span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: var(--primary); color: white; border-radius: 20px;">
+        html += `<span style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; background: #3b82f6; color: white; border-radius: 20px; font-weight: 500;">
             ${pair}
-            <button type="button" onclick="removeCoin('${pair}')" style="background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 0.8em;">×</button>
+            <button type="button" onclick="removeCoin('${pair}')" style="background: rgba(255,255,255,0.3); border: none; color: white; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 0.9em; line-height: 1; padding: 0; display: flex; align-items: center; justify-content: center;">×</button>
         </span>`;
     });
     html += '</div>';
     container.innerHTML = html;
+    
+    // Also clear the selector dropdown
+    const selector = document.getElementById('coinSelector');
+    if (selector) {
+        selector.value = '';
+    }
 }
 
 function updateTradingPairsInput() {
