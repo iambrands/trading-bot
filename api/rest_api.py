@@ -1023,10 +1023,34 @@ class TradingBotAPI:
                 volume_ratio = indicators['volume_ratio']
                 
                 # Validate EMA: if EMA is more than 30% away from current price, cache may be stale
+                # If stale, force refresh candle cache for this pair
                 if price > 0 and ema > 0:
                     price_ema_ratio = abs(price - ema) / price
                     if price_ema_ratio > 0.30:  # More than 30% difference suggests stale data
-                        logger.warning(f"⚠️ {pair}: EMA appears incorrect - Price=${price:.2f}, EMA=${ema:.2f} ({price_ema_ratio*100:.1f}% difference). Candle cache may need refresh.")
+                        logger.warning(f"⚠️ {pair}: EMA appears incorrect - Price=${price:.2f}, EMA=${ema:.2f} ({price_ema_ratio*100:.1f}% difference). Refreshing candle cache...")
+                        # Force refresh candle cache for this pair
+                        try:
+                            import asyncio
+                            from datetime import datetime, timedelta
+                            fresh_candles = await self.bot.exchange.get_candles(
+                                pair,
+                                granularity='ONE_MINUTE',
+                                start=datetime.utcnow() - timedelta(hours=24),
+                                end=datetime.utcnow()
+                            )
+                            if fresh_candles:
+                                self.bot.candle_cache[pair] = fresh_candles
+                                logger.info(f"✅ {pair}: Candle cache refreshed with {len(fresh_candles)} candles")
+                                # Recalculate indicators with fresh data
+                                indicators = self.bot.strategy.calculate_indicators(fresh_candles)
+                                if indicators:
+                                    old_ema = ema  # Save old EMA for logging
+                                    ema = indicators['ema']
+                                    rsi = indicators['rsi']
+                                    volume_ratio = indicators['volume_ratio']
+                                    logger.info(f"✅ {pair}: Recalculated EMA=${ema:.2f} (was ${old_ema:.2f}), should be closer to price=${price:.2f}")
+                        except Exception as refresh_error:
+                            logger.error(f"Failed to refresh candle cache for {pair}: {refresh_error}", exc_info=True)
                 
                 # Update indicators with real-time price
                 indicators['price'] = price
