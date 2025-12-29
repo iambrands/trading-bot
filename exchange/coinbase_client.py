@@ -420,6 +420,16 @@ class CoinbaseClient:
                 else:
                     logger.warning(f"Could not fetch real candles for {pair}, generating synthetic")
             
+            # Try to get current price before generating synthetic candles
+            # This ensures synthetic candles start from current price, not old defaults
+            try:
+                current_market = await self.get_market_data([pair])
+                if pair in current_market and 'price' in current_market[pair]:
+                    base_price = float(current_market[pair]['price'])
+                    logger.debug(f"Using current price ${base_price:.2f} as base for synthetic candles ({pair})")
+            except Exception as e:
+                logger.debug(f"Could not fetch current price for synthetic candles: {e}")
+            
             # Fall back to synthetic candles
             return self._generate_synthetic_candles(pair, start, end, granularity)
         except Exception as e:
@@ -428,7 +438,23 @@ class CoinbaseClient:
     
     def _generate_synthetic_candles(self, pair: str, start: datetime, end: datetime, granularity: str) -> List[Dict]:
         """Generate synthetic candle data for paper trading."""
-        base_price = 50000.0 if 'BTC' in pair else 3000.0
+        # Try to get current real-time price, fall back to defaults if unavailable
+        base_price = None
+        try:
+            # Use real-time price if available in market_data
+            if hasattr(self, 'market_data') and pair in self.market_data:
+                market_info = self.market_data[pair]
+                if isinstance(market_info, dict) and 'price' in market_info:
+                    base_price = float(market_info['price'])
+                    logger.debug(f"Using current real-time price ${base_price:.2f} as base for synthetic candles ({pair})")
+        except Exception as e:
+            logger.debug(f"Could not get real-time price for synthetic candles: {e}")
+        
+        # Fall back to defaults if real-time price not available
+        if base_price is None or base_price <= 0:
+            base_price = 50000.0 if 'BTC' in pair else 3000.0
+            logger.debug(f"Using default base price ${base_price:.2f} for synthetic candles ({pair})")
+        
         candles = []
         current_time = start
         current_price = base_price
