@@ -16,6 +16,7 @@ from monitoring import PerformanceTracker
 from alerts import AlertManager
 from orders import AdvancedOrderManager
 from api.rest_api import create_app, run_api
+from utils.log_buffer import setup_log_buffer
 
 # Configure logging
 logging.basicConfig(
@@ -23,7 +24,8 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler('tradingbot.log'),
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stdout),
+        setup_log_buffer(max_size=1000)  # Keep last 1000 log entries in memory
     ]
 )
 

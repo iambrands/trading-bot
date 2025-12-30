@@ -9,11 +9,16 @@ from aiohttp import web
 from api.rest_api import create_app, run_api
 from database.db_manager import DatabaseManager
 from config import get_config
+from utils.log_buffer import setup_log_buffer
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        setup_log_buffer(max_size=1000)  # Keep last 1000 log entries in memory
+    ]
 )
 
 logger = logging.getLogger(__name__)

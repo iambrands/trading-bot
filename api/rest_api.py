@@ -1478,72 +1478,75 @@ class TradingBotAPI:
             return web.json_response({'error': str(e)}, status=500)
     
     async def get_logs(self, request):
-        """Get system logs."""
-        if not self.bot:
-            return web.json_response({'error': 'Bot not initialized'}, status=500)
-        
+        """Get system logs from in-memory buffer or log file."""
         try:
             limit = int(request.query.get('limit', 500))
             level_filter = request.query.get('level', 'ALL')
             
-            # Read log file
-            import os
-            log_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tradingbot.log')
-            
             logs = []
-            if os.path.exists(log_file):
-                with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
-                    lines = f.readlines()[-limit:]
-                    for line in lines:
-                        line = line.strip()
-                        if not line:
-                            continue
-                        
-                        # Parse log line format: "2025-11-25 22:01:23,330 - module - LEVEL - message"
-                        # or aiohttp format: "2025-11-25 22:01:23,330 - aiohttp.access - INFO - 127.0.0.1 [28/Nov/2025:13:26:53 -0600] ..."
-                        parts = line.split(' - ', 3)
-                        
-                        if len(parts) >= 4:
-                            timestamp_str = parts[0]
-                            module = parts[1]
-                            level = parts[2]
-                            message = parts[3]
+            
+            # First, try to get logs from in-memory buffer (works on Railway)
+            try:
+                from utils.log_buffer import get_log_handler
+                handler = get_log_handler()
+                if handler:
+                    logs = handler.get_logs(limit=limit, level_filter=level_filter)
+                    logger.debug(f"Retrieved {len(logs)} logs from in-memory buffer")
+            except Exception as e:
+                logger.debug(f"In-memory log buffer not available: {e}")
+            
+            # Fallback to reading log file (for local development)
+            if not logs:
+                import os
+                log_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'tradingbot.log')
+                
+                if os.path.exists(log_file):
+                    with open(log_file, 'r', encoding='utf-8', errors='ignore') as f:
+                        lines = f.readlines()[-limit:]
+                        for line in lines:
+                            line = line.strip()
+                            if not line:
+                                continue
                             
-                            # Convert timestamp to ISO format for better JavaScript parsing
-                            # Format: "2025-11-25 22:01:23,330" -> "2025-11-25T22:01:23.330Z"
-                            timestamp_iso = timestamp_str
-                            try:
-                                # Parse Python log format: "2025-11-25 22:01:23,330"
-                                if ',' in timestamp_str:
-                                    # Has milliseconds with comma
-                                    dt_str, ms_str = timestamp_str.split(',', 1)
-                                    dt_obj = datetime.strptime(dt_str.strip(), '%Y-%m-%d %H:%M:%S')
-                                    ms = ms_str.strip()[:3].ljust(3, '0')  # Ensure 3 digits
-                                    timestamp_iso = dt_obj.isoformat() + '.' + ms + 'Z'
-                                else:
-                                    # No milliseconds
-                                    dt_obj = datetime.strptime(timestamp_str.strip(), '%Y-%m-%d %H:%M:%S')
-                                    timestamp_iso = dt_obj.isoformat() + '.000Z'
-                            except Exception as e:
-                                # If conversion fails, try simple replacement
+                            # Parse log line format: "2025-11-25 22:01:23,330 - module - LEVEL - message"
+                            parts = line.split(' - ', 3)
+                            
+                            if len(parts) >= 4:
+                                timestamp_str = parts[0]
+                                module = parts[1]
+                                level = parts[2]
+                                message = parts[3]
+                                
+                                # Convert timestamp to ISO format
+                                timestamp_iso = timestamp_str
                                 try:
-                                    timestamp_iso = timestamp_str.replace(' ', 'T').replace(',', '.')
-                                    if '.' not in timestamp_iso:
-                                        timestamp_iso += '.000'
-                                    if not timestamp_iso.endswith('Z'):
-                                        timestamp_iso += 'Z'
+                                    if ',' in timestamp_str:
+                                        dt_str, ms_str = timestamp_str.split(',', 1)
+                                        dt_obj = datetime.strptime(dt_str.strip(), '%Y-%m-%d %H:%M:%S')
+                                        ms = ms_str.strip()[:3].ljust(3, '0')
+                                        timestamp_iso = dt_obj.isoformat() + '.' + ms + 'Z'
+                                    else:
+                                        dt_obj = datetime.strptime(timestamp_str.strip(), '%Y-%m-%d %H:%M:%S')
+                                        timestamp_iso = dt_obj.isoformat() + '.000Z'
                                 except Exception:
-                                    # Last resort: use original as-is
-                                    timestamp_iso = timestamp_str
-                            
-                            if level_filter == 'ALL' or level == level_filter:
-                                logs.append({
-                                    'timestamp': timestamp_iso,
-                                    'timestamp_raw': timestamp_str,  # Keep original for display
-                                    'module': module,
-                                    'level': level,
-                                    'message': message
-                                })
+                                    try:
+                                        timestamp_iso = timestamp_str.replace(' ', 'T').replace(',', '.')
+                                        if '.' not in timestamp_iso:
+                                            timestamp_iso += '.000'
+                                        if not timestamp_iso.endswith('Z'):
+                                            timestamp_iso += 'Z'
+                                    except Exception:
+                                        timestamp_iso = timestamp_str
+                                
+                                if level_filter == 'ALL' or level == level_filter:
+                                    logs.append({
+                                        'timestamp': timestamp_iso,
+                                        'timestamp_raw': timestamp_str,
+                                        'module': module,
+                                        'level': level,
+                                        'message': message
+                                    })
+                    logger.debug(f"Retrieved {len(logs)} logs from file")
             
             return web.json_response({'logs': logs})
         except Exception as e:
