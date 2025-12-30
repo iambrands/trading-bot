@@ -283,37 +283,65 @@ async function saveSettings() {
             trading_pairs: settings.trading_pairs
         });
         
-        const response = await fetch(`${API_BASE}/settings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(settings)
-        });
-        
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to save settings');
+        // Show loading indicator
+        const saveButton = document.querySelector('button[type="submit"]');
+        const originalButtonText = saveButton ? saveButton.textContent : 'Save Settings';
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.textContent = 'Saving...';
         }
         
-        const result = await response.json();
-        let message = result.message || 'Settings saved successfully!';
+        try {
+            const response = await fetch(`${API_BASE}/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            });
+            
+            console.log(`💾 SAVE RESPONSE - Status: ${response.status}, OK: ${response.ok}`);
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                console.error('❌ SAVE ERROR:', errorData);
+                throw new Error(errorData.error || `Failed to save settings (${response.status})`);
+            }
+            
+            const result = await response.json();
+            console.log(`✅ SAVE SUCCESS:`, result);
+            
+            let message = result.message || 'Settings saved successfully!';
+            
+            // If trading pairs were updated, inform user
+            if (result.trading_pairs_updated) {
+                message += ' New trading pairs will appear on Market Conditions page shortly. Please refresh the Market Conditions page in 10-15 seconds.';
+            }
+            
+            showAlert(message, 'success');
         
-        // If trading pairs were updated, inform user
-        if (result.trading_pairs_updated) {
-            message += ' New trading pairs will appear on Market Conditions page shortly. Please refresh the Market Conditions page in 10-15 seconds.';
-        }
-        
-        showAlert(message, 'success');
-        
-        // If trading pairs were updated, refresh settings display after a short delay
-        if (result.trading_pairs_updated) {
-            setTimeout(async () => {
-                await loadSettings();
-            }, 2000);
+            // If trading pairs were updated, refresh settings display after a short delay
+            if (result.trading_pairs_updated) {
+                setTimeout(async () => {
+                    await loadSettings();
+                }, 2000);
+            }
+        } finally {
+            // Restore button state
+            if (saveButton) {
+                saveButton.disabled = false;
+                saveButton.textContent = originalButtonText;
+            }
         }
         
     } catch (error) {
-        console.error('Error saving settings:', error);
+        console.error('❌ Error saving settings:', error);
         showAlert('Error: ' + error.message, 'error');
+        
+        // Restore button state on error
+        const saveButton = document.querySelector('button[type="submit"]');
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.textContent = 'Save Settings';
+        }
     }
 }
 
@@ -387,29 +415,89 @@ function resetToDefaults() {
 
 async function restartBot() {
     try {
+        console.log('🔄 Restarting bot...');
+        
+        // Save settings first before restarting
+        console.log('💾 Saving settings before restart...');
+        await saveSettings();
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for save to complete
+        
+        // Show loading
+        const restartButton = event?.target;
+        const originalButtonText = restartButton ? restartButton.textContent : 'Apply & Restart TradePilot';
+        if (restartButton) {
+            restartButton.disabled = true;
+            restartButton.textContent = 'Restarting...';
+        }
+        
         // Stop bot first
-        await fetch(`${API_BASE}/stop`, { method: 'POST' });
+        console.log('⏹️ Stopping bot...');
+        const stopResponse = await fetch(`${API_BASE}/stop`, { method: 'POST' });
+        console.log('⏹️ Stop response:', stopResponse.status);
+        
         await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Start bot
-        const response = await fetch(`${API_BASE}/start`, { method: 'POST' });
-        const result = await response.json();
+        console.log('▶️ Starting bot...');
+        const startResponse = await fetch(`${API_BASE}/start`, { method: 'POST' });
+        const result = await startResponse.json();
+        console.log('▶️ Start response:', result);
         
-        showAlert('Bot restarted successfully!', 'success');
+        showAlert('Bot restarted successfully! Settings have been applied.', 'success');
+        
+        // Restore button
+        if (restartButton) {
+            restartButton.disabled = false;
+            restartButton.textContent = originalButtonText;
+        }
     } catch (error) {
-        console.error('Error restarting bot:', error);
+        console.error('❌ Error restarting bot:', error);
         showAlert('Error restarting bot: ' + error.message, 'error');
+        
+        // Restore button on error
+        const restartButton = event?.target;
+        if (restartButton) {
+            restartButton.disabled = false;
+            restartButton.textContent = 'Apply & Restart TradePilot';
+        }
     }
 }
 
 function showAlert(message, type) {
-    const alert = document.getElementById('alert');
+    console.log(`🔔 Alert [${type}]:`, message);
+    
+    let alert = document.getElementById('alert');
+    
+    // If alert element doesn't exist, create it
+    if (!alert) {
+        alert = document.createElement('div');
+        alert.id = 'alert';
+        alert.className = 'alert';
+        alert.style.display = 'none';
+        
+        // Try to insert at the top of the form or main content
+        const form = document.getElementById('settingsForm');
+        const main = document.querySelector('main');
+        if (form && form.parentNode) {
+            form.parentNode.insertBefore(alert, form);
+        } else if (main) {
+            main.insertBefore(alert, main.firstChild);
+        } else {
+            document.body.insertBefore(alert, document.body.firstChild);
+        }
+    }
+    
     alert.textContent = message;
     alert.className = `alert alert-${type}`;
     alert.style.display = 'block';
     
+    // Scroll to alert if it's not visible
+    alert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    
     setTimeout(() => {
-        alert.style.display = 'none';
+        if (alert) {
+            alert.style.display = 'none';
+        }
     }, 5000);
 }
 
