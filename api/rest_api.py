@@ -1350,16 +1350,20 @@ class TradingBotAPI:
                 config.TRADING_PAIRS = new_pairs
                 trading_pairs_changed = set(old_pairs) != set(new_pairs)
                 
-                # If bot is running and pairs changed, reload candle data for new pairs
+                # If bot is running and pairs changed, reload trading pairs completely
                 if self.bot and trading_pairs_changed:
                     logger.info(f"✅ Trading pairs changed: {old_pairs} -> {new_pairs}")
-                    logger.info("Reloading candle data for new trading pairs...")
+                    logger.info("Reloading trading pairs (WebSocket + candle data)...")
                     try:
-                        # Reload candle data for all pairs (including new ones)
-                        await self.bot._load_candle_data()
-                        logger.info(f"✅ Candle data reloaded for pairs: {config.TRADING_PAIRS}")
+                        # Use the full reload method that updates WebSocket and candle data
+                        if hasattr(self.bot, 'reload_trading_pairs'):
+                            await self.bot.reload_trading_pairs()
+                        else:
+                            # Fallback to just reloading candle data
+                            await self.bot._load_candle_data()
+                            logger.info(f"✅ Candle data reloaded for pairs: {config.TRADING_PAIRS}")
                     except Exception as e:
-                        logger.error(f"Failed to reload candle data: {e}", exc_info=True)
+                        logger.error(f"Failed to reload trading pairs: {e}", exc_info=True)
             
             if 'paper_trading' in settings:
                 config.PAPER_TRADING = bool(settings['paper_trading'])

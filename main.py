@@ -113,6 +113,29 @@ class TradingBot:
                 logger.warning(f"Failed to send error alert: {alert_error}")
             return False
     
+    async def reload_trading_pairs(self):
+        """Reload trading pairs dynamically without restarting the bot."""
+        logger.info(f"🔄 Reloading trading pairs: {self.config.TRADING_PAIRS}")
+        
+        try:
+            # Stop current WebSocket connection
+            if self.exchange.ws and not self.exchange.ws.closed:
+                logger.info("Stopping current WebSocket connection...")
+                await self.exchange.stop_websocket()
+            
+            # Restart WebSocket with new pairs
+            logger.info(f"Starting WebSocket with new pairs: {self.config.TRADING_PAIRS}")
+            await self.exchange.start_websocket(self.config.TRADING_PAIRS)
+            
+            # Reload candle data for all pairs
+            logger.info("Reloading candle data for all trading pairs...")
+            await self._load_candle_data()
+            
+            logger.info(f"✅ Trading pairs reloaded successfully: {self.config.TRADING_PAIRS}")
+        except Exception as e:
+            logger.error(f"❌ Failed to reload trading pairs: {e}", exc_info=True)
+            raise
+    
     async def _load_candle_data(self):
         """Load initial candle data for all trading pairs."""
         logger.info("Loading candle data...")
