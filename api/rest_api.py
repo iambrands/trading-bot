@@ -1332,16 +1332,27 @@ class TradingBotAPI:
             
             trading_pairs_changed = False
             if 'trading_pairs' in settings:
-                old_pairs = set(config.TRADING_PAIRS)
-                new_pairs = settings['trading_pairs'] if isinstance(settings['trading_pairs'], list) else settings['trading_pairs'].split(',')
-                new_pairs = [p.strip() for p in new_pairs if p.strip()]
+                old_pairs = list(config.TRADING_PAIRS) if isinstance(config.TRADING_PAIRS, list) else []
+                logger.info(f"💾 Saving settings - old trading_pairs: {old_pairs} (count: {len(old_pairs)})")
+                
+                # Handle different input formats
+                input_pairs = settings['trading_pairs']
+                if isinstance(input_pairs, list):
+                    new_pairs = [str(p).strip() for p in input_pairs if p and str(p).strip()]
+                elif isinstance(input_pairs, str):
+                    new_pairs = [p.strip() for p in input_pairs.split(',') if p.strip()]
+                else:
+                    logger.warning(f"⚠️ Unexpected trading_pairs format: {type(input_pairs)}, value: {input_pairs}")
+                    new_pairs = old_pairs  # Keep existing if invalid format
+                
+                logger.info(f"💾 Saving settings - new trading_pairs: {new_pairs} (count: {len(new_pairs)})")
+                
                 config.TRADING_PAIRS = new_pairs
-                new_pairs_set = set(new_pairs)
-                trading_pairs_changed = old_pairs != new_pairs_set
+                trading_pairs_changed = set(old_pairs) != set(new_pairs)
                 
                 # If bot is running and pairs changed, reload candle data for new pairs
                 if self.bot and trading_pairs_changed:
-                    logger.info(f"Trading pairs changed: {old_pairs} -> {new_pairs_set}")
+                    logger.info(f"✅ Trading pairs changed: {old_pairs} -> {new_pairs}")
                     logger.info("Reloading candle data for new trading pairs...")
                     try:
                         # Reload candle data for all pairs (including new ones)
