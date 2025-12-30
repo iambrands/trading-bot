@@ -1466,7 +1466,70 @@ let backtestListItemsPerPage = 10;
 let backtestListFilteredData = [];
 let backtestListAllData = [];
 
+// Populate backtest pair dropdowns from settings
+async function populateBacktestPairDropdowns() {
+    try {
+        // Get trading pairs from settings
+        const settings = await fetchAPI('/settings');
+        const pairs = settings?.trading_pairs || ['BTC-USD', 'ETH-USD', 'SOL-USD'];
+        
+        // Ensure pairs is an array
+        const pairsArray = Array.isArray(pairs) ? pairs : (typeof pairs === 'string' ? pairs.split(',').map(p => p.trim()) : ['BTC-USD', 'ETH-USD']);
+        
+        // Populate backtestPair dropdown (for Custom Backtest form)
+        const pairSelect = document.getElementById('backtestPair');
+        if (pairSelect) {
+            const currentValue = pairSelect.value;
+            pairSelect.innerHTML = '';
+            pairsArray.forEach(pair => {
+                const option = document.createElement('option');
+                option.value = pair;
+                option.textContent = pair;
+                pairSelect.appendChild(option);
+            });
+            // Restore previous selection if it still exists
+            if (currentValue && pairsArray.includes(currentValue)) {
+                pairSelect.value = currentValue;
+            } else if (pairsArray.length > 0) {
+                pairSelect.value = pairsArray[0]; // Select first pair by default
+            }
+        }
+        
+        // Populate backtestFilterPair dropdown (for Previous Backtests filter)
+        const filterPairSelect = document.getElementById('backtestFilterPair');
+        if (filterPairSelect) {
+            const currentFilter = filterPairSelect.value;
+            filterPairSelect.innerHTML = '<option value="">All Pairs</option>';
+            pairsArray.forEach(pair => {
+                const option = document.createElement('option');
+                option.value = pair;
+                option.textContent = pair;
+                filterPairSelect.appendChild(option);
+            });
+            // Restore previous filter if it still exists
+            if (currentFilter && (currentFilter === '' || pairsArray.includes(currentFilter))) {
+                filterPairSelect.value = currentFilter;
+            }
+        }
+        
+        console.log(`Populated backtest dropdowns with ${pairsArray.length} pairs:`, pairsArray);
+    } catch (error) {
+        console.error('Error populating backtest pair dropdowns:', error);
+        // Fallback to default pairs if API fails
+        const pairSelect = document.getElementById('backtestPair');
+        if (pairSelect && pairSelect.options.length === 0) {
+            pairSelect.innerHTML = `
+                <option value="BTC-USD">BTC-USD</option>
+                <option value="ETH-USD">ETH-USD</option>
+                <option value="SOL-USD">SOL-USD</option>
+            `;
+        }
+    }
+}
+
 async function updateBacktestPage() {
+    // Load trading pairs from settings and populate dropdowns
+    await populateBacktestPairDropdowns();
     // Load the backtest list (it will use cache if available)
     await loadBacktestList();
     
