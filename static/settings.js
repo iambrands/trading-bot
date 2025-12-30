@@ -245,11 +245,20 @@ async function saveSettings() {
         const formData = new FormData(document.getElementById('settingsForm'));
         const settings = {};
         
+        // ALWAYS set trading_pairs from selectedPairs array (this is the source of truth)
+        if (selectedPairs.length > 0) {
+            settings.trading_pairs = selectedPairs;
+            console.log(`💾 SAVING SETTINGS - sending ${selectedPairs.length} trading pairs:`, selectedPairs);
+        } else {
+            console.warn('⚠️ WARNING: No trading pairs selected!');
+            settings.trading_pairs = []; // Explicitly set empty array
+        }
+        
         // Convert form data to object
         for (const [key, value] of formData.entries()) {
+            // Skip trading_pairs from form - we're using selectedPairs array instead
             if (key === 'trading_pairs') {
-                // Use selectedPairs array
-                settings[key] = selectedPairs.length > 0 ? selectedPairs : value.split(',').map(p => p.trim()).filter(p => p);
+                continue; // Already set above from selectedPairs
             } else if (key === 'paper_trading' || key === 'use_real_market_data') {
                 settings[key] = true; // Checkboxes are only included if checked
             } else {
@@ -262,14 +271,6 @@ async function saveSettings() {
         // Handle unchecked checkboxes
         if (!formData.has('paper_trading')) settings.paper_trading = false;
         if (!formData.has('use_real_market_data')) settings.use_real_market_data = false;
-        
-        // Ensure trading_pairs is set from selectedPairs
-        if (selectedPairs.length > 0) {
-            settings.trading_pairs = selectedPairs;
-            console.log(`💾 SAVING SETTINGS - sending ${selectedPairs.length} trading pairs:`, selectedPairs);
-        } else {
-            console.warn('⚠️ WARNING: No trading pairs selected! Using form value or default.');
-        }
         
         // Validate ranges
         if (!validateSettings(settings)) {
