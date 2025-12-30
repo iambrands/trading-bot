@@ -1469,60 +1469,113 @@ let backtestListAllData = [];
 // Populate backtest pair dropdowns from settings
 async function populateBacktestPairDropdowns() {
     try {
+        console.log('🔄 Populating backtest pair dropdowns...');
+        
         // Get trading pairs from settings
         const settings = await fetchAPI('/settings');
-        const pairs = settings?.trading_pairs || ['BTC-USD', 'ETH-USD', 'SOL-USD'];
+        console.log('📊 Settings received:', settings);
         
-        // Ensure pairs is an array
-        const pairsArray = Array.isArray(pairs) ? pairs : (typeof pairs === 'string' ? pairs.split(',').map(p => p.trim()) : ['BTC-USD', 'ETH-USD']);
+        if (!settings) {
+            console.warn('⚠️ No settings received, using defaults');
+            return;
+        }
+        
+        let pairs = settings.trading_pairs;
+        console.log('📋 Raw trading_pairs from settings:', pairs, 'Type:', typeof pairs);
+        
+        // Handle different formats
+        let pairsArray = [];
+        if (Array.isArray(pairs)) {
+            pairsArray = pairs.filter(p => p && p.trim()); // Filter out empty/null
+        } else if (typeof pairs === 'string') {
+            pairsArray = pairs.split(',').map(p => p.trim()).filter(p => p);
+        } else {
+            console.warn('⚠️ Unexpected trading_pairs format, using defaults');
+            pairsArray = ['BTC-USD', 'ETH-USD', 'SOL-USD'];
+        }
+        
+        // Fallback to defaults if empty
+        if (pairsArray.length === 0) {
+            console.warn('⚠️ No trading pairs found, using defaults');
+            pairsArray = ['BTC-USD', 'ETH-USD', 'SOL-USD'];
+        }
+        
+        console.log(`✅ Processing ${pairsArray.length} trading pairs:`, pairsArray);
         
         // Populate backtestPair dropdown (for Custom Backtest form)
         const pairSelect = document.getElementById('backtestPair');
         if (pairSelect) {
             const currentValue = pairSelect.value;
+            console.log('📝 Populating backtestPair dropdown, current value:', currentValue);
+            
+            // Clear existing options
             pairSelect.innerHTML = '';
+            
+            // Add all pairs
             pairsArray.forEach(pair => {
                 const option = document.createElement('option');
                 option.value = pair;
                 option.textContent = pair;
                 pairSelect.appendChild(option);
             });
+            
             // Restore previous selection if it still exists
             if (currentValue && pairsArray.includes(currentValue)) {
                 pairSelect.value = currentValue;
+                console.log('✅ Restored previous selection:', currentValue);
             } else if (pairsArray.length > 0) {
                 pairSelect.value = pairsArray[0]; // Select first pair by default
+                console.log('✅ Selected first pair:', pairsArray[0]);
             }
+            
+            console.log(`✅ backtestPair dropdown now has ${pairSelect.options.length} options`);
+        } else {
+            console.error('❌ backtestPair dropdown element not found!');
         }
         
         // Populate backtestFilterPair dropdown (for Previous Backtests filter)
         const filterPairSelect = document.getElementById('backtestFilterPair');
         if (filterPairSelect) {
             const currentFilter = filterPairSelect.value;
+            console.log('📝 Populating backtestFilterPair dropdown, current filter:', currentFilter);
+            
+            // Clear and add "All Pairs" option
             filterPairSelect.innerHTML = '<option value="">All Pairs</option>';
+            
+            // Add all pairs
             pairsArray.forEach(pair => {
                 const option = document.createElement('option');
                 option.value = pair;
                 option.textContent = pair;
                 filterPairSelect.appendChild(option);
             });
+            
             // Restore previous filter if it still exists
             if (currentFilter && (currentFilter === '' || pairsArray.includes(currentFilter))) {
                 filterPairSelect.value = currentFilter;
             }
+            
+            console.log(`✅ backtestFilterPair dropdown now has ${filterPairSelect.options.length} options`);
+        } else {
+            console.warn('⚠️ backtestFilterPair dropdown element not found');
         }
         
-        console.log(`Populated backtest dropdowns with ${pairsArray.length} pairs:`, pairsArray);
+        console.log(`✅ Successfully populated backtest dropdowns with ${pairsArray.length} pairs:`, pairsArray);
     } catch (error) {
-        console.error('Error populating backtest pair dropdowns:', error);
+        console.error('❌ Error populating backtest pair dropdowns:', error);
+        console.error('Error stack:', error.stack);
+        
         // Fallback to default pairs if API fails
         const pairSelect = document.getElementById('backtestPair');
-        if (pairSelect && pairSelect.options.length === 0) {
-            pairSelect.innerHTML = `
-                <option value="BTC-USD">BTC-USD</option>
-                <option value="ETH-USD">ETH-USD</option>
-                <option value="SOL-USD">SOL-USD</option>
-            `;
+        if (pairSelect) {
+            if (pairSelect.options.length === 0 || pairSelect.options.length < 3) {
+                console.log('⚠️ Using fallback default pairs');
+                pairSelect.innerHTML = `
+                    <option value="BTC-USD">BTC-USD</option>
+                    <option value="ETH-USD">ETH-USD</option>
+                    <option value="SOL-USD">SOL-USD</option>
+                `;
+            }
         }
     }
 }
