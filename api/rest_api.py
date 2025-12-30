@@ -1327,8 +1327,25 @@ class TradingBotAPI:
             if 'stop_loss_max' in settings:
                 config.STOP_LOSS_MAX = float(settings['stop_loss_max'])
             
+            trading_pairs_changed = False
             if 'trading_pairs' in settings:
-                config.TRADING_PAIRS = settings['trading_pairs']
+                old_pairs = set(config.TRADING_PAIRS)
+                new_pairs = settings['trading_pairs'] if isinstance(settings['trading_pairs'], list) else settings['trading_pairs'].split(',')
+                new_pairs = [p.strip() for p in new_pairs if p.strip()]
+                config.TRADING_PAIRS = new_pairs
+                new_pairs_set = set(new_pairs)
+                trading_pairs_changed = old_pairs != new_pairs_set
+                
+                # If bot is running and pairs changed, reload candle data for new pairs
+                if self.bot and trading_pairs_changed:
+                    logger.info(f"Trading pairs changed: {old_pairs} -> {new_pairs_set}")
+                    logger.info("Reloading candle data for new trading pairs...")
+                    try:
+                        # Reload candle data for all pairs (including new ones)
+                        await self.bot._load_candle_data()
+                        logger.info(f"✅ Candle data reloaded for pairs: {config.TRADING_PAIRS}")
+                    except Exception as e:
+                        logger.error(f"Failed to reload candle data: {e}", exc_info=True)
             
             if 'paper_trading' in settings:
                 config.PAPER_TRADING = bool(settings['paper_trading'])
@@ -1339,9 +1356,14 @@ class TradingBotAPI:
             
             logger.info("Settings updated via API")
             
+            restart_msg = 'Settings saved successfully.'
+            if trading_pairs_changed:
+                restart_msg += ' Trading pairs updated. New pairs will appear on Market Conditions page after data loads.'
+            
             return web.json_response({
-                'message': 'Settings saved successfully. Some changes require bot restart.',
-                'restart_required': True
+                'message': restart_msg,
+                'restart_required': False,
+                'trading_pairs_updated': trading_pairs_changed
             })
             
         except Exception as e:
