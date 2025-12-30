@@ -266,7 +266,7 @@ class CoinbaseClient:
                         result[pair] = real_data.copy()
                         continue
                     else:
-                        logger.warning(f"Could not fetch real data for {pair}, using cached or synthetic")
+                        logger.debug(f"Could not fetch real data for {pair}, using cached or synthetic data (this is normal for paper trading or unavailable pairs)")
                 
                 # Fall back to cached data or generate synthetic
                 if pair in self.market_data:
@@ -418,7 +418,7 @@ class CoinbaseClient:
                     logger.debug(f"Fetched {len(real_candles)} real candles for {pair}")
                     return real_candles
                 else:
-                    logger.warning(f"Could not fetch real candles for {pair}, generating synthetic")
+                    logger.debug(f"Could not fetch real candles for {pair}, generating synthetic data (this is normal for paper trading or unavailable pairs)")
             
             # Try to get current price before generating synthetic candles
             # This ensures synthetic candles start from current price, not old defaults
