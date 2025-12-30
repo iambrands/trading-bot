@@ -225,7 +225,29 @@ class CoinbaseClient:
             self.session = aiohttp.ClientSession()
         
         try:
-            # Use Coinbase public API endpoint (no authentication required)
+            # Try Coinbase Advanced Trade API public endpoint first (if available)
+            # Note: Some pairs may not be available on Coinbase, synthetic data will be used
+            try:
+                # Use Coinbase Advanced Trade public endpoint
+                url = f"https://api.coinbase.com/api/v3/brokerage/market/product_book"
+                params = {'product_id': pair}
+                async with self.session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        price_book = data.get('pricebook', {})
+                        bids = price_book.get('bids', [])
+                        asks = price_book.get('asks', [])
+                        if bids and asks:
+                            mid_price = (float(bids[0].get('price', 0)) + float(asks[0].get('price', 0))) / 2
+                            return {
+                                'price': mid_price,
+                                'volume_24h': 0.0,  # Not available from this endpoint
+                                'timestamp': datetime.utcnow()
+                            }
+            except Exception as e1:
+                logger.debug(f"Advanced Trade API failed for {pair}, trying Exchange API: {e1}")
+            
+            # Fallback to old Exchange API (deprecated but still works for some pairs)
             url = f"https://api.exchange.coinbase.com/products/{pair}/ticker"
             async with self.session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as response:
                 if response.status == 200:
@@ -236,7 +258,7 @@ class CoinbaseClient:
                         'timestamp': datetime.utcnow()
                     }
         except Exception as e:
-            logger.debug(f"Public API fetch failed for {pair}, trying authenticated endpoint: {e}")
+            logger.debug(f"All public API endpoints failed for {pair}, trying authenticated endpoint: {e}")
             # Fall back to authenticated endpoint if API keys are available
             if self.api_key and self.api_secret:
                 try:
