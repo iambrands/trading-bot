@@ -1774,12 +1774,8 @@ function changeBacktestPage(direction) {
 async function runQuickBacktest(days) {
     const pair = document.getElementById('backtestPair')?.value || 'BTC-USD';
     const balance = document.getElementById('backtestBalance')?.value || 100000;
-    const pairNames = {
-        'BTC-USD': 'BTC',
-        'ETH-USD': 'ETH',
-        'SOL-USD': 'SOL'
-    };
-    const pairName = pairNames[pair] || pair.split('-')[0];
+    // Extract pair name from any trading pair (e.g., "BTC-USD" -> "BTC", "MATIC-USD" -> "MATIC")
+    const pairName = pair.split('-')[0];
     const name = `${pairName} ${days}-DAY`;
     
     // Set form values
