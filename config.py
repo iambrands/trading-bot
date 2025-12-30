@@ -22,7 +22,18 @@ class Config:
     COINBASE_WS_URL = 'wss://advanced-trade-ws.coinbase.com'
     
     # Trading Pairs
-    TRADING_PAIRS: List[str] = ['BTC-USD', 'ETH-USD']
+    # Default trading pairs - includes all pairs user has configured
+    TRADING_PAIRS: List[str] = [
+        'BTC-USD', 
+        'ETH-USD', 
+        'SOL-USD', 
+        'ADA-USD', 
+        'AVAX-USD', 
+        'XRP-USD', 
+        'DOGE-USD', 
+        'MINA-USD', 
+        'TRUMP-USD'
+    ]
     
     # Account Settings
     ACCOUNT_SIZE = 100000.0  # $100,000
