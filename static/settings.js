@@ -263,10 +263,24 @@ async function saveSettings() {
         if (!formData.has('paper_trading')) settings.paper_trading = false;
         if (!formData.has('use_real_market_data')) settings.use_real_market_data = false;
         
+        // Ensure trading_pairs is set from selectedPairs
+        if (selectedPairs.length > 0) {
+            settings.trading_pairs = selectedPairs;
+            console.log(`💾 SAVING SETTINGS - sending ${selectedPairs.length} trading pairs:`, selectedPairs);
+        } else {
+            console.warn('⚠️ WARNING: No trading pairs selected! Using form value or default.');
+        }
+        
         // Validate ranges
         if (!validateSettings(settings)) {
             return;
         }
+        
+        console.log(`💾 SAVING SETTINGS - Final settings object:`, {
+            ...settings,
+            trading_pairs_count: settings.trading_pairs ? settings.trading_pairs.length : 0,
+            trading_pairs: settings.trading_pairs
+        });
         
         const response = await fetch(`${API_BASE}/settings`, {
             method: 'POST',
