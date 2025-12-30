@@ -422,8 +422,12 @@ async function restartBot() {
         await saveSettings();
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for save to complete
         
-        // Show loading
-        const restartButton = event?.target;
+        // Show loading - find the restart button
+        const restartButton = document.querySelector('button.btn-stop[onclick*="restartBot"]') || 
+                             Array.from(document.querySelectorAll('button')).find(btn => 
+                                 btn.textContent.includes('Apply & Restart') || 
+                                 btn.textContent.includes('Restart TradePilot')
+                             );
         const originalButtonText = restartButton ? restartButton.textContent : 'Apply & Restart TradePilot';
         if (restartButton) {
             restartButton.disabled = true;
@@ -455,7 +459,10 @@ async function restartBot() {
         showAlert('Error restarting bot: ' + error.message, 'error');
         
         // Restore button on error
-        const restartButton = event?.target;
+        const restartButton = document.querySelector('button.btn-stop[onclick*="restartBot"]') || 
+                             Array.from(document.querySelectorAll('button')).find(btn => 
+                                 btn.textContent.includes('Restart')
+                             );
         if (restartButton) {
             restartButton.disabled = false;
             restartButton.textContent = 'Apply & Restart TradePilot';
