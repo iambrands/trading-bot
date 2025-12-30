@@ -1239,6 +1239,11 @@ class TradingBotAPI:
         
         try:
             settings = await request.json()
+            logger.info(f"💾 SAVE SETTINGS REQUEST - received settings keys: {list(settings.keys())}")
+            
+            # Log trading_pairs specifically
+            if 'trading_pairs' in settings:
+                logger.info(f"💾 SAVE SETTINGS - trading_pairs value: {settings['trading_pairs']} (type: {type(settings['trading_pairs'])}, length: {len(settings['trading_pairs']) if isinstance(settings['trading_pairs'], (list, str)) else 'N/A'})")
             
             # Validate settings
             errors = []
