@@ -279,7 +279,22 @@ async function saveSettings() {
             throw new Error(error.error || 'Failed to save settings');
         }
         
-        showAlert('Settings saved successfully! Restart bot to apply changes.', 'success');
+        const result = await response.json();
+        let message = result.message || 'Settings saved successfully!';
+        
+        // If trading pairs were updated, inform user
+        if (result.trading_pairs_updated) {
+            message += ' New trading pairs will appear on Market Conditions page shortly. Please refresh the Market Conditions page in 10-15 seconds.';
+        }
+        
+        showAlert(message, 'success');
+        
+        // If trading pairs were updated, refresh settings display after a short delay
+        if (result.trading_pairs_updated) {
+            setTimeout(async () => {
+                await loadSettings();
+            }, 2000);
+        }
         
     } catch (error) {
         console.error('Error saving settings:', error);
