@@ -1200,6 +1200,9 @@ class TradingBotAPI:
         
         try:
             config = self.bot.config
+            trading_pairs = config.TRADING_PAIRS
+            logger.info(f"📋 GET /api/settings - trading_pairs: {trading_pairs} (type: {type(trading_pairs)}, count: {len(trading_pairs) if isinstance(trading_pairs, list) else 'N/A'})")
+            
             settings = {
                 'ema_period': config.EMA_PERIOD,
                 'rsi_period': config.RSI_PERIOD,
@@ -1220,7 +1223,7 @@ class TradingBotAPI:
                 'take_profit_max': config.TAKE_PROFIT_MAX,
                 'stop_loss_min': config.STOP_LOSS_MIN,
                 'stop_loss_max': config.STOP_LOSS_MAX,
-                'trading_pairs': config.TRADING_PAIRS,
+                'trading_pairs': trading_pairs,
                 'paper_trading': config.PAPER_TRADING,
                 'use_real_market_data': config.USE_REAL_MARKET_DATA
             }
