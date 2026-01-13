@@ -83,33 +83,60 @@ except Exception as e:
 
 print("Step 4: All imports successful!", file=sys.stderr, flush=True)
 
-# Configure logging AFTER imports
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stderr),  # Use stderr for Railway
-        setup_log_buffer(max_size=1000)  # Keep last 1000 log entries in memory
-    ]
-)
+# Step 5: Configure logging AFTER imports
+print("Step 5: Configuring logging...", file=sys.stderr, flush=True)
+try:
+    print("  Setting up log buffer...", file=sys.stderr, flush=True)
+    log_buffer_handler = setup_log_buffer(max_size=1000)
+    print("  ✅ Log buffer setup OK", file=sys.stderr, flush=True)
+    
+    print("  Calling logging.basicConfig...", file=sys.stderr, flush=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stderr),  # Use stderr for Railway
+            log_buffer_handler  # Keep last 1000 log entries in memory
+        ]
+    )
+    print("  ✅ logging.basicConfig OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ Logging configuration FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    # Continue anyway - we'll use print statements
 
+print("Step 6: Getting logger...", file=sys.stderr, flush=True)
 logger = logging.getLogger(__name__)
+print("  ✅ Logger obtained", file=sys.stderr, flush=True)
 
 # Log startup info
-logger.info("=" * 60)
-logger.info("TRADEPILOT STARTING")
-logger.info(f"PORT: {os.environ.get('PORT', 'NOT SET - using default 4000')}")
-logger.info(f"RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'not set')}")
-logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
-logger.info(f"RUN_BOT: {os.environ.get('RUN_BOT', 'false')}")
-logger.info("=" * 60)
+print("Step 7: Logging startup info...", file=sys.stderr, flush=True)
+try:
+    logger.info("=" * 60)
+    logger.info("TRADEPILOT STARTING")
+    logger.info(f"PORT: {os.environ.get('PORT', 'NOT SET - using default 4000')}")
+    logger.info(f"RAILWAY_ENVIRONMENT: {os.environ.get('RAILWAY_ENVIRONMENT', 'not set')}")
+    logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'development')}")
+    logger.info(f"RUN_BOT: {os.environ.get('RUN_BOT', 'false')}")
+    logger.info("=" * 60)
+    print("  ✅ Startup info logged", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ Logging startup info FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+
+print("Step 8: About to define async functions...", file=sys.stderr, flush=True)
 
 
 async def init_app():
     """Initialize the web application."""
+    print("init_app() called - Step 1: Loading configuration...", file=sys.stderr, flush=True)
     try:
         logger.info("Step 1: Loading configuration...")
+        print("  Calling get_config()...", file=sys.stderr, flush=True)
         config = get_config()
+        print("  ✅ Config loaded", file=sys.stderr, flush=True)
         logger.info("Step 2: Configuration loaded")
 
         # If RUN_BOT=true, we boot the full TradingBot instance (initialized but not started).
@@ -173,16 +200,21 @@ async def init_app():
 
 async def main():
     """Main entry point for Heroku."""
+    print("main() async function called!", file=sys.stderr, flush=True)
     try:
         # Get port from Heroku environment variable
+        print("  Getting PORT from environment...", file=sys.stderr, flush=True)
         port = int(os.environ.get('PORT', 4000))
+        print(f"  ✅ PORT = {port}", file=sys.stderr, flush=True)
         
         logger.info(f"🚀 Starting API server on port {port}")
         logger.info(f"Environment: {os.environ.get('ENVIRONMENT', 'development')}")
         
         # Create and initialize app
+        print("  Calling init_app()...", file=sys.stderr, flush=True)
         logger.info("📦 Initializing application...")
         app = await init_app()
+        print("  ✅ init_app() completed", file=sys.stderr, flush=True)
         logger.info("✅ Application initialized")
         
         # Run the server (this sets up and starts the server)
@@ -206,9 +238,23 @@ async def main():
         raise
 
 
+print("Step 9: Checking if __name__ == '__main__'...", file=sys.stderr, flush=True)
+print(f"  __name__ = {__name__}", file=sys.stderr, flush=True)
+
 if __name__ == '__main__':
+    print("Step 10: Entering if __name__ == '__main__' block", file=sys.stderr, flush=True)
+    print("  About to call asyncio.run(main())...", file=sys.stderr, flush=True)
     try:
         asyncio.run(main())
+        print("  ✅ asyncio.run(main()) completed", file=sys.stderr, flush=True)
     except KeyboardInterrupt:
+        print("  KeyboardInterrupt received", file=sys.stderr, flush=True)
         logger.info("API server stopped")
+    except Exception as e:
+        print(f"  ❌ Exception in asyncio.run(main()): {e}", file=sys.stderr, flush=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        raise
+else:
+    print(f"Step 10: Not in __main__ block (__name__={__name__})", file=sys.stderr, flush=True)
 
