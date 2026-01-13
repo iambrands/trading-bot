@@ -31,7 +31,7 @@ async function loadJournalTrades() {
         listContainer.innerHTML = '<div class="loading">Loading trades...</div>';
         
         // Get all trades
-        const trades = await fetchAPI('/api/trades?limit=200');
+        const trades = await fetchAPI('/trades?limit=200');
         if (!trades || !trades.trades) {
             listContainer.innerHTML = '<p style="text-align: center; color: var(--gray-500);">No trades found.</p>';
             return;
@@ -383,7 +383,7 @@ async function loadTagStatistics() {
     if (!statsContainer) return;
 
     try {
-        const analytics = await fetchAPI('/api/journal/analytics');
+        const analytics = await fetchAPI('/journal/analytics');
         if (!analytics || !analytics.tag_statistics) {
             statsContainer.innerHTML = '<p style="color: var(--gray-500);">No tag statistics available yet. Add tags to your trades to see insights.</p>';
             return;

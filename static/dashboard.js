@@ -3795,7 +3795,7 @@ async function listAdvancedOrders() {
     if (!container) return;
     
     try {
-        const data = await fetchAPI('/api/orders');
+        const data = await fetchAPI('/orders');
         if (!data || !data.orders) {
             container.innerHTML = '<div class="empty-state">No orders found</div>';
             return;
@@ -3968,7 +3968,7 @@ async function createOrder(event) {
             orderData.limit_price = limitPrice;
         }
         
-        const response = await fetchAPI('/api/orders/create', {
+        const response = await fetchAPI('/orders/create', {
             method: 'POST',
             body: orderData  // fetchAPI will stringify it
         });
@@ -4357,7 +4357,7 @@ async function updateStrategyGuidePage() {
     if (!settingsDisplay) return;
 
     try {
-        const settings = await fetchAPI('/api/settings');
+        const settings = await fetchAPI('/settings');
         if (settings) {
             settingsDisplay.innerHTML = `
                 <div style="background: var(--gray-50); padding: 1.5rem; border-radius: 8px;">
