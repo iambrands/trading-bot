@@ -371,8 +371,8 @@ class TradingBot:
                         candles[-1]['high'] = max(candles[-1].get('high', market_data[pair]['price']), market_data[pair]['price'])
                         candles[-1]['low'] = min(candles[-1].get('low', market_data[pair]['price']), market_data[pair]['price'])
                 
-                # Generate signal
-                signal = self.strategy.generate_signal(candles)
+                # Generate signal (pass pair name for better logging)
+                signal = self.strategy.generate_signal(candles, pair=pair)
                 
                 if signal and signal['confidence'] >= self.config.MIN_CONFIDENCE_SCORE:
                     # Check if we already have a position in this pair

@@ -237,6 +237,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (path === '/orders') navigateToPage('orders');
     else if (path === '/grid') navigateToPage('grid');
     else if (path === '/logs') navigateToPage('logs');
+    else if (path === '/journal') navigateToPage('journal');
+    else if (path === '/glossary') navigateToPage('glossary');
+    else if (path === '/learn/strategy') navigateToPage('strategy-guide');
     else if (path === '/settings') window.location.href = buildAuthedUrl('/settings');
     else if (path === '/help') window.location.href = buildAuthedUrl('/help');
     else navigateToPage('overview');
@@ -618,6 +621,15 @@ async function updateCurrentPage() {
                     if (currentPage === 'logs') updateLogsPage();
                 }, 5000);
             }
+            break;
+        case 'glossary':
+            await updateGlossaryPage();
+            break;
+        case 'strategy-guide':
+            await updateStrategyGuidePage();
+            break;
+        case 'journal':
+            await updateJournalPage();
             break;
     }
 }
@@ -1061,7 +1073,7 @@ async function updateTradesPage() {
         let html = '<div class="card" style="margin-bottom: 1rem;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;"><h2 style="margin: 0;">Trade History</h2><div style="color: var(--gray-600); font-size: 0.875rem;">Total: ' + data.trades.length + ' trades</div></div>';
         html += '<div class="table-wrapper"><table><thead><tr>';
     html += '<th>Time</th><th>Pair</th><th>Side</th><th>Entry</th><th>Exit</th>';
-    html += '<th>Size</th><th>P&L</th><th>P&L %</th><th>Reason</th></tr></thead><tbody>';
+    html += '<th>Size</th><th>P&L</th><th>P&L %</th><th>Reason</th><th>Tags</th><th>Notes</th><th>Actions</th></tr></thead><tbody>';
 
     (data.trades || []).slice(0, 50).forEach(trade => {
         if (!trade || !trade.pair) {
@@ -1084,6 +1096,19 @@ async function updateTradesPage() {
         html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</td>`;
         html += `<td class="${pnlPct >= 0 ? 'positive' : 'negative'}">${formatPercent(pnlPct)}</td>`;
         html += `<td>${escapeHtml(trade.exit_reason || '-')}</td>`;
+        
+        // Tags column
+        const tags = trade.tags || [];
+        html += `<td><div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">${tags.length > 0 ? tags.map(tag => `<span class="journal-tag" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">${escapeHtml(tag)}</span>`).join('') : '<span style="color: var(--gray-400);">-</span>'}</div></td>`;
+        
+        // Notes column (preview)
+        const notes = trade.notes || '';
+        const notesPreview = notes.length > 50 ? notes.substring(0, 50) + '...' : notes;
+        html += `<td><span style="color: var(--gray-600); font-size: 0.875rem;" title="${escapeHtml(notes)}">${escapeHtml(notesPreview) || '-'}</span></td>`;
+        
+        // Actions column
+        html += `<td><button class="btn-secondary btn-sm" onclick="if(typeof editTradeJournal === 'function') editTradeJournal(${trade.id});" style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">Edit</button></td>`;
+        
         html += '</tr>';
     });
 
@@ -3310,9 +3335,15 @@ function renderPriceChart(candles, indicators) {
     // Clear existing chart
     if (priceChart) {
         try {
-            priceChart.remove();
+            // Check if chart is not disposed before trying to remove
+            if (priceChart && typeof priceChart.remove === 'function') {
+                priceChart.remove();
+            }
         } catch(e) {
-            console.warn('Error removing existing chart:', e);
+            // Chart might already be disposed, ignore error
+            if (!e.message || !e.message.includes('disposed')) {
+                console.warn('Error removing existing chart:', e);
+            }
         }
         priceChart = null;
     }
@@ -3447,10 +3478,20 @@ function renderPriceChart(candles, indicators) {
     // Auto-scale
     chart.timeScale().fitContent();
     
-    // Handle resize
-    window.addEventListener('resize', () => {
-        chart.applyOptions({ width: container.clientWidth });
-    });
+    // Handle resize (with disposal check)
+    const resizeHandler = () => {
+        if (priceChart && typeof priceChart.applyOptions === 'function') {
+            try {
+                priceChart.applyOptions({ width: container.clientWidth });
+            } catch(e) {
+                // Chart might be disposed, remove handler
+                if (e.message && e.message.includes('disposed')) {
+                    window.removeEventListener('resize', resizeHandler);
+                }
+            }
+        }
+    };
+    window.addEventListener('resize', resizeHandler);
     
     priceChart = chart;
 }
@@ -3754,7 +3795,7 @@ async function listAdvancedOrders() {
     if (!container) return;
     
     try {
-        const data = await fetchAPI('/orders');
+        const data = await fetchAPI('/api/orders');
         if (!data || !data.orders) {
             container.innerHTML = '<div class="empty-state">No orders found</div>';
             return;
@@ -3769,14 +3810,15 @@ async function listAdvancedOrders() {
         html += '<th>Type</th><th>Pair</th><th>Side</th><th>Size</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
         
         data.orders.forEach(order => {
+            const orderId = order.order_id || order.id;  // Support both field names
             html += '<tr>';
-            html += `<td><strong>${order.type || 'N/A'}</strong></td>`;
+            html += `<td><strong>${order.order_type || order.type || 'N/A'}</strong></td>`;
             html += `<td>${order.pair || 'N/A'}</td>`;
             html += `<td>${order.side || 'N/A'}</td>`;
             html += `<td>${parseFloat(order.size || 0).toFixed(6)}</td>`;
             html += `<td><span class="status-badge status-${(order.status || 'unknown').toLowerCase()}">${order.status || 'Unknown'}</span></td>`;
-            html += `<td>${formatDate(order.created_at)}</td>`;
-            html += `<td><button class="btn btn-small" onclick="viewOrderDetails('${order.id}')">View</button> <button class="btn btn-small btn-danger" onclick="cancelOrder('${order.id}')">Cancel</button></td>`;
+            html += `<td>${formatDate(order.created_at || order.created)}</td>`;
+            html += `<td><button class="btn btn-small" onclick="viewOrderDetails('${orderId}')">View</button> <button class="btn btn-small btn-danger" onclick="cancelOrder('${orderId}')">Cancel</button></td>`;
             html += '</tr>';
         });
         
@@ -3836,34 +3878,114 @@ async function createOrder(event) {
         }
         
         const orderData = {
-            type: orderType,
+            order_type: orderType,  // Backend expects 'order_type' not 'type'
             pair: pair,
             side: side,
             size: size
         };
         
-        // Add type-specific fields
+        // Add type-specific fields based on order type
         if (orderType === 'trailing_stop') {
-            orderData.trailing_percent = parseFloat(document.getElementById('trailingPercent')?.value || 0);
-            orderData.initial_price = parseFloat(document.getElementById('trailingInitialPrice')?.value || 0);
+            const trailingPercent = parseFloat(document.getElementById('trailingPercent')?.value || 0);
+            const initialPrice = parseFloat(document.getElementById('trailingInitialPrice')?.value || 0);
+            if (!trailingPercent || trailingPercent <= 0) {
+                showToast('Trailing percent is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!initialPrice || initialPrice <= 0) {
+                showToast('Initial price is required and must be greater than 0', 'error');
+                return;
+            }
+            orderData.trailing_percent = trailingPercent;
+            orderData.initial_price = initialPrice;
+        } else if (orderType === 'oco') {
+            const stopLoss = parseFloat(document.getElementById('ocoStopLoss')?.value || 0);
+            const takeProfit = parseFloat(document.getElementById('ocoTakeProfit')?.value || 0);
+            if (!stopLoss || stopLoss <= 0) {
+                showToast('Stop loss price is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!takeProfit || takeProfit <= 0) {
+                showToast('Take profit price is required and must be greater than 0', 'error');
+                return;
+            }
+            orderData.stop_loss_price = stopLoss;
+            orderData.take_profit_price = takeProfit;
+        } else if (orderType === 'bracket') {
+            const entry = parseFloat(document.getElementById('bracketEntry')?.value || 0);
+            const stopLoss = parseFloat(document.getElementById('bracketStopLoss')?.value || 0);
+            const takeProfit = parseFloat(document.getElementById('bracketTakeProfit')?.value || 0);
+            if (!entry || entry <= 0) {
+                showToast('Entry price is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!stopLoss || stopLoss <= 0) {
+                showToast('Stop loss price is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!takeProfit || takeProfit <= 0) {
+                showToast('Take profit price is required and must be greater than 0', 'error');
+                return;
+            }
+            orderData.entry_price = entry;
+            orderData.stop_loss_price = stopLoss;
+            orderData.take_profit_price = takeProfit;
+        } else if (orderType === 'stop_limit') {
+            const stopPrice = parseFloat(document.getElementById('stopPrice')?.value || 0);
+            const limitPrice = parseFloat(document.getElementById('limitPrice')?.value || 0);
+            if (!stopPrice || stopPrice <= 0) {
+                showToast('Stop price is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!limitPrice || limitPrice <= 0) {
+                showToast('Limit price is required and must be greater than 0', 'error');
+                return;
+            }
+            orderData.stop_price = stopPrice;
+            orderData.limit_price = limitPrice;
+        } else if (orderType === 'iceberg') {
+            const totalSize = parseFloat(document.getElementById('icebergTotalSize')?.value || 0);
+            const visibleSize = parseFloat(document.getElementById('icebergVisibleSize')?.value || 0);
+            const limitPrice = parseFloat(document.getElementById('icebergLimitPrice')?.value || 0);
+            if (!totalSize || totalSize <= 0) {
+                showToast('Total size is required and must be greater than 0', 'error');
+                return;
+            }
+            if (!visibleSize || visibleSize <= 0) {
+                showToast('Visible size is required and must be greater than 0', 'error');
+                return;
+            }
+            if (visibleSize >= totalSize) {
+                showToast('Visible size must be less than total size', 'error');
+                return;
+            }
+            if (!limitPrice || limitPrice <= 0) {
+                showToast('Limit price is required and must be greater than 0', 'error');
+                return;
+            }
+            orderData.total_size = totalSize;
+            orderData.visible_size = visibleSize;
+            orderData.limit_price = limitPrice;
         }
-        // Add other order type fields as needed...
         
-        const response = await fetchAPI('/orders/create', {
+        const response = await fetchAPI('/api/orders/create', {
             method: 'POST',
-            body: JSON.stringify(orderData)
+            body: orderData  // fetchAPI will stringify it
         });
         
-        if (response && response.order_id) {
+        if (response && (response.order_id || response.success)) {
             showToast('Order created successfully', 'success');
             closeCreateOrderModal();
             await listAdvancedOrders();
         } else {
-            showToast('Failed to create order', 'error');
+            const errorMsg = response?.error || 'Failed to create order';
+            showToast(errorMsg, 'error');
+            console.error('Order creation failed:', response);
         }
     } catch (error) {
         console.error('Error creating order:', error);
-        showToast('Error creating order: ' + error.message, 'error');
+        const errorMsg = error.message || 'Unknown error occurred';
+        showToast('Error creating order: ' + errorMsg, 'error');
     }
 }
 
@@ -3871,7 +3993,7 @@ async function cancelOrder(orderId) {
     if (!confirm('Are you sure you want to cancel this order?')) return;
     
     try {
-        const response = await fetchAPI(`/orders/${orderId}`, {
+        const response = await fetchAPI(`/api/orders/${orderId}`, {
             method: 'DELETE'
         });
         
@@ -3887,7 +4009,7 @@ async function cancelOrder(orderId) {
 
 async function viewOrderDetails(orderId) {
     try {
-        const order = await fetchAPI(`/orders/${orderId}`);
+        const order = await fetchAPI(`/api/orders/${orderId}`);
         if (order) {
             alert('Order Details:\n' + JSON.stringify(order, null, 2));
         }
@@ -4219,6 +4341,107 @@ window.closeCreateGridModal = closeCreateGridModal;
 window.showCreateDCAModal = showCreateDCAModal;
 window.closeCreateDCAModal = closeCreateDCAModal;
 window.switchGridTab = switchGridTab;
+
+// Glossary Page
+async function updateGlossaryPage() {
+    // Glossary is populated by glossary.js on page load
+    // This function can be used for any additional setup
+    if (typeof populateGlossary === 'function') {
+        populateGlossary();
+    }
+}
+
+// Strategy Guide Page
+async function updateStrategyGuidePage() {
+    const settingsDisplay = document.getElementById('currentSettingsDisplay');
+    if (!settingsDisplay) return;
+
+    try {
+        const settings = await fetchAPI('/api/settings');
+        if (settings) {
+            settingsDisplay.innerHTML = `
+                <div style="background: var(--gray-50); padding: 1.5rem; border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                        <div>
+                            <strong>EMA Period:</strong> ${settings.ema_period || 50}
+                        </div>
+                        <div>
+                            <strong>RSI Period:</strong> ${settings.rsi_period || 14}
+                        </div>
+                        <div>
+                            <strong>Volume Multiplier:</strong> ${settings.volume_multiplier || 1.5}x
+                        </div>
+                        <div>
+                            <strong>RSI Long Range:</strong> ${settings.rsi_long_min || 55} - ${settings.rsi_long_max || 70}
+                        </div>
+                        <div>
+                            <strong>RSI Short Range:</strong> ${settings.rsi_short_min || 30} - ${settings.rsi_short_max || 45}
+                        </div>
+                        <div>
+                            <strong>Min Confidence:</strong> ${settings.min_confidence_score || 70}%
+                        </div>
+                        <div>
+                            <strong>Risk Per Trade:</strong> ${settings.risk_per_trade_pct || 0.25}%
+                        </div>
+                        <div>
+                            <strong>Max Positions:</strong> ${settings.max_positions || 2}
+                        </div>
+                        <div>
+                            <strong>Take Profit:</strong> ${settings.take_profit_min || 0.15}% - ${settings.take_profit_max || 0.40}%
+                        </div>
+                        <div>
+                            <strong>Stop Loss:</strong> ${settings.stop_loss_min || 0.10}% - ${settings.stop_loss_max || 0.50}%
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem; color: var(--gray-600); font-size: 0.9375rem;">
+                        You can modify these settings in the <a href="/settings" onclick="event.preventDefault(); navigateToPage('settings');" style="color: var(--primary-blue);">Settings page</a>.
+                    </p>
+                </div>
+            `;
+        } else {
+            settingsDisplay.innerHTML = '<p style="color: var(--gray-500);">Unable to load settings.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading settings for strategy guide:', error);
+        settingsDisplay.innerHTML = '<p style="color: var(--danger-red);">Error loading settings. Please try again later.</p>';
+    }
+}
+
+function toggleFAQ(element) {
+    const answer = element.nextElementSibling;
+    const icon = element.querySelector('.faq-icon');
+    const isOpen = answer.style.display === 'block';
+    
+    // Close all FAQs
+    document.querySelectorAll('.faq-answer').forEach(ans => {
+        ans.style.display = 'none';
+    });
+    document.querySelectorAll('.faq-icon').forEach(ic => {
+        ic.textContent = '+';
+    });
+    
+    // Toggle clicked FAQ
+    if (!isOpen) {
+        answer.style.display = 'block';
+        icon.textContent = '−';
+    }
+}
+
+window.updateGlossaryPage = updateGlossaryPage;
+window.updateStrategyGuidePage = updateStrategyGuidePage;
+window.toggleFAQ = toggleFAQ;
+
+// Journal Page
+async function updateJournalPage() {
+    if (typeof loadJournalTrades === 'function') {
+        await loadJournalTrades();
+    }
+    if (typeof loadTagStatistics === 'function') {
+        await loadTagStatistics();
+    }
+}
+
+window.updateJournalPage = updateJournalPage;
 
 // Auto-refresh logs page
 if (currentPage === 'logs') {

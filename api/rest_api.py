@@ -160,6 +160,11 @@ class TradingBotAPI:
         self.app.router.add_get('/api/auth/verify', self.verify_token)
         self.app.router.add_post('/api/auth/logout', self.logout)
         
+        # Onboarding endpoints
+        self.app.router.add_get('/api/user/onboarding-status', self.get_onboarding_status)
+        self.app.router.add_post('/api/user/complete-onboarding', self.complete_onboarding)
+        self.app.router.add_post('/api/user/acknowledge-disclaimer', self.acknowledge_disclaimer)
+        
         # Dashboard routes (protected)
         self.app.router.add_get('/', self.serve_dashboard)
         self.app.router.add_get('/market-conditions', self.serve_market_conditions)
@@ -174,6 +179,9 @@ class TradingBotAPI:
         self.app.router.add_get('/settings', self.serve_settings)
         self.app.router.add_get('/help', self.serve_help)
         self.app.router.add_get('/backtest', self.serve_backtest)
+        self.app.router.add_get('/glossary', self.serve_glossary)
+        self.app.router.add_get('/learn/strategy', self.serve_strategy_guide)
+        self.app.router.add_get('/journal', self.serve_journal)
         
         # Static files (if needed for additional assets)
         import os
@@ -244,6 +252,11 @@ class TradingBotAPI:
         
         # Trade export endpoints
         self.app.router.add_get('/api/trades/export', self.export_trades)
+        
+        # Trade journal endpoints
+        self.app.router.add_put('/api/trades/{trade_id}/journal', self.update_trade_journal)
+        self.app.router.add_get('/api/journal/analytics', self.get_journal_analytics)
+        self.app.router.add_get('/api/trades/{trade_id}', self.get_trade_details)
         
         # Backtesting endpoints
         self.app.router.add_post('/api/backtest/run', self.run_backtest)
@@ -342,6 +355,14 @@ class TradingBotAPI:
     
     async def serve_backtest(self, request):
         """Serve backtesting page."""
+        return await self.serve_dashboard(request)
+    
+    async def serve_glossary(self, request):
+        """Serve glossary page."""
+        return await self.serve_dashboard(request)
+    
+    async def serve_strategy_guide(self, request):
+        """Serve strategy guide page."""
         return await self.serve_dashboard(request)
     
     async def get_status(self, request):
@@ -483,6 +504,12 @@ class TradingBotAPI:
                     if key in formatted_trade and formatted_trade[key]:
                         if hasattr(formatted_trade[key], 'isoformat'):
                             formatted_trade[key] = formatted_trade[key].isoformat()
+                # Ensure tags is a list (not None)
+                if 'tags' not in formatted_trade or formatted_trade['tags'] is None:
+                    formatted_trade['tags'] = []
+                # Ensure notes is a string (not None)
+                if 'notes' not in formatted_trade or formatted_trade['notes'] is None:
+                    formatted_trade['notes'] = ''
                 formatted_trades.append(formatted_trade)
             
             return web.json_response({'trades': formatted_trades})
@@ -3246,6 +3273,157 @@ class TradingBotAPI:
         
         except Exception as e:
             logger.error(f"Error resuming DCA: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    # Onboarding endpoints
+    async def get_onboarding_status(self, request):
+        """Get user's onboarding status."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            status = await self.db_manager.get_onboarding_status(user_id)
+            if status:
+                return web.json_response(status)
+            else:
+                return web.json_response({
+                    'completed': False,
+                    'completed_at': None,
+                    'disclaimer_acknowledged': False,
+                    'disclaimer_acknowledged_at': None
+                })
+        except Exception as e:
+            logger.error(f"Error getting onboarding status: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    async def complete_onboarding(self, request):
+        """Mark onboarding as completed for a user."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            success = await self.db_manager.complete_onboarding(user_id)
+            if success:
+                return web.json_response({
+                    'success': True,
+                    'message': 'Onboarding completed successfully'
+                })
+            else:
+                return web.json_response({'error': 'Failed to complete onboarding'}, status=500)
+        except Exception as e:
+            logger.error(f"Error completing onboarding: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    async def acknowledge_disclaimer(self, request):
+        """Record that user has acknowledged the risk disclaimer."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            success = await self.db_manager.acknowledge_disclaimer(user_id)
+            if success:
+                return web.json_response({
+                    'success': True,
+                    'message': 'Disclaimer acknowledged successfully'
+                })
+            else:
+                return web.json_response({'error': 'Failed to acknowledge disclaimer'}, status=500)
+        except Exception as e:
+            logger.error(f"Error acknowledging disclaimer: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    # Journal endpoints
+    async def serve_journal(self, request):
+        """Serve trade journal page."""
+        return await self.serve_dashboard(request)
+    
+    async def get_trade_details(self, request):
+        """Get detailed information about a specific trade including journal entries."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            trade_id = int(request.match_info['trade_id'])
+            
+            if not self.db_manager:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
+            trade = await self.db_manager.get_trade_by_id(trade_id, user_id)
+            if not trade:
+                return web.json_response({'error': 'Trade not found'}, status=404)
+            
+            # Ensure tags and notes are properly formatted
+            if 'tags' not in trade or trade['tags'] is None:
+                trade['tags'] = []
+            if 'notes' not in trade or trade['notes'] is None:
+                trade['notes'] = ''
+            
+            # Convert datetime to ISO string
+            for key in ['entry_time', 'exit_time', 'created_at']:
+                if key in trade and trade[key]:
+                    if hasattr(trade[key], 'isoformat'):
+                        trade[key] = trade[key].isoformat()
+            
+            return web.json_response(trade)
+        except ValueError:
+            return web.json_response({'error': 'Invalid trade ID'}, status=400)
+        except Exception as e:
+            logger.error(f"Error getting trade details: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    async def update_trade_journal(self, request):
+        """Update trade notes and/or tags."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            trade_id = int(request.match_info['trade_id'])
+            data = await request.json()
+            
+            notes = data.get('notes')
+            tags = data.get('tags')  # Should be a list of strings
+            
+            if notes is None and tags is None:
+                return web.json_response({'error': 'At least one of notes or tags must be provided'}, status=400)
+            
+            if not self.db_manager:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
+            success = await self.db_manager.update_trade_journal(trade_id, notes=notes, tags=tags, user_id=user_id)
+            if success:
+                # Return updated trade
+                trade = await self.db_manager.get_trade_by_id(trade_id, user_id)
+                return web.json_response({
+                    'success': True,
+                    'trade': trade
+                })
+            else:
+                return web.json_response({'error': 'Failed to update journal'}, status=500)
+        except ValueError:
+            return web.json_response({'error': 'Invalid trade ID'}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating trade journal: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    async def get_journal_analytics(self, request):
+        """Get journal analytics including tag statistics and pattern recognition."""
+        try:
+            user_id = request.get('user_id')
+            if not user_id:
+                return web.json_response({'error': 'Not authenticated'}, status=401)
+            
+            if not self.db_manager:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            
+            analytics = await self.db_manager.get_journal_analytics(user_id)
+            return web.json_response(analytics)
+        except Exception as e:
+            logger.error(f"Error getting journal analytics: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
 
 def create_app(bot_instance=None, db_manager=None) -> web.Application:

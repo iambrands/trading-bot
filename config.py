@@ -15,11 +15,20 @@ class Config:
     ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
     
     # Exchange Settings
+    # Primary Exchange Selection (binance or coinbase)
+    EXCHANGE = os.getenv('EXCHANGE', 'coinbase').lower()  # Default to coinbase for backward compatibility
+    
+    # Coinbase Settings (LEGACY - High fees 0.6%)
     COINBASE_API_KEY = os.getenv('COINBASE_API_KEY', '')
     COINBASE_API_SECRET = os.getenv('COINBASE_API_SECRET', '')
     COINBASE_API_PASSPHRASE = os.getenv('COINBASE_API_PASSPHRASE', '')
     COINBASE_API_URL = 'https://api.coinbase.com/api/v3/brokerage'
     COINBASE_WS_URL = 'wss://advanced-trade-ws.coinbase.com'
+    
+    # Binance Settings (RECOMMENDED - Low fees 0.1%)
+    BINANCE_API_KEY = os.getenv('BINANCE_API_KEY', '')
+    BINANCE_API_SECRET = os.getenv('BINANCE_API_SECRET', '')
+    BINANCE_TESTNET = os.getenv('BINANCE_TESTNET', 'true').lower() == 'true'  # Start with testnet
     
     # Trading Pairs
     # Default trading pairs - includes all pairs user has configured
@@ -49,18 +58,26 @@ class Config:
     EMA_PERIOD = 50  # EMA(50)
     RSI_PERIOD = 14  # RSI(14)
     VOLUME_PERIOD = 20  # 20-period volume average
-    VOLUME_MULTIPLIER = 1.5  # 1.5x average volume for confirmation
-    RSI_LONG_MIN = 55  # Minimum RSI for long entry
-    RSI_LONG_MAX = 70  # Maximum RSI for long entry
-    RSI_SHORT_MIN = 30  # Minimum RSI for short entry
-    RSI_SHORT_MAX = 45  # Maximum RSI for short entry
-    MIN_CONFIDENCE_SCORE = 70  # Minimum confidence to trade (%)
+    VOLUME_MULTIPLIER = 1.2  # 1.2x average volume for confirmation (relaxed from 1.5x)
+    RSI_LONG_MIN = 50  # Minimum RSI for long entry (relaxed from 55)
+    RSI_LONG_MAX = 75  # Maximum RSI for long entry (relaxed from 70)
+    RSI_SHORT_MIN = 25  # Minimum RSI for short entry (relaxed from 30)
+    RSI_SHORT_MAX = 50  # Maximum RSI for short entry (relaxed from 45)
+    MIN_CONFIDENCE_SCORE = 65  # Minimum confidence to trade (%) (relaxed from 70)
     
-    # Exit Parameters
-    TAKE_PROFIT_MIN = 0.15  # 0.15% minimum take profit
-    TAKE_PROFIT_MAX = 0.40  # 0.40% maximum take profit
-    STOP_LOSS_MIN = 0.10  # 0.10% minimum stop loss
+    # Exit Parameters - FIXED FOR FEES
+    # CRITICAL: Profit targets must exceed exchange fees to be profitable
+    # Binance fees: 0.2% round trip (0.1% x 2)
+    # Coinbase fees: 1.2% round trip (0.6% x 2)
+    # Using 0.50% minimum ensures profitability on Binance (0.50% - 0.20% = 0.30% net profit)
+    TAKE_PROFIT_MIN = 0.50  # 0.50% minimum take profit (FIXED - was 0.15% which was below fees!)
+    TAKE_PROFIT_MAX = 0.75  # 0.75% maximum take profit (FIXED - was 0.40%)
+    STOP_LOSS_MIN = 0.25  # 0.25% minimum stop loss
     STOP_LOSS_MAX = 0.50  # 0.50% maximum stop loss
+    
+    # Fee Configuration
+    VALIDATE_FEES_BEFORE_TRADE = True  # Validate profitability after fees
+    MIN_PROFIT_AFTER_FEES = 0.25  # Minimum 0.25% net profit after fees
     
     # Trading Loop Settings
     LOOP_INTERVAL_SECONDS = 5  # Check every 5 seconds
@@ -94,7 +111,13 @@ class Config:
     USE_REAL_MARKET_DATA = os.getenv('USE_REAL_MARKET_DATA', 'true').lower() == 'true'
     PAPER_SLIPPAGE_MIN = 0.01  # 0.01% minimum slippage
     PAPER_SLIPPAGE_MAX = 0.05  # 0.05% maximum slippage
-    PAPER_FEE_RATE = 0.006  # 0.6% fee (maker/taker)
+    PAPER_FEE_RATE = 0.006  # 0.6% fee (Coinbase - for backward compatibility)
+    
+    # Order Execution Settings
+    ORDER_TYPE = os.getenv('ORDER_TYPE', 'limit').lower()  # 'limit' or 'market' - use limit for maker fees
+    LIMIT_ORDER_OFFSET_PCT = 0.02  # Place limit orders 0.02% inside spread (for maker rebates)
+    ORDER_TIMEOUT_SECONDS = 30  # Cancel unfilled limit orders after 30 seconds
+    USE_POST_ONLY = True  # Maker orders only (lower fees on Binance)
     
     # Alert Settings
     SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')

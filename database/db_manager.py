@@ -55,9 +55,37 @@ class DatabaseManager:
                 full_name VARCHAR(255),
                 is_active BOOLEAN DEFAULT TRUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_login TIMESTAMP
+                last_login TIMESTAMP,
+                onboarding_completed BOOLEAN DEFAULT FALSE,
+                onboarding_completed_at TIMESTAMP,
+                disclaimer_acknowledged_at TIMESTAMP
             )
         """)
+        
+        # Add onboarding columns if they don't exist (for existing databases)
+        try:
+            await conn.execute("""
+                ALTER TABLE users 
+                ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE
+            """)
+        except Exception as e:
+            logger.debug(f"onboarding_completed column may already exist: {e}")
+        
+        try:
+            await conn.execute("""
+                ALTER TABLE users 
+                ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMP
+            """)
+        except Exception as e:
+            logger.debug(f"onboarding_completed_at column may already exist: {e}")
+        
+        try:
+            await conn.execute("""
+                ALTER TABLE users 
+                ADD COLUMN IF NOT EXISTS disclaimer_acknowledged_at TIMESTAMP
+            """)
+        except Exception as e:
+            logger.debug(f"disclaimer_acknowledged_at column may already exist: {e}")
         
         # Trades table - check if user_id column exists, add if not
         await conn.execute("""
@@ -77,9 +105,28 @@ class DatabaseManager:
                 exit_reason VARCHAR(50),
                 order_id VARCHAR(100),
                 confidence_score DECIMAL(5, 2),
+                notes TEXT,
+                tags TEXT[],
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        
+        # Add journaling columns if they don't exist (for existing databases)
+        try:
+            await conn.execute("""
+                ALTER TABLE trades 
+                ADD COLUMN IF NOT EXISTS notes TEXT
+            """)
+        except Exception as e:
+            logger.debug(f"notes column may already exist: {e}")
+        
+        try:
+            await conn.execute("""
+                ALTER TABLE trades 
+                ADD COLUMN IF NOT EXISTS tags TEXT[]
+            """)
+        except Exception as e:
+            logger.debug(f"tags column may already exist: {e}")
         
         # Add user_id column if it doesn't exist (for existing databases)
         try:
@@ -335,7 +382,21 @@ class DatabaseManager:
                     LIMIT $1
                 """, limit)
                 
-                return [dict(row) for row in rows]
+                trades = []
+                from decimal import Decimal
+                for row in rows:
+                    trade = dict(row)
+                    # Convert Decimal to float
+                    for key, value in trade.items():
+                        if isinstance(value, Decimal):
+                            trade[key] = float(value)
+                        # Handle tags array
+                        if key == 'tags' and value is not None:
+                            trade[key] = list(value) if not isinstance(value, list) else value
+                        elif key == 'tags' and value is None:
+                            trade[key] = []
+                    trades.append(trade)
+                return trades
         except Exception as e:
             logger.error(f"Failed to fetch recent trades: {e}", exc_info=True)
             return []
@@ -369,10 +430,207 @@ class DatabaseManager:
                 query += " ORDER BY entry_time DESC"
                 
                 rows = await conn.fetch(query, *params)
-                return [dict(row) for row in rows]
+                trades = []
+                from decimal import Decimal
+                for row in rows:
+                    trade = dict(row)
+                    # Convert Decimal to float
+                    for key, value in trade.items():
+                        if isinstance(value, Decimal):
+                            trade[key] = float(value)
+                        # Handle tags array
+                        if key == 'tags' and value is not None:
+                            trade[key] = list(value) if not isinstance(value, list) else value
+                        elif key == 'tags' and value is None:
+                            trade[key] = []
+                    trades.append(trade)
+                return trades
         except Exception as e:
             logger.error(f"Failed to fetch trades with date range: {e}", exc_info=True)
             return []
+    
+    async def update_trade_journal(self, trade_id: int, notes: Optional[str] = None, tags: Optional[List[str]] = None, user_id: Optional[int] = None) -> bool:
+        """Update trade notes and/or tags."""
+        if not self.initialized or not self.pool:
+            logger.warning("Database not initialized, skipping journal update")
+            return False
+        
+        try:
+            async with self.pool.acquire() as conn:
+                set_clauses = []
+                params = []
+                param_index = 1
+                
+                if notes is not None:
+                    set_clauses.append(f"notes = ${param_index}")
+                    params.append(notes)
+                    param_index += 1
+                
+                if tags is not None:
+                    set_clauses.append(f"tags = ${param_index}")
+                    params.append(tags)
+                    param_index += 1
+                
+                if not set_clauses:
+                    return False
+                
+                if user_id:
+                    query = f"UPDATE trades SET {', '.join(set_clauses)} WHERE id = ${param_index} AND (user_id = ${param_index + 1} OR user_id IS NULL)"
+                    params.append(trade_id)
+                    params.append(user_id)
+                else:
+                    query = f"UPDATE trades SET {', '.join(set_clauses)} WHERE id = ${param_index}"
+                    params.append(trade_id)
+                
+                await conn.execute(query, *params)
+                logger.debug(f"Updated journal for trade {trade_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to update trade journal: {e}", exc_info=True)
+            return False
+    
+    async def get_trade_by_id(self, trade_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Get a single trade by ID."""
+        if not self.initialized or not self.pool:
+            return None
+        
+        try:
+            async with self.pool.acquire() as conn:
+                if user_id:
+                    row = await conn.fetchrow("""
+                        SELECT * FROM trades
+                        WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)
+                    """, trade_id, user_id)
+                else:
+                    row = await conn.fetchrow("""
+                        SELECT * FROM trades
+                        WHERE id = $1
+                    """, trade_id)
+                
+                if row:
+                    trade = dict(row)
+                    # Convert Decimal to float and handle tags array
+                    from decimal import Decimal
+                    for key, value in trade.items():
+                        if isinstance(value, Decimal):
+                            trade[key] = float(value)
+                        # Tags come as a list from PostgreSQL, ensure it's a proper list
+                        if key == 'tags' and value is not None:
+                            if isinstance(value, list):
+                                trade[key] = value
+                            else:
+                                trade[key] = list(value) if value else []
+                        elif key == 'tags' and value is None:
+                            trade[key] = []
+                    return trade
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get trade by ID: {e}", exc_info=True)
+            return None
+    
+    async def get_trades_with_tags(self, tags: List[str], user_id: Optional[int] = None, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get trades that have any of the specified tags."""
+        if not self.initialized or not self.pool:
+            return []
+        
+        try:
+            async with self.pool.acquire() as conn:
+                if user_id:
+                    rows = await conn.fetch("""
+                        SELECT * FROM trades
+                        WHERE (user_id = $1 OR user_id IS NULL)
+                        AND tags && $2
+                        ORDER BY entry_time DESC
+                        LIMIT $3
+                    """, user_id, tags, limit)
+                else:
+                    rows = await conn.fetch("""
+                        SELECT * FROM trades
+                        WHERE tags && $1
+                        ORDER BY entry_time DESC
+                        LIMIT $2
+                    """, tags, limit)
+                
+                trades = []
+                from decimal import Decimal
+                for row in rows:
+                    trade = dict(row)
+                    for key, value in trade.items():
+                        if isinstance(value, Decimal):
+                            trade[key] = float(value)
+                    trades.append(trade)
+                return trades
+        except Exception as e:
+            logger.error(f"Failed to fetch trades with tags: {e}", exc_info=True)
+            return []
+    
+    async def get_journal_analytics(self, user_id: Optional[int] = None) -> Dict[str, Any]:
+        """Get analytics for trade journal (tag statistics, pattern recognition)."""
+        if not self.initialized or not self.pool:
+            return {}
+        
+        try:
+            async with self.pool.acquire() as conn:
+                # Get all trades with tags
+                if user_id:
+                    rows = await conn.fetch("""
+                        SELECT tags, pnl, pnl_pct, exit_reason
+                        FROM trades
+                        WHERE (user_id = $1 OR user_id IS NULL)
+                        AND tags IS NOT NULL
+                        AND array_length(tags, 1) > 0
+                    """, user_id)
+                else:
+                    rows = await conn.fetch("""
+                        SELECT tags, pnl, pnl_pct, exit_reason
+                        FROM trades
+                        WHERE tags IS NOT NULL
+                        AND array_length(tags, 1) > 0
+                    """)
+                
+                # Aggregate tag statistics
+                tag_stats = {}
+                from decimal import Decimal
+                
+                for row in rows:
+                    tags = row['tags'] or []
+                    pnl = float(row['pnl']) if row['pnl'] else 0
+                    pnl_pct = float(row['pnl_pct']) if row['pnl_pct'] else 0
+                    
+                    for tag in tags:
+                        if tag not in tag_stats:
+                            tag_stats[tag] = {
+                                'count': 0,
+                                'wins': 0,
+                                'losses': 0,
+                                'total_pnl': 0.0,
+                                'total_pnl_pct': 0.0,
+                                'avg_pnl_pct': 0.0,
+                                'win_rate': 0.0
+                            }
+                        
+                        tag_stats[tag]['count'] += 1
+                        tag_stats[tag]['total_pnl'] += pnl
+                        tag_stats[tag]['total_pnl_pct'] += pnl_pct
+                        
+                        if pnl > 0:
+                            tag_stats[tag]['wins'] += 1
+                        elif pnl < 0:
+                            tag_stats[tag]['losses'] += 1
+                
+                # Calculate win rates and averages
+                for tag, stats in tag_stats.items():
+                    if stats['count'] > 0:
+                        stats['win_rate'] = (stats['wins'] / stats['count']) * 100
+                        stats['avg_pnl_pct'] = stats['total_pnl_pct'] / stats['count']
+                
+                return {
+                    'tag_statistics': tag_stats,
+                    'total_tagged_trades': len(rows)
+                }
+        except Exception as e:
+            logger.error(f"Failed to get journal analytics: {e}", exc_info=True)
+            return {}
     
     async def save_performance_metrics(self, metrics: Dict[str, Any]) -> bool:
         """Save daily performance metrics."""
@@ -467,7 +725,8 @@ class DatabaseManager:
         try:
             async with self.pool.acquire() as conn:
                 row = await conn.fetchrow("""
-                    SELECT id, email, password_hash, full_name, is_active, created_at, last_login
+                    SELECT id, email, password_hash, full_name, is_active, created_at, last_login,
+                           onboarding_completed, onboarding_completed_at, disclaimer_acknowledged_at
                     FROM users
                     WHERE email = $1
                 """, email.lower())
@@ -487,7 +746,8 @@ class DatabaseManager:
         try:
             async with self.pool.acquire() as conn:
                 row = await conn.fetchrow("""
-                    SELECT id, email, password_hash, full_name, is_active, created_at, last_login
+                    SELECT id, email, password_hash, full_name, is_active, created_at, last_login,
+                           onboarding_completed, onboarding_completed_at, disclaimer_acknowledged_at
                     FROM users
                     WHERE id = $1
                 """, user_id)
@@ -697,6 +957,68 @@ class DatabaseManager:
                 return True
         except Exception as e:
             logger.error(f"Failed to update last login: {e}", exc_info=True)
+            return False
+    
+    async def get_onboarding_status(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get user's onboarding status."""
+        if not self.initialized or not self.pool:
+            return None
+        
+        try:
+            async with self.pool.acquire() as conn:
+                row = await conn.fetchrow("""
+                    SELECT onboarding_completed, onboarding_completed_at, disclaimer_acknowledged_at
+                    FROM users
+                    WHERE id = $1
+                """, user_id)
+                
+                if row:
+                    return {
+                        'completed': row['onboarding_completed'] or False,
+                        'completed_at': row['onboarding_completed_at'].isoformat() if row['onboarding_completed_at'] else None,
+                        'disclaimer_acknowledged': row['disclaimer_acknowledged_at'] is not None,
+                        'disclaimer_acknowledged_at': row['disclaimer_acknowledged_at'].isoformat() if row['disclaimer_acknowledged_at'] else None
+                    }
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get onboarding status: {e}", exc_info=True)
+            return None
+    
+    async def complete_onboarding(self, user_id: int) -> bool:
+        """Mark onboarding as completed for a user."""
+        if not self.initialized or not self.pool:
+            return False
+        
+        try:
+            async with self.pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE users
+                    SET onboarding_completed = TRUE,
+                        onboarding_completed_at = CURRENT_TIMESTAMP
+                    WHERE id = $1
+                """, user_id)
+                logger.info(f"Onboarding completed for user {user_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to complete onboarding: {e}", exc_info=True)
+            return False
+    
+    async def acknowledge_disclaimer(self, user_id: int) -> bool:
+        """Record that user has acknowledged the risk disclaimer."""
+        if not self.initialized or not self.pool:
+            return False
+        
+        try:
+            async with self.pool.acquire() as conn:
+                await conn.execute("""
+                    UPDATE users
+                    SET disclaimer_acknowledged_at = CURRENT_TIMESTAMP
+                    WHERE id = $1
+                """, user_id)
+                logger.info(f"Disclaimer acknowledged for user {user_id}")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to acknowledge disclaimer: {e}", exc_info=True)
             return False
     
     async def get_daily_pnl(self, date: Optional[datetime.date] = None) -> float:

@@ -2,6 +2,7 @@
 
 import logging
 from typing import Dict, List, Optional, Tuple
+from datetime import datetime
 import numpy as np
 import pandas as pd
 from config import get_config
@@ -28,7 +29,17 @@ class EMARSIStrategy:
         self.rsi_short_min = self.config.RSI_SHORT_MIN
         self.rsi_short_max = self.config.RSI_SHORT_MAX
         
+        # Signal tracking for monitoring
+        self.signals_generated_today = 0
+        self.near_misses_today = 0
+        self.candles_analyzed_today = 0
+        self.last_summary_date = datetime.now().date()
+        self.rsi_values_today: List[float] = []
+        self.volume_ratios_today: List[float] = []
+        
         logger.info(f"EMARSIStrategy initialized (EMA: {self.ema_period}, RSI: {self.rsi_period})")
+        logger.info(f"  RSI Long: {self.rsi_long_min}-{self.rsi_long_max}, RSI Short: {self.rsi_short_min}-{self.rsi_short_max}")
+        logger.info(f"  Volume Multiplier: {self.volume_multiplier}x, Min Confidence: {self.min_confidence}%")
     
     def calculate_ema(self, prices: List[float], period: int) -> List[float]:
         """Calculate Exponential Moving Average."""
@@ -57,39 +68,37 @@ class EMARSIStrategy:
     def calculate_volume_avg(self, volumes: List[float], period: int) -> float:
         """Calculate average volume over period."""
         if len(volumes) < period:
-            return sum(volumes) / len(volumes) if volumes else 0.0
-        
-        recent_volumes = volumes[-period:]
-        return sum(recent_volumes) / len(recent_volumes)
+            return sum(volumes) / len(volumes) if volumes else 1.0
+        return sum(volumes[-period:]) / period
     
-    def calculate_indicators(self, candles: List[Dict]) -> Dict[str, any]:
-        """Calculate all technical indicators from candle data."""
-        if len(candles) < max(self.ema_period, self.rsi_period, self.volume_period) + 1:
-            return {}
+    def calculate_indicators(self, candles: List[Dict]) -> Optional[Dict]:
+        """Calculate all technical indicators from candles."""
+        if len(candles) < max(self.ema_period, self.rsi_period, self.volume_period):
+            return None
         
-        # Extract data
-        closes = [c['close'] for c in candles]
-        volumes = [c['volume'] for c in candles]
+        prices = [c['close'] for c in candles]
+        volumes = [c.get('volume', 0) for c in candles]
         
-        # Calculate indicators
-        ema_values = self.calculate_ema(closes, self.ema_period)
-        rsi_values = self.calculate_rsi(closes, self.rsi_period)
+        # EMA
+        ema_values = self.calculate_ema(prices, self.ema_period)
+        if not ema_values:
+            return None
+        ema = ema_values[-1]
+        
+        # RSI
+        rsi_values = self.calculate_rsi(prices, self.rsi_period)
+        if not rsi_values:
+            return None
+        rsi = rsi_values[-1]
+        
+        # Volume
         volume_avg = self.calculate_volume_avg(volumes, self.volume_period)
-        
-        if not ema_values or not rsi_values:
-            return {}
-        
-        current_price = closes[-1]
-        current_ema = ema_values[-1]
-        current_rsi = rsi_values[-1]
-        current_volume = volumes[-1]
+        current_volume = volumes[-1] if volumes else 1.0
         
         return {
-            'price': current_price,
-            'ema': current_ema,
-            'rsi': current_rsi,
-            'volume': current_volume,
-            'volume_avg': volume_avg,
+            'price': prices[-1],
+            'ema': ema,
+            'rsi': rsi,
             'volume_ratio': current_volume / volume_avg if volume_avg > 0 else 1.0
         }
     
@@ -102,53 +111,41 @@ class EMARSIStrategy:
         
         confidence = 0.0
         
+        # EMA alignment (30 points)
         if signal_type == 'LONG':
-            # Price distance from EMA (0-30%)
-            price_distance_pct = ((price - ema) / ema) * 100
-            if price_distance_pct > 0:
-                price_confidence = min(30.0, (price_distance_pct / 2.0))
-            else:
-                price_confidence = 0.0
-            
-            # RSI position in range (0-40%)
+            if price > ema:
+                ema_distance_pct = ((price - ema) / ema) * 100
+                confidence += min(30.0, ema_distance_pct * 10)
+        else:  # SHORT
+            if price < ema:
+                ema_distance_pct = ((ema - price) / ema) * 100
+                confidence += min(30.0, ema_distance_pct * 10)
+        
+        # RSI position (40 points)
+        if signal_type == 'LONG':
             if self.rsi_long_min <= rsi <= self.rsi_long_max:
                 rsi_range = self.rsi_long_max - self.rsi_long_min
                 rsi_position = (rsi - self.rsi_long_min) / rsi_range
                 rsi_confidence = 40.0 * (1 - abs(rsi_position - 0.5) * 2)  # Peak at middle
             else:
                 rsi_confidence = 0.0
-            
-            # Volume confirmation (0-30%)
-            if volume_ratio >= self.volume_multiplier:
-                volume_confidence = min(30.0, ((volume_ratio - self.volume_multiplier) / self.volume_multiplier) * 30.0)
-            else:
-                volume_confidence = 0.0
-            
-            confidence = price_confidence + rsi_confidence + volume_confidence
-        
-        elif signal_type == 'SHORT':
-            # Price distance from EMA (0-30%)
-            price_distance_pct = ((ema - price) / ema) * 100
-            if price_distance_pct > 0:
-                price_confidence = min(30.0, (price_distance_pct / 2.0))
-            else:
-                price_confidence = 0.0
-            
-            # RSI position in range (0-40%)
+        else:  # SHORT
             if self.rsi_short_min <= rsi <= self.rsi_short_max:
                 rsi_range = self.rsi_short_max - self.rsi_short_min
                 rsi_position = (rsi - self.rsi_short_min) / rsi_range
                 rsi_confidence = 40.0 * (1 - abs(rsi_position - 0.5) * 2)  # Peak at middle
             else:
                 rsi_confidence = 0.0
-            
-            # Volume confirmation (0-30%)
-            if volume_ratio >= self.volume_multiplier:
-                volume_confidence = min(30.0, ((volume_ratio - self.volume_multiplier) / self.volume_multiplier) * 30.0)
-            else:
-                volume_confidence = 0.0
-            
-            confidence = price_confidence + rsi_confidence + volume_confidence
+        
+        confidence += rsi_confidence
+        
+        # Volume confirmation (30 points)
+        if volume_ratio >= self.volume_multiplier:
+            volume_confidence = min(30.0, ((volume_ratio - self.volume_multiplier) / self.volume_multiplier) * 30.0)
+        else:
+            volume_confidence = 0.0
+        
+        confidence += volume_confidence
         
         return min(100.0, max(0.0, confidence))
     
@@ -157,11 +154,11 @@ class EMARSIStrategy:
         # Higher confidence = wider take profit, tighter stop loss
         confidence_factor = confidence / 100.0
         
-        # Take profit range: 0.15% to 0.40%
+        # Take profit range: 0.50% to 0.75%
         tp_range = self.config.TAKE_PROFIT_MAX - self.config.TAKE_PROFIT_MIN
         take_profit_pct = self.config.TAKE_PROFIT_MIN + (tp_range * confidence_factor)
         
-        # Stop loss range: 0.10% to 0.50% (inverse - higher confidence = tighter stop)
+        # Stop loss range: 0.25% to 0.50% (inverse - higher confidence = tighter stop)
         sl_range = self.config.STOP_LOSS_MAX - self.config.STOP_LOSS_MIN
         stop_loss_pct = self.config.STOP_LOSS_MAX - (sl_range * confidence_factor)
         
@@ -174,7 +171,75 @@ class EMARSIStrategy:
         
         return take_profit, stop_loss
     
-    def generate_signal(self, candles: List[Dict]) -> Optional[Dict]:
+    def _log_signal_check(self, price: float, ema: float, rsi: float, volume_ratio: float, pair: str = ""):
+        """Log signal check with distance to thresholds for monitoring."""
+        pair_label = f"[{pair}] " if pair else ""
+        
+        # Calculate distances to thresholds
+        rsi_long_dist_low = self.rsi_long_min - rsi if rsi < self.rsi_long_min else 0
+        rsi_long_dist_high = rsi - self.rsi_long_max if rsi > self.rsi_long_max else 0
+        rsi_long_gap = max(rsi_long_dist_low, rsi_long_dist_high)
+        
+        rsi_short_dist_low = self.rsi_short_min - rsi if rsi < self.rsi_short_min else 0
+        rsi_short_dist_high = rsi - self.rsi_short_max if rsi > self.rsi_short_max else 0
+        rsi_short_gap = max(rsi_short_dist_low, rsi_short_dist_high)
+        
+        vol_gap = self.volume_multiplier - volume_ratio if volume_ratio < self.volume_multiplier else 0
+        
+        # Determine which direction we're checking
+        price_above_ema = price > ema
+        direction = "LONG" if price_above_ema else "SHORT"
+        
+        if price_above_ema:
+            rsi_in_range = self.rsi_long_min <= rsi <= self.rsi_long_max
+            rsi_gap = rsi_long_gap
+            rsi_range_str = f"{self.rsi_long_min}-{self.rsi_long_max}"
+        else:
+            rsi_in_range = self.rsi_short_min <= rsi <= self.rsi_short_max
+            rsi_gap = rsi_short_gap
+            rsi_range_str = f"{self.rsi_short_min}-{self.rsi_short_max}"
+        
+        # Log signal check
+        logger.debug(
+            f"{pair_label}Signal check ({direction}) | "
+            f"RSI: {rsi:.2f} (need {rsi_range_str}, gap: {rsi_gap:.2f}) | "
+            f"Vol: {volume_ratio:.2f}x (need {self.volume_multiplier}x, gap: {vol_gap:.2f}x) | "
+            f"Price>EMA: {price_above_ema}"
+        )
+        
+        # Track near-misses (within 5% of threshold or very close)
+        is_near_miss = False
+        near_miss_reasons = []
+        
+        if price_above_ema:  # Checking LONG
+            if 0 < rsi_long_gap <= 3:  # Within 3 points of RSI range
+                is_near_miss = True
+                near_miss_reasons.append(f"RSI gap: {rsi_long_gap:.2f} points")
+            if 0 < vol_gap <= 0.15:  # Within 0.15x of volume requirement
+                is_near_miss = True
+                near_miss_reasons.append(f"Volume gap: {vol_gap:.2f}x")
+        else:  # Checking SHORT
+            if 0 < rsi_short_gap <= 3:
+                is_near_miss = True
+                near_miss_reasons.append(f"RSI gap: {rsi_short_gap:.2f} points")
+            if 0 < vol_gap <= 0.15:
+                is_near_miss = True
+                near_miss_reasons.append(f"Volume gap: {vol_gap:.2f}x")
+        
+        if is_near_miss and near_miss_reasons:
+            self.near_misses_today += 1
+            logger.warning(
+                f"{pair_label}⚠️ NEAR MISS ({direction}): Almost triggered signal | "
+                f"{', '.join(near_miss_reasons)} | "
+                f"RSI: {rsi:.2f}, Vol: {volume_ratio:.2f}x"
+            )
+        
+        # Track for daily summary
+        self.candles_analyzed_today += 1
+        self.rsi_values_today.append(rsi)
+        self.volume_ratios_today.append(volume_ratio)
+    
+    def generate_signal(self, candles: List[Dict], pair: str = "") -> Optional[Dict]:
         """Generate trading signal based on indicators."""
         if len(candles) < max(self.ema_period, self.rsi_period, self.volume_period) + 1:
             return None
@@ -188,14 +253,18 @@ class EMARSIStrategy:
         rsi = indicators['rsi']
         volume_ratio = indicators['volume_ratio']
         
+        # Log signal check for monitoring
+        self._log_signal_check(price, ema, rsi, volume_ratio, pair)
+        
         signal = None
         confidence = 0.0
         
         # Long entry conditions
-        if (price > ema and 
-            self.rsi_long_min <= rsi <= self.rsi_long_max and
-            volume_ratio >= self.volume_multiplier):
-            
+        long_price_ok = price > ema
+        long_rsi_ok = self.rsi_long_min <= rsi <= self.rsi_long_max
+        long_volume_ok = volume_ratio >= self.volume_multiplier
+        
+        if long_price_ok and long_rsi_ok and long_volume_ok:
             confidence = self.calculate_confidence_score(indicators, 'LONG')
             if confidence >= self.min_confidence:
                 take_profit, stop_loss = self.calculate_exit_levels(price, 'LONG', confidence)
@@ -207,69 +276,103 @@ class EMARSIStrategy:
                     'stop_loss': stop_loss,
                     'indicators': indicators
                 }
+                self.signals_generated_today += 1
+                logger.info(
+                    f"[{pair}] ✅ LONG signal generated: RSI={rsi:.2f} ({self.rsi_long_min}-{self.rsi_long_max}), "
+                    f"Vol={volume_ratio:.2f}x (need {self.volume_multiplier}x), Confidence={confidence:.1f}%"
+                )
+        # Note: Near-misses already logged in _log_signal_check
         
         # Short entry conditions
-        elif (price < ema and 
-              self.rsi_short_min <= rsi <= self.rsi_short_max and
-              volume_ratio >= self.volume_multiplier):
+        if signal is None:  # Only check short if long didn't trigger
+            short_price_ok = price < ema
+            short_rsi_ok = self.rsi_short_min <= rsi <= self.rsi_short_max
+            short_volume_ok = volume_ratio >= self.volume_multiplier
             
-            confidence = self.calculate_confidence_score(indicators, 'SHORT')
-            if confidence >= self.min_confidence:
-                take_profit, stop_loss = self.calculate_exit_levels(price, 'SHORT', confidence)
-                signal = {
-                    'type': 'SHORT',
-                    'price': price,
-                    'confidence': confidence,
-                    'take_profit': take_profit,
-                    'stop_loss': stop_loss,
-                    'indicators': indicators
-                }
+            if short_price_ok and short_rsi_ok and short_volume_ok:
+                confidence = self.calculate_confidence_score(indicators, 'SHORT')
+                if confidence >= self.min_confidence:
+                    take_profit, stop_loss = self.calculate_exit_levels(price, 'SHORT', confidence)
+                    signal = {
+                        'type': 'SHORT',
+                        'price': price,
+                        'confidence': confidence,
+                        'take_profit': take_profit,
+                        'stop_loss': stop_loss,
+                        'indicators': indicators
+                    }
+                    self.signals_generated_today += 1
+                    logger.info(
+                        f"[{pair}] ✅ SHORT signal generated: RSI={rsi:.2f} ({self.rsi_short_min}-{self.rsi_short_max}), "
+                        f"Vol={volume_ratio:.2f}x (need {self.volume_multiplier}x), Confidence={confidence:.1f}%"
+                    )
+        # Note: Near-misses already logged in _log_signal_check
         
         return signal
     
+    def log_daily_summary(self):
+        """Log daily summary of signal generation activity."""
+        today = datetime.now().date()
+        
+        # Reset counters if new day
+        if today > self.last_summary_date:
+            self.signals_generated_today = 0
+            self.near_misses_today = 0
+            self.candles_analyzed_today = 0
+            self.rsi_values_today = []
+            self.volume_ratios_today = []
+            self.last_summary_date = today
+        
+        # Only log if we have data
+        if self.candles_analyzed_today == 0:
+            return
+        
+        # Calculate statistics
+        rsi_min = min(self.rsi_values_today) if self.rsi_values_today else 0
+        rsi_max = max(self.rsi_values_today) if self.rsi_values_today else 0
+        rsi_avg = sum(self.rsi_values_today) / len(self.rsi_values_today) if self.rsi_values_today else 0
+        
+        vol_avg = sum(self.volume_ratios_today) / len(self.volume_ratios_today) if self.volume_ratios_today else 0
+        vol_max = max(self.volume_ratios_today) if self.volume_ratios_today else 0
+        
+        logger.info("=" * 70)
+        logger.info("=== DAILY SIGNAL SUMMARY ===")
+        logger.info(f"Candles analyzed: {self.candles_analyzed_today}")
+        logger.info(f"Signals generated: {self.signals_generated_today}")
+        logger.info(f"Near misses: {self.near_misses_today}")
+        logger.info(f"RSI range today: {rsi_min:.2f} - {rsi_max:.2f} (avg: {rsi_avg:.2f})")
+        logger.info(f"  Long range: {self.rsi_long_min}-{self.rsi_long_max}")
+        logger.info(f"  Short range: {self.rsi_short_min}-{self.rsi_short_max}")
+        logger.info(f"Avg volume mult: {vol_avg:.2f}x (max: {vol_max:.2f}x, need: {self.volume_multiplier}x)")
+        logger.info(f"Signal rate: {(self.signals_generated_today / self.candles_analyzed_today * 100):.2f}%")
+        logger.info("=" * 70)
+    
     def should_exit(self, position: Dict, current_price: float) -> Tuple[bool, Optional[str]]:
         """Check if position should be exited based on stop loss, take profit, or time."""
-        exit_reason = None
-        should_exit = False
-        
-        side = position['side']
-        entry_price = position['entry_price']
-        stop_loss = position.get('stop_loss')
-        take_profit = position.get('take_profit')
+        signal_type = position.get('signal_type', 'LONG')
+        entry_price = position.get('entry_price', 0)
+        take_profit = position.get('take_profit', 0)
+        stop_loss = position.get('stop_loss', 0)
         entry_time = position.get('entry_time')
         
-        if side == 'LONG':
-            # Check stop loss
-            if stop_loss and current_price <= stop_loss:
-                should_exit = True
-                exit_reason = 'STOP_LOSS'
-            
-            # Check take profit
-            elif take_profit and current_price >= take_profit:
-                should_exit = True
-                exit_reason = 'TAKE_PROFIT'
-            
-            # Check trailing stop (optional - could be added)
+        if signal_type == 'LONG':
+            if current_price >= take_profit:
+                return True, 'take_profit'
+            if current_price <= stop_loss:
+                return True, 'stop_loss'
+        else:  # SHORT
+            if current_price <= take_profit:
+                return True, 'take_profit'
+            if current_price >= stop_loss:
+                return True, 'stop_loss'
         
-        elif side == 'SHORT':
-            # Check stop loss
-            if stop_loss and current_price >= stop_loss:
-                should_exit = True
-                exit_reason = 'STOP_LOSS'
-            
-            # Check take profit
-            elif take_profit and current_price <= take_profit:
-                should_exit = True
-                exit_reason = 'TAKE_PROFIT'
-        
-        # Check time-based exit (10 minutes)
+        # Time-based exit
         if entry_time:
             from datetime import datetime, timedelta
             if isinstance(entry_time, str):
                 entry_time = datetime.fromisoformat(entry_time)
-            time_elapsed = datetime.utcnow() - entry_time
-            if time_elapsed >= timedelta(minutes=self.config.POSITION_TIMEOUT_MINUTES):
-                should_exit = True
-                exit_reason = 'TIMEOUT'
+            elapsed = datetime.now() - entry_time
+            if elapsed > timedelta(minutes=self.config.POSITION_TIMEOUT_MINUTES):
+                return True, 'timeout'
         
-        return should_exit, exit_reason
+        return False, None

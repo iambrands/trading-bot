@@ -14,7 +14,6 @@ COPY . .
 # Expose port (Railway will override PORT env var)
 EXPOSE 4000
 
-# Run the full trading bot with paper trading support
-# This enables the full bot instance (unlike app.py which is API-only)
-CMD ["python", "main.py"]
+# Run the application
+CMD ["python", "app.py"]
 

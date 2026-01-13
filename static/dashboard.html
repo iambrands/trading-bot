@@ -157,6 +157,24 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/journal" class="nav-link" data-page="journal">
+                        <span class="nav-icon">📝</span>
+                        <span class="nav-text">Trade Journal</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/glossary" class="nav-link" data-page="glossary">
+                        <span class="nav-icon">📚</span>
+                        <span class="nav-text">Glossary</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="/learn/strategy" class="nav-link" data-page="strategy-guide">
+                        <span class="nav-icon">📖</span>
+                        <span class="nav-text">Strategy Guide</span>
+                    </a>
+                </li>
+                <li>
                     <a href="/help" class="nav-link" data-page="help">
                         <span class="nav-icon"></span>
                         <span class="nav-text">Help & FAQs</span>
@@ -204,6 +222,9 @@
                 </div>
             </div>
             <div class="top-bar-right">
+                <button class="btn-secondary" id="startTourBtn" onclick="if(window.onboardingManager) window.onboardingManager.startTour(0);" style="margin-right: 1rem;">
+                    🗺️ Take Tour
+                </button>
                 <!-- Demo Mode Banner -->
                 <div class="demo-banner-top">
                     <span class="demo-icon"></span>
@@ -954,6 +975,218 @@
                 </div>
             </div>
         </div>
+
+        <!-- Glossary Page -->
+        <div id="page-glossary" class="page">
+            <div class="card">
+                <h2 style="margin-bottom: 1.5rem;">Trading Glossary</h2>
+                <p style="color: var(--gray-600); margin-bottom: 1.5rem;">Search and learn about key trading terms used in TradePilot.</p>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" id="glossarySearch" placeholder="Search terms..." class="form-input" style="max-width: 400px; margin-bottom: 1rem;">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                        <select id="glossaryCategory" class="form-input" style="max-width: 200px;">
+                            <option value="all">All Categories</option>
+                            <option value="indicators">Indicators</option>
+                            <option value="risk">Risk Management</option>
+                            <option value="orders">Order Types</option>
+                            <option value="general">General</option>
+                        </select>
+                        <button class="btn-secondary" onclick="sortGlossaryAlphabetically()">Sort A-Z</button>
+                    </div>
+                </div>
+                
+                <div id="glossaryTerms" class="glossary-grid">
+                    <!-- Terms will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategy Guide Page -->
+        <div id="page-strategy-guide" class="page">
+            <div class="card">
+                <h2 style="margin-bottom: 1.5rem;">EMA + RSI + Volume Strategy Guide</h2>
+                
+                <!-- Overview Section -->
+                <section style="margin-bottom: 2rem;">
+                    <h3>Overview</h3>
+                    <p style="color: var(--gray-700); line-height: 1.8;">
+                        TradePilot uses a confluence-based scalping strategy that combines three key indicators:
+                        <strong>Exponential Moving Average (EMA)</strong>, <strong>Relative Strength Index (RSI)</strong>, and <strong>Volume</strong>.
+                        By requiring all three to align, we only take high-quality trades with strong momentum and confirmation.
+                    </p>
+                </section>
+
+                <!-- Entry Conditions Section -->
+                <section style="margin-bottom: 2rem;">
+                    <h3>Entry Conditions</h3>
+                    
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
+                        <h4 style="color: var(--success-green); margin-bottom: 1rem;">🔵 LONG (Buy) Entry</h4>
+                        <ul style="list-style: none; padding: 0;">
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Price > EMA(50):</strong> Price must be above the 50-period Exponential Moving Average, indicating an uptrend
+                            </li>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>RSI 55-70:</strong> RSI must be in the bullish range (not too weak, not overbought)
+                            </li>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Volume > 1.5x Average:</strong> Current volume must exceed 1.5x the 20-period average, confirming momentum
+                            </li>
+                            <li style="padding: 0.5rem 0;">
+                                <strong>Confidence Score ≥ 70%:</strong> Must meet minimum confidence threshold based on indicator strength
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
+                        <h4 style="color: var(--danger-red); margin-bottom: 1rem;">🔴 SHORT (Sell) Entry</h4>
+                        <ul style="list-style: none; padding: 0;">
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Price < EMA(50):</strong> Price must be below the EMA, indicating a downtrend
+                            </li>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>RSI 30-45:</strong> RSI must be in the bearish range (not too strong, not oversold)
+                            </li>
+                            <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Volume > 1.5x Average:</strong> Volume spike confirms the downward momentum
+                            </li>
+                            <li style="padding: 0.5rem 0;">
+                                <strong>Confidence Score ≥ 70%:</strong> Must meet minimum confidence threshold
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Exit Strategy Section -->
+                <section style="margin-bottom: 2rem;">
+                    <h3>Exit Strategy</h3>
+                    <div style="background: var(--gray-50); padding: 1.5rem; border-radius: 8px;">
+                        <ul style="list-style: none; padding: 0;">
+                            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Take Profit:</strong> 0.15% - 0.40% profit target (dynamic based on confidence score)
+                            </li>
+                            <li style="padding: 0.75rem 0; border-bottom: 1px solid var(--gray-200);">
+                                <strong>Stop Loss:</strong> 0.10% - 0.50% loss limit (dynamic based on confidence score)
+                            </li>
+                            <li style="padding: 0.75rem 0;">
+                                <strong>Time-based Exit:</strong> Maximum 10 minutes hold time. Position closes at current price if neither TP nor SL is hit.
+                            </li>
+                        </ul>
+                    </div>
+                </section>
+
+                <!-- Why It Works Section -->
+                <section style="margin-bottom: 2rem;">
+                    <h3>Why It Works</h3>
+                    <p style="color: var(--gray-700); line-height: 1.8;">
+                        This strategy uses <strong>confluence</strong> - the concept that multiple independent indicators
+                        confirming the same signal significantly increases the probability of success. By requiring:
+                    </p>
+                    <ol style="color: var(--gray-700); line-height: 1.8; padding-left: 1.5rem;">
+                        <li><strong>Trend confirmation</strong> (EMA) - We only trade with the trend</li>
+                        <li><strong>Momentum confirmation</strong> (RSI) - Ensures we're not entering at extremes</li>
+                        <li><strong>Volume confirmation</strong> - Confirms the move has real participation</li>
+                    </ol>
+                    <p style="color: var(--gray-700); line-height: 1.8; margin-top: 1rem;">
+                        This multi-layered approach filters out weak signals and focuses on high-probability setups.
+                    </p>
+                </section>
+
+                <!-- Current Settings Section -->
+                <section style="margin-bottom: 2rem;">
+                    <h3>Your Current Settings</h3>
+                    <div id="currentSettingsDisplay" class="loading">Loading your settings...</div>
+                </section>
+
+                <!-- FAQ Section -->
+                <section>
+                    <h3>Common Questions</h3>
+                    <div id="strategyFAQ" class="faq-container">
+                        <div class="faq-item">
+                            <button class="faq-question" onclick="toggleFAQ(this)">
+                                Why don't I see many trades?
+                                <span class="faq-icon">+</span>
+                            </button>
+                            <div class="faq-answer">
+                                <p>The strategy is designed to be selective. It only takes trades when all conditions align perfectly.
+                                If your settings are strict (high confidence threshold, narrow RSI ranges, high volume multiplier),
+                                you may see fewer but higher-quality trades. Consider adjusting settings in the Settings page if you want more frequent trades.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question" onclick="toggleFAQ(this)">
+                                What if a trade times out?
+                                <span class="faq-icon">+</span>
+                            </button>
+                            <div class="faq-answer">
+                                <p>If neither take profit nor stop loss is hit within 10 minutes, the position closes at the current market price.
+                                This prevents holding positions too long in scalping strategy, where quick entries and exits are key.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question" onclick="toggleFAQ(this)">
+                                How is confidence score calculated?
+                                <span class="faq-icon">+</span>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Confidence is calculated from three factors: Price distance from EMA (0-30 points),
+                                RSI position in range (0-40 points, peaks at middle), and Volume confirmation (0-30 points).
+                                Total maximum is 100%. Higher confidence means stronger signal alignment.</p>
+                            </div>
+                        </div>
+                        <div class="faq-item">
+                            <button class="faq-question" onclick="toggleFAQ(this)">
+                                Can I change the strategy parameters?
+                                <span class="faq-icon">+</span>
+                            </button>
+                            <div class="faq-answer">
+                                <p>Yes! Go to Settings to adjust EMA period, RSI ranges, volume multiplier, confidence threshold,
+                                and exit parameters. Always test changes with backtesting before using live trading.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Trade Journal Page -->
+        <div id="page-journal" class="page">
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <h2 style="margin-bottom: 0.5rem;">Trade Journal</h2>
+                <p style="color: var(--gray-600);">Review your trades, add notes and tags, and learn from patterns.</p>
+            </div>
+
+            <!-- Analytics Summary -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <h3>Tag Statistics</h3>
+                <div id="tagStatistics" class="loading">Loading tag statistics...</div>
+            </div>
+
+            <!-- Filters and Search -->
+            <div class="card" style="margin-bottom: 1.5rem;">
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                    <input type="text" id="journalSearch" placeholder="Search notes..." class="form-input" style="flex: 1; min-width: 200px;">
+                    <select id="journalTagFilter" class="form-input" style="max-width: 200px;">
+                        <option value="">All Tags</option>
+                    </select>
+                    <select id="journalPairFilter" class="form-input" style="max-width: 150px;">
+                        <option value="">All Pairs</option>
+                    </select>
+                    <select id="journalOutcomeFilter" class="form-input" style="max-width: 150px;">
+                        <option value="">All Outcomes</option>
+                        <option value="win">Winners</option>
+                        <option value="loss">Losers</option>
+                    </select>
+                    <button class="btn-primary" onclick="loadJournalTrades()">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Trades List -->
+            <div class="card">
+                <div id="journalTradesList" class="loading">Loading trades...</div>
+            </div>
+        </div>
         </div>
     </main>
 
@@ -961,6 +1194,8 @@
     <div class="overlay" id="overlay"></div>
 
     <script src="/static/onboarding.js"></script>
+    <script src="/static/glossary.js"></script>
+    <script src="/static/journal.js"></script>
     <script src="/static/dashboard.js"></script>
     <script>
         // Initialize onboarding when page loads

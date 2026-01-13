@@ -1827,3 +1827,568 @@ tr:hover {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
 }
+
+/* ========================================
+   ONBOARDING STYLES
+   ======================================== */
+
+/* Welcome Modal */
+.onboarding-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.onboarding-modal {
+    background: var(--white);
+    border-radius: 16px;
+    max-width: 700px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-xl);
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.onboarding-modal-header {
+    padding: 2rem 2rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.onboarding-modal-header h2 {
+    font-size: 2rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.onboarding-modal-header .subtitle {
+    font-size: 1.125rem;
+    color: var(--gray-600);
+}
+
+.onboarding-modal-body {
+    padding: 2rem;
+}
+
+.value-props {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.value-prop {
+    text-align: center;
+}
+
+.value-prop-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.value-prop h3 {
+    font-size: 1.25rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.value-prop p {
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.disclaimer-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    border: 1px solid var(--gray-200);
+}
+
+.disclaimer-checkbox {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    cursor: pointer;
+}
+
+.disclaimer-checkbox input[type="checkbox"] {
+    margin-top: 0.25rem;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.disclaimer-checkbox span {
+    color: var(--gray-700);
+    font-size: 0.9375rem;
+    line-height: 1.6;
+}
+
+.onboarding-modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Guided Tour */
+.tour-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9997;
+    pointer-events: none;
+}
+
+.tour-highlight {
+    pointer-events: none;
+}
+
+.tour-tooltip {
+    background: var(--white);
+    border-radius: 12px;
+    box-shadow: var(--shadow-xl);
+    max-width: 400px;
+    pointer-events: all;
+    animation: tooltipSlideIn 0.3s ease;
+}
+
+@keyframes tooltipSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tour-tooltip-header {
+    padding: 1.25rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.tour-tooltip-header h3 {
+    font-size: 1.25rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
+}
+
+.tour-progress {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+.tour-tooltip-body {
+    padding: 1.25rem 1.5rem;
+}
+
+.tour-tooltip-body p {
+    color: var(--gray-700);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.tour-tooltip-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.tour-nav-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.tour-skip-btn,
+.tour-back-btn,
+.tour-next-btn {
+    padding: 0.625rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.tour-skip-btn {
+    background: transparent;
+    color: var(--gray-600);
+}
+
+.tour-skip-btn:hover {
+    color: var(--gray-900);
+}
+
+.tour-next-btn {
+    background: var(--primary-blue);
+    color: var(--white);
+}
+
+.tour-next-btn:hover {
+    background: var(--primary-blue-dark);
+}
+
+.tour-back-btn {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.tour-back-btn:hover {
+    background: var(--gray-300);
+}
+
+/* Glossary Page Styles */
+.glossary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+}
+
+.glossary-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.glossary-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.glossary-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.glossary-card-header h3 {
+    font-size: 1.25rem;
+    color: var(--gray-900);
+    margin: 0;
+    flex: 1;
+}
+
+.glossary-category-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.category-indicators {
+    background: var(--primary-blue-light);
+    color: var(--white);
+}
+
+.category-risk {
+    background: var(--danger-red);
+    color: var(--white);
+}
+
+.category-orders {
+    background: var(--accent-gold);
+    color: var(--gray-900);
+}
+
+.category-general {
+    background: var(--gray-300);
+    color: var(--gray-900);
+}
+
+.glossary-card-body {
+    color: var(--gray-700);
+}
+
+.glossary-definition {
+    margin-bottom: 1rem;
+    line-height: 1.6;
+}
+
+.glossary-example {
+    background: var(--gray-50);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 3px solid var(--primary-blue);
+}
+
+.glossary-example strong {
+    color: var(--gray-900);
+}
+
+.glossary-action-link {
+    display: inline-flex;
+    align-items: center;
+    color: var(--primary-blue);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.glossary-action-link:hover {
+    color: var(--primary-blue-dark);
+}
+
+/* FAQ Styles */
+.faq-container {
+    margin-top: 1rem;
+}
+
+.faq-item {
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.faq-question {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    background: var(--white);
+    border: none;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+}
+
+.faq-question:hover {
+    background: var(--gray-50);
+}
+
+.faq-icon {
+    font-size: 1.5rem;
+    color: var(--primary-blue);
+    font-weight: bold;
+}
+
+.faq-answer {
+    display: none;
+    padding: 1rem 1.5rem;
+    background: var(--gray-50);
+    color: var(--gray-700);
+    line-height: 1.8;
+    border-top: 1px solid var(--gray-200);
+}
+
+.faq-answer p {
+    margin: 0;
+}
+
+/* ========================================
+   JOURNAL STYLES
+   ======================================== */
+
+.journal-trade-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.journal-trade-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-blue-light);
+}
+
+.journal-trade-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.journal-trade-info h4 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.125rem;
+    color: var(--gray-900);
+}
+
+.journal-trade-date {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.journal-trade-pnl {
+    font-size: 1.125rem;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+}
+
+.pnl-positive {
+    color: var(--success-green);
+    background: rgba(16, 185, 129, 0.1);
+}
+
+.pnl-negative {
+    color: var(--danger-red);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.journal-trade-details {
+    margin-bottom: 1rem;
+}
+
+.journal-detail-row {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    font-size: 0.9375rem;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+}
+
+.journal-exit-reason {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    font-style: italic;
+}
+
+.journal-tags-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.journal-tags-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.journal-tag {
+    display: inline-block;
+    padding: 0.375rem 0.75rem;
+    background: var(--primary-blue-light);
+    color: var(--white);
+    border-radius: 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.journal-tag-editable {
+    background: var(--gray-200);
+    color: var(--gray-900);
+}
+
+.journal-notes-preview {
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: 8px;
+    color: var(--gray-700);
+    line-height: 1.6;
+    font-size: 0.9375rem;
+    white-space: pre-wrap;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+/* Tag Statistics */
+.tag-stat-card {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.tag-stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.tag-stat-count {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+.tag-stat-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.tag-stat-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+.metric-value {
+    font-weight: 600;
+    font-size: 0.9375rem;
+}
+
+.metric-value.positive {
+    color: var(--success-green);
+}
+
+.metric-value.negative {
+    color: var(--danger-red);
+}
