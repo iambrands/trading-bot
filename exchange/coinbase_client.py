@@ -74,13 +74,31 @@ class CoinbaseClient:
         
         try:
             async with self.session.request(method, url, headers=headers, params=params, json=data) as response:
-                result = await response.json()
+                # Read response text first to handle empty responses
+                response_text = await response.text()
+                
+                # Log response details for debugging
+                logger.debug(f"API response status: {response.status}, content-length: {len(response_text)}")
+                
                 if response.status >= 400:
-                    logger.error(f"API error: {response.status} - {result}")
-                    raise Exception(f"API error: {result}")
-                return result
+                    logger.error(f"API error: {response.status} - {response_text[:500]}")
+                    raise Exception(f"API error ({response.status}): {response_text[:200]}")
+                
+                # Handle empty responses
+                if not response_text or not response_text.strip():
+                    logger.warning(f"Empty response from API for {method} {endpoint}")
+                    return {}
+                
+                # Parse JSON
+                try:
+                    result = json.loads(response_text)
+                    return result
+                except json.JSONDecodeError as json_err:
+                    logger.error(f"JSON decode error for {method} {endpoint}: {json_err}")
+                    logger.error(f"Response text (first 500 chars): {response_text[:500]}")
+                    raise Exception(f"Invalid JSON response from API: {str(json_err)}")
         except Exception as e:
-            logger.error(f"Request failed: {e}", exc_info=True)
+            logger.error(f"Request failed for {method} {endpoint}: {e}", exc_info=True)
             raise
     
     async def _paper_request(self, method: str, endpoint: str, params: Optional[Dict] = None, data: Optional[Dict] = None) -> Dict:

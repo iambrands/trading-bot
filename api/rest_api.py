@@ -2433,10 +2433,21 @@ class TradingBotAPI:
             }, status=500)
         
         logger.info("=== FORCE TEST TRADE REQUEST ===")
+        import sys
+        print("=== FORCE TEST TRADE REQUEST ===", file=sys.stderr, flush=True)
         
         try:
             # Parse request data
-            data = await request.json()
+            try:
+                data = await request.json()
+            except Exception as json_err:
+                logger.error(f"Failed to parse request JSON: {json_err}")
+                print(f"❌ JSON parse error: {json_err}", file=sys.stderr, flush=True)
+                return web.json_response({
+                    'error': f'Invalid JSON in request: {str(json_err)}',
+                    'success': False
+                }, status=400)
+            
             symbol = data.get('symbol', 'BTC-USD')
             side = data.get('side', 'BUY').upper()
             amount_usdt = float(data.get('amount_usdt', 10.0))
@@ -2445,6 +2456,7 @@ class TradingBotAPI:
             user_id = request.get('user_id')
             
             logger.info(f"Force test trade params: symbol={symbol}, side={side}, amount=${amount_usdt}, paper={paper_trading}")
+            print(f"  Symbol: {symbol}, Side: {side}, Amount: ${amount_usdt}, Paper: {paper_trading}", file=sys.stderr, flush=True)
             
             # Validate inputs
             if side not in ['BUY', 'SELL']:
@@ -2463,14 +2475,19 @@ class TradingBotAPI:
                 }, status=400)
             
             # Get current market price
+            print(f"  Fetching market data for {symbol}...", file=sys.stderr, flush=True)
             market_data = await self.bot.exchange.get_market_data([symbol])
             if symbol not in market_data:
+                error_msg = f'Could not fetch market data for {symbol}'
+                logger.error(error_msg)
+                print(f"  ❌ {error_msg}", file=sys.stderr, flush=True)
                 return web.json_response({
-                    'error': f'Could not fetch market data for {symbol}'
+                    'error': error_msg
                 }, status=400)
             
             current_price = market_data[symbol]['price']
             logger.info(f"Current {symbol} price: ${current_price:.2f}")
+            print(f"  ✅ Current price: ${current_price:.2f}", file=sys.stderr, flush=True)
             
             # Calculate quantity
             if side == 'BUY':
@@ -2483,24 +2500,36 @@ class TradingBotAPI:
                 quote_size = None
             
             logger.info(f"Calculated quantity: {quantity:.6f} {symbol.split('-')[0]}")
+            print(f"  Calculated quantity: {quantity:.6f} {symbol.split('-')[0]}", file=sys.stderr, flush=True)
             
             # Place order via exchange
-            if side == 'BUY':
-                order_result = await self.bot.exchange.place_order(
-                    pair=symbol,
-                    side='BUY',
-                    size=0,
-                    quote_size=quote_size
-                )
-            else:
-                order_result = await self.bot.exchange.place_order(
-                    pair=symbol,
-                    side='SELL',
-                    size=quantity,
-                    quote_size=None
-                )
-            
-            logger.info(f"Order result: {order_result}")
+            print(f"  Placing {side} order...", file=sys.stderr, flush=True)
+            try:
+                if side == 'BUY':
+                    order_result = await self.bot.exchange.place_order(
+                        pair=symbol,
+                        side='BUY',
+                        size=0,
+                        quote_size=quote_size
+                    )
+                else:
+                    order_result = await self.bot.exchange.place_order(
+                        pair=symbol,
+                        side='SELL',
+                        size=quantity,
+                        quote_size=None
+                    )
+                
+                logger.info(f"Order result: {order_result}")
+                print(f"  ✅ Order result type: {type(order_result)}", file=sys.stderr, flush=True)
+                print(f"  ✅ Order result keys: {list(order_result.keys()) if isinstance(order_result, dict) else 'Not a dict'}", file=sys.stderr, flush=True)
+            except Exception as order_err:
+                error_msg = f"Order placement failed: {str(order_err)}"
+                logger.error(error_msg, exc_info=True)
+                print(f"  ❌ {error_msg}", file=sys.stderr, flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                raise
             
             # Extract order details from result
             order_id = order_result.get('order_id') or order_result.get('id', 'unknown')
@@ -2549,10 +2578,15 @@ class TradingBotAPI:
             return web.json_response(result)
             
         except Exception as e:
+            error_msg = f'Trade execution failed: {str(e)}'
             logger.error(f"Force test trade failed: {e}", exc_info=True)
+            print(f"❌ {error_msg}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return web.json_response({
-                'error': f'Trade execution failed: {str(e)}',
-                'success': False
+                'error': error_msg,
+                'success': False,
+                'error_type': type(e).__name__
             }, status=500)
     
     async def trading_health(self, request):
