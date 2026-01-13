@@ -229,7 +229,18 @@ async def init_app():
                     logger.error("TradingBot initialization failed; continuing in API-only mode")
                     bot_instance = None
                 else:
-                    logger.info("Step 10: TradingBot initialized successfully (waiting for /api/start)")
+                    logger.info("Step 10: TradingBot initialized successfully")
+                    print("  Starting TradingBot trading loop...", file=sys.stderr, flush=True)
+                    try:
+                        # Start the trading loop (runs in background, don't await)
+                        asyncio.create_task(bot_instance.start())
+                        print("  ✅ TradingBot trading loop started (running in background)", file=sys.stderr, flush=True)
+                        logger.info("Step 11: TradingBot trading loop started")
+                    except Exception as start_err:
+                        print(f"  ⚠️ Warning: Failed to start trading loop: {start_err}", file=sys.stderr, flush=True)
+                        logger.warning(f"Failed to start trading loop (continuing anyway): {start_err}")
+                        import traceback
+                        traceback.print_exc(file=sys.stderr)
             except Exception as e:
                 print(f"  ❌ TradingBot setup FAILED: {e}", file=sys.stderr, flush=True)
                 import traceback
