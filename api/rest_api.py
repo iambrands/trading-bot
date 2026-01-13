@@ -3769,8 +3769,12 @@ def create_app(bot_instance=None, db_manager=None) -> web.Application:
 
 async def run_api(app: web.Application, host: str = '0.0.0.0', port: int = 8000):
     """Run API server."""
+    logger.info(f"Creating AppRunner for {host}:{port}...")
     runner = web.AppRunner(app)
+    logger.info("Setting up AppRunner...")
     await runner.setup()
+    logger.info("Creating TCPSite...")
     site = web.TCPSite(runner, host, port)
+    logger.info(f"Starting TCPSite on {host}:{port}...")
     await site.start()
-    logger.info(f"API server started on {host}:{port}")
+    logger.info(f"✅ API server started successfully on {host}:{port}")
