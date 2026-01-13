@@ -1,29 +1,101 @@
+#!/usr/bin/env python3
 """
 Heroku entry point for the Trading Bot API.
 This file allows Heroku to run just the API server without the trading bot.
 """
+# CRITICAL: These lines must be FIRST - before any other imports
+import sys
 import os
-import asyncio
-import logging
-from aiohttp import web
-from api.rest_api import create_app, run_api
-from database.db_manager import DatabaseManager
-from config import get_config
-from utils.log_buffer import setup_log_buffer
 
-# Configure logging
+# Force unbuffered output so logs appear immediately in Railway
+sys.stdout = sys.__stdout__
+sys.stderr = sys.__stderr__
+os.environ['PYTHONUNBUFFERED'] = '1'
+
+# CRITICAL: Print startup info BEFORE any imports to catch crashes
+print("=" * 60, file=sys.stderr, flush=True)
+print("TRADEPILOT BOOT SEQUENCE", file=sys.stderr, flush=True)
+print(f"Python: {sys.version}", file=sys.stderr, flush=True)
+print(f"PORT env: {os.environ.get('PORT', 'NOT SET')}", file=sys.stderr, flush=True)
+print(f"PWD: {os.getcwd()}", file=sys.stderr, flush=True)
+print(f"Python executable: {sys.executable}", file=sys.stderr, flush=True)
+print("=" * 60, file=sys.stderr, flush=True)
+
+# Step 1: Import standard library
+print("Step 1: Importing standard library...", file=sys.stderr, flush=True)
+try:
+    import asyncio
+    import logging
+    print("  ✅ Standard library OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ Standard library FAILED: {e}", file=sys.stderr, flush=True)
+    sys.exit(1)
+
+# Step 2: Import aiohttp
+print("Step 2: Importing aiohttp...", file=sys.stderr, flush=True)
+try:
+    from aiohttp import web
+    print("  ✅ aiohttp OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ aiohttp FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+
+# Step 3: Import local modules one by one
+print("Step 3: Importing local modules...", file=sys.stderr, flush=True)
+
+try:
+    from config import get_config
+    print("  ✅ config.get_config OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ config.get_config FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+
+try:
+    from database.db_manager import DatabaseManager
+    print("  ✅ database.db_manager OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ database.db_manager FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+
+try:
+    from utils.log_buffer import setup_log_buffer
+    print("  ✅ utils.log_buffer OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ utils.log_buffer FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+
+try:
+    from api.rest_api import create_app, run_api
+    print("  ✅ api.rest_api OK", file=sys.stderr, flush=True)
+except Exception as e:
+    print(f"  ❌ api.rest_api FAILED: {e}", file=sys.stderr, flush=True)
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+
+print("Step 4: All imports successful!", file=sys.stderr, flush=True)
+
+# Configure logging AFTER imports
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),
+        logging.StreamHandler(sys.stderr),  # Use stderr for Railway
         setup_log_buffer(max_size=1000)  # Keep last 1000 log entries in memory
     ]
 )
 
 logger = logging.getLogger(__name__)
 
-# CRITICAL: Log startup immediately for Railway debugging
+# Log startup info
 logger.info("=" * 60)
 logger.info("TRADEPILOT STARTING")
 logger.info(f"PORT: {os.environ.get('PORT', 'NOT SET - using default 4000')}")
