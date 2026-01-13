@@ -266,6 +266,10 @@ class TradingBotAPI:
         self.app.router.add_get('/api/backtest/test-route', self.test_backtest_route)  # Simple test endpoint
         self.app.router.add_post('/api/backtest/test-post', self.test_backtest_post)  # Test POST endpoint
         
+        # Test trade endpoint (for validating trading pipeline)
+        self.app.router.add_post('/api/test/force-trade', self.force_test_trade)
+        self.app.router.add_get('/api/test/trading-health', self.trading_health)
+        
         # AI endpoints
         self.app.router.add_post('/api/ai/analyze-market', self.ai_analyze_market)
         self.app.router.add_post('/api/ai/explain-strategy', self.ai_explain_strategy)
@@ -2402,6 +2406,337 @@ class TradingBotAPI:
             'user_id': request.get('user_id'),
             'timestamp': datetime.utcnow().isoformat()
         })
+    
+    async def force_test_trade(self, request):
+        """
+        Force a test trade to validate the entire trading pipeline.
+        
+        Validates:
+        - Exchange API connection
+        - Order creation logic
+        - Trade logging
+        - Complete pipeline from signal → order → execution
+        
+        WARNING: Set paper_trading=False only if you want to execute a real trade.
+        """
+        if not self.bot:
+            return web.json_response({
+                'error': 'Trading bot is not running. Please start the bot using: python main.py'
+            }, status=503)
+        
+        if not self.db_manager:
+            return web.json_response({
+                'error': 'Database not initialized'
+            }, status=500)
+        
+        logger.info("=== FORCE TEST TRADE REQUEST ===")
+        
+        try:
+            # Parse request data
+            data = await request.json()
+            symbol = data.get('symbol', 'BTC-USD')
+            side = data.get('side', 'BUY').upper()
+            amount_usdt = float(data.get('amount_usdt', 10.0))
+            paper_trading = data.get('paper_trading', True)  # Safety: default to paper
+            
+            user_id = request.get('user_id')
+            
+            logger.info(f"Force test trade params: symbol={symbol}, side={side}, amount=${amount_usdt}, paper={paper_trading}")
+            
+            # Validate inputs
+            if side not in ['BUY', 'SELL']:
+                return web.json_response({
+                    'error': 'Side must be BUY or SELL'
+                }, status=400)
+            
+            if amount_usdt <= 0:
+                return web.json_response({
+                    'error': 'Amount must be greater than 0'
+                }, status=400)
+            
+            if amount_usdt > 100 and not paper_trading:
+                return web.json_response({
+                    'error': 'Real trades are limited to $100 for safety. Use paper_trading=true for larger amounts.'
+                }, status=400)
+            
+            # Get current market price
+            market_data = await self.bot.exchange.get_market_data([symbol])
+            if symbol not in market_data:
+                return web.json_response({
+                    'error': f'Could not fetch market data for {symbol}'
+                }, status=400)
+            
+            current_price = market_data[symbol]['price']
+            logger.info(f"Current {symbol} price: ${current_price:.2f}")
+            
+            # Calculate quantity
+            if side == 'BUY':
+                # Buying with USD - use quote_size
+                quote_size = amount_usdt
+                quantity = quote_size / current_price
+            else:
+                # Selling - use base_size
+                quantity = amount_usdt / current_price
+                quote_size = None
+            
+            logger.info(f"Calculated quantity: {quantity:.6f} {symbol.split('-')[0]}")
+            
+            # Place order via exchange
+            if side == 'BUY':
+                order_result = await self.bot.exchange.place_order(
+                    pair=symbol,
+                    side='BUY',
+                    size=0,
+                    quote_size=quote_size
+                )
+            else:
+                order_result = await self.bot.exchange.place_order(
+                    pair=symbol,
+                    side='SELL',
+                    size=quantity,
+                    quote_size=None
+                )
+            
+            logger.info(f"Order result: {order_result}")
+            
+            # Extract order details from result
+            order_id = order_result.get('order_id') or order_result.get('id', 'unknown')
+            filled_price = current_price  # Use current price as filled price for paper trading
+            
+            # Save trade to database
+            trade_data = {
+                'pair': symbol,
+                'side': side,
+                'entry_price': filled_price,
+                'size': quantity,
+                'entry_time': datetime.utcnow(),
+                'order_id': str(order_id),
+                'confidence_score': 100.0,  # Test trade has 100% confidence
+                'stop_loss': None,  # Test trade - no stop loss
+                'take_profit': None  # Test trade - no take profit
+            }
+            
+            trade_id = await self.db_manager.save_trade(trade_data)
+            if trade_id:
+                logger.info(f"Trade saved to database with ID: {trade_id}")
+            else:
+                logger.warning("Trade was not saved to database")
+            
+            # Prepare response
+            mode_str = 'PAPER' if paper_trading else 'LIVE'
+            result = {
+                'success': True,
+                'message': f'Test trade executed successfully ({mode_str} mode)',
+                'trade': {
+                    'trade_id': trade_id,
+                    'symbol': symbol,
+                    'side': side,
+                    'quantity': quantity,
+                    'price': filled_price,
+                    'total_usdt': amount_usdt,
+                    'order_id': str(order_id),
+                    'mode': 'PAPER' if paper_trading else 'LIVE',
+                    'timestamp': datetime.utcnow().isoformat()
+                },
+                'order_result': order_result
+            }
+            
+            logger.info(f"✅ Force test trade completed successfully: {result}")
+            
+            return web.json_response(result)
+            
+        except Exception as e:
+            logger.error(f"Force test trade failed: {e}", exc_info=True)
+            return web.json_response({
+                'error': f'Trade execution failed: {str(e)}',
+                'success': False
+            }, status=500)
+    
+    async def trading_health(self, request):
+        """
+        Quick health check for trading system components.
+        
+        Checks:
+        - Exchange connection and balance
+        - Current trading thresholds/configuration
+        - Recent trades (last 24 hours)
+        - Current market data
+        - Bot status
+        - Database connection
+        """
+        results = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'status': 'ok'
+        }
+        
+        # 1. Check bot initialization
+        if not self.bot:
+            results['bot_status'] = {
+                'status': 'not_initialized',
+                'message': 'Trading bot instance not available (API-only mode)'
+            }
+            results['status'] = 'degraded'
+        else:
+            results['bot_status'] = {
+                'status': self.bot.status,
+                'mode': 'full-bot',
+                'paper_trading': self.bot.config.PAPER_TRADING
+            }
+        
+        # 2. Check exchange connection and balance
+        try:
+            if self.bot:
+                balance = await self.bot.exchange.get_account_balance()
+                results['exchange_connection'] = {
+                    'status': 'ok',
+                    'balance_usdt': balance,
+                    'paper_trading': self.bot.config.PAPER_TRADING
+                }
+            else:
+                # Try to get balance from config if bot not available
+                results['exchange_connection'] = {
+                    'status': 'not_available',
+                    'message': 'Bot not initialized - cannot check exchange',
+                    'balance_usdt': self.config.ACCOUNT_SIZE
+                }
+                results['status'] = 'degraded'
+        except Exception as e:
+            results['exchange_connection'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+            results['status'] = 'error'
+        
+        # 3. Check current trading thresholds/configuration
+        try:
+            config = self.bot.config if self.bot else self.config
+            results['thresholds'] = {
+                'rsi_long_range': f"{config.RSI_LONG_MIN}-{config.RSI_LONG_MAX}",
+                'rsi_short_range': f"{config.RSI_SHORT_MIN}-{config.RSI_SHORT_MAX}",
+                'volume_multiplier': config.VOLUME_MULTIPLIER,
+                'min_confidence_score': config.MIN_CONFIDENCE_SCORE,
+                'take_profit_min': config.TAKE_PROFIT_MIN,
+                'take_profit_max': config.TAKE_PROFIT_MAX,
+                'stop_loss_min': config.STOP_LOSS_MIN,
+                'stop_loss_max': config.STOP_LOSS_MAX
+            }
+        except Exception as e:
+            results['thresholds'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # 4. Check recent trades (last 24 hours)
+        try:
+            if self.db_manager and self.db_manager.initialized:
+                from datetime import timedelta
+                start_date = datetime.utcnow() - timedelta(hours=24)
+                user_id = request.get('user_id')
+                
+                trades_24h = await self.db_manager.get_trades_with_date_range(
+                    start_date=start_date,
+                    user_id=user_id
+                )
+                results['trades_24h'] = {
+                    'count': len(trades_24h),
+                    'status': 'ok'
+                }
+            else:
+                results['trades_24h'] = {
+                    'count': 0,
+                    'status': 'database_not_available',
+                    'message': 'Database not initialized'
+                }
+        except Exception as e:
+            results['trades_24h'] = {
+                'count': 0,
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # 5. Get current market data (BTC-USD)
+        try:
+            if self.bot:
+                market_data = await self.bot.exchange.get_market_data(['BTC-USD'])
+                if 'BTC-USD' in market_data:
+                    btc_price = market_data['BTC-USD'].get('price', 0)
+                    btc_timestamp = market_data['BTC-USD'].get('timestamp')
+                    if isinstance(btc_timestamp, datetime):
+                        btc_timestamp_str = btc_timestamp.isoformat()
+                    else:
+                        btc_timestamp_str = str(btc_timestamp) if btc_timestamp else datetime.utcnow().isoformat()
+                    
+                    results['market_data'] = {
+                        'status': 'ok',
+                        'btc_price_usd': btc_price,
+                        'timestamp': btc_timestamp_str
+                    }
+                else:
+                    results['market_data'] = {
+                        'status': 'error',
+                        'error': 'BTC-USD market data not available'
+                    }
+            else:
+                results['market_data'] = {
+                    'status': 'not_available',
+                    'message': 'Bot not initialized - cannot fetch market data'
+                }
+        except Exception as e:
+            results['market_data'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # 6. Check database connection
+        try:
+            if self.db_manager and self.db_manager.initialized:
+                results['database'] = {
+                    'status': 'ok',
+                    'initialized': True
+                }
+            else:
+                results['database'] = {
+                    'status': 'not_initialized',
+                    'message': 'Database manager not initialized'
+                }
+                if results['status'] == 'ok':
+                    results['status'] = 'degraded'
+        except Exception as e:
+            results['database'] = {
+                'status': 'error',
+                'error': str(e)
+            }
+            results['status'] = 'error'
+        
+        # 7. Check active positions
+        try:
+            if self.bot:
+                positions_count = len(self.bot.positions)
+                results['positions'] = {
+                    'count': positions_count,
+                    'status': 'ok'
+                }
+            else:
+                results['positions'] = {
+                    'count': 0,
+                    'status': 'not_available',
+                    'message': 'Bot not initialized'
+                }
+        except Exception as e:
+            results['positions'] = {
+                'count': 0,
+                'status': 'error',
+                'error': str(e)
+            }
+        
+        # Determine overall status code
+        status_code = 200
+        if results['status'] == 'error':
+            status_code = 500
+        elif results['status'] == 'degraded':
+            status_code = 200  # Still 200, but status indicates degraded
+        
+        return web.json_response(results, status=status_code)
     
     async def debug_backtest_count(self, request):
         """Diagnostic endpoint to check total backtests in database."""
