@@ -2437,21 +2437,22 @@ class TradingBotAPI:
         print("=== FORCE TEST TRADE REQUEST ===", file=sys.stderr, flush=True)
         
         try:
-            # Parse request data
+            # Parse request data - support both JSON body and query parameters
+            data = {}
             try:
-                data = await request.json()
+                # Try to read from JSON body if present
+                if request.can_read_body and request.content_type == 'application/json':
+                    data = await request.json()
             except Exception as json_err:
-                logger.error(f"Failed to parse request JSON: {json_err}")
-                print(f"❌ JSON parse error: {json_err}", file=sys.stderr, flush=True)
-                return web.json_response({
-                    'error': f'Invalid JSON in request: {str(json_err)}',
-                    'success': False
-                }, status=400)
+                # If JSON parsing fails, continue with query params only
+                logger.debug(f"Could not parse JSON body (using query params): {json_err}")
             
-            symbol = data.get('symbol', 'BTC-USD')
-            side = data.get('side', 'BUY').upper()
-            amount_usdt = float(data.get('amount_usdt', 10.0))
-            paper_trading = data.get('paper_trading', True)  # Safety: default to paper
+            # Get parameters from JSON body or query string (query params take precedence)
+            symbol = request.query.get('symbol') or data.get('symbol', 'BTC-USD')
+            side = (request.query.get('side') or data.get('side', 'BUY')).upper()
+            amount_usdt = float(request.query.get('amount_usdt') or data.get('amount_usdt', 10.0))
+            paper_trading_str = request.query.get('paper_trading') or str(data.get('paper_trading', 'true'))
+            paper_trading = paper_trading_str.lower() == 'true'  # Safety: default to paper
             
             user_id = request.get('user_id')
             
