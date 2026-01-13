@@ -361,21 +361,29 @@ class TradingBot:
     
     async def _check_signals(self):
         """Check for new trading signals."""
+        import sys
+        print(f"[CHECK SIGNALS] Starting signal check for {len(self.config.TRADING_PAIRS)} pairs...", file=sys.stderr, flush=True)
+        
         balance = await self.exchange.get_account_balance()
         
         # Force refresh market data for latest prices
         await self.exchange.get_market_data(self.config.TRADING_PAIRS)
         
-        import sys
         min_confidence = self.config.MIN_CONFIDENCE_SCORE
+        signals_checked = 0
+        signals_generated = 0
+        signals_above_threshold = 0
         
         for pair in self.config.TRADING_PAIRS:
             try:
                 candles = self.candle_cache.get(pair, [])
                 min_candles_needed = max(self.config.EMA_PERIOD, self.config.RSI_PERIOD, self.config.VOLUME_PERIOD) + 1
                 if len(candles) < min_candles_needed:
+                    print(f"[{pair}] ⏭️ Insufficient candles: {len(candles)} < {min_candles_needed} (skipping)", file=sys.stderr, flush=True)
                     logger.debug(f"[{pair}] Insufficient candles: {len(candles)} < {min_candles_needed}")
                     continue
+                
+                signals_checked += 1
                 
                 # Use latest ticker price instead of last candle close if available
                 market_data = await self.exchange.get_market_data([pair])
@@ -391,15 +399,17 @@ class TradingBot:
                 signal = self.strategy.generate_signal(candles, pair=pair)
                 
                 if signal:
+                    signals_generated += 1
                     signal_conf = signal['confidence']
                     signal_type = signal.get('type', 'UNKNOWN')
                     signal_price = signal.get('price', 0)
                     
-                    print(f"[{pair}] Signal generated: {signal_type} | Confidence: {signal_conf:.1f}% | Price: ${signal_price:.2f} | Threshold: {min_confidence}%", file=sys.stderr, flush=True)
-                    logger.debug(f"[{pair}] Signal: {signal_type}, confidence: {signal_conf:.1f}%, price: ${signal_price:.2f}, threshold: {min_confidence}%")
+                    print(f"[{pair}] ✅ Signal: {signal_type} | Confidence: {signal_conf:.1f}% | Price: ${signal_price:.2f} | Threshold: {min_confidence}%", file=sys.stderr, flush=True)
+                    logger.info(f"[{pair}] Signal: {signal_type}, confidence: {signal_conf:.1f}%, price: ${signal_price:.2f}, threshold: {min_confidence}%")
                     
                     if signal_conf >= min_confidence:
-                        print(f"[{pair}] ✅ Signal meets threshold ({signal_conf:.1f}% >= {min_confidence}%)", file=sys.stderr, flush=True)
+                        signals_above_threshold += 1
+                        print(f"[{pair}] ✅✅ MEETS THRESHOLD ({signal_conf:.1f}% >= {min_confidence}%)", file=sys.stderr, flush=True)
                         logger.info(f"[{pair}] Signal meets confidence threshold: {signal_conf:.1f}% >= {min_confidence}%")
                         
                         # Check if we already have a position in this pair
@@ -427,16 +437,28 @@ class TradingBot:
                         )
                         
                         if is_valid:
-                            print(f"[{pair}] ✅ Risk validation passed - executing trade", file=sys.stderr, flush=True)
+                            print(f"[{pair}] ✅✅✅ RISK VALIDATION PASSED - EXECUTING TRADE!", file=sys.stderr, flush=True)
                             logger.info(f"[{pair}] Risk validation passed - executing {signal_type} trade")
                             await self._open_position(pair, signal, position_size)
                         else:
                             print(f"[{pair}] ❌ Risk validation failed: {message}", file=sys.stderr, flush=True)
                             logger.warning(f"[{pair}] Trade validation failed: {message}")
                     else:
+                        gap = min_confidence - signal_conf
+                        print(f"[{pair}] ⏭️ Below threshold: {signal_conf:.1f}% < {min_confidence}% (gap: {gap:.1f}%)", file=sys.stderr, flush=True)
                         logger.debug(f"[{pair}] Signal below threshold: {signal_conf:.1f}% < {min_confidence}%")
                 else:
+                    print(f"[{pair}] ➖ No signal generated (neutral)", file=sys.stderr, flush=True)
                     logger.debug(f"[{pair}] No signal generated")
+            
+            except Exception as e:
+                import sys
+                import traceback
+                print(f"[{pair}] ❌ ERROR checking signal: {e}", file=sys.stderr, flush=True)
+                traceback.print_exc(file=sys.stderr)
+                logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
+        
+        print(f"[CHECK SIGNALS] Complete: {signals_checked} checked, {signals_generated} generated, {signals_above_threshold} above threshold", file=sys.stderr, flush=True)
             
             except Exception as e:
                 logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
