@@ -47,6 +47,9 @@ class TradingBotAPI:
             public_routes = [
                 '/api/auth/signup',
                 '/api/auth/signin',
+                '/api/status',  # Status endpoint for health checks
+                '/api/runtime',  # Runtime info endpoint
+                '/api/test/',   # All test endpoints (trading-health, force-trade, etc.)
                 '/landing',
                 '/signup',
                 '/signin',
