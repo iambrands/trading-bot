@@ -223,16 +223,19 @@ class TradingBot:
     
     async def _trading_loop(self):
         """Main trading loop."""
+        import sys
+        print("[TRADING LOOP] ========== STARTING ==========", file=sys.stderr, flush=True)
         logger.info("Trading loop started")
         iteration = 0
         
         while self.running and not self.kill_switch_activated:
             iteration += 1
             try:
-                # Heartbeat log every 12 iterations (1 minute at 5s intervals)
-                if iteration % 12 == 0:
-                    import sys
-                    print(f"[HEARTBEAT] Trading loop iteration #{iteration} | Status: {self.status} | Positions: {len(self.positions)}", file=sys.stderr, flush=True)
+                # Log every iteration for first 5, then every 6 iterations (30s at 5s intervals), then every 12 (1min)
+                should_log = (iteration <= 5) or (iteration <= 30 and iteration % 6 == 0) or (iteration % 12 == 0)
+                
+                if should_log:
+                    print(f"[HEARTBEAT #{iteration}] Status: {self.status} | Positions: {len(self.positions)} | Pairs: {len(self.config.TRADING_PAIRS)}", file=sys.stderr, flush=True)
                     logger.info(f"Trading loop heartbeat - iteration #{iteration}, status: {self.status}, positions: {len(self.positions)}")
                 
                 # Update candle data periodically

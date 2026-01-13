@@ -233,12 +233,26 @@ async def init_app():
                     print("  Starting TradingBot trading loop...", file=sys.stderr, flush=True)
                     try:
                         # Start the trading loop (runs in background, don't await)
-                        asyncio.create_task(bot_instance.start())
-                        print("  ✅ TradingBot trading loop started (running in background)", file=sys.stderr, flush=True)
-                        logger.info("Step 11: TradingBot trading loop started")
+                        start_task = asyncio.create_task(bot_instance.start())
+                        print(f"  ✅ TradingBot start() task created: {start_task}", file=sys.stderr, flush=True)
+                        logger.info("Step 11: TradingBot start() task created")
+                        
+                        # Give it a moment to start
+                        await asyncio.sleep(0.5)
+                        
+                        # Check task status
+                        if start_task.done():
+                            if start_task.exception():
+                                print(f"  ❌ Start task crashed: {start_task.exception()}", file=sys.stderr, flush=True)
+                                logger.error(f"Start task crashed: {start_task.exception()}")
+                            else:
+                                print(f"  ⚠️ Start task completed immediately (unexpected)", file=sys.stderr, flush=True)
+                        else:
+                            print(f"  ✅ Start task is running (not done, not cancelled)", file=sys.stderr, flush=True)
+                        
                     except Exception as start_err:
-                        print(f"  ⚠️ Warning: Failed to start trading loop: {start_err}", file=sys.stderr, flush=True)
-                        logger.warning(f"Failed to start trading loop (continuing anyway): {start_err}")
+                        print(f"  ❌ Failed to create start task: {start_err}", file=sys.stderr, flush=True)
+                        logger.error(f"Failed to start trading loop: {start_err}", exc_info=True)
                         import traceback
                         traceback.print_exc(file=sys.stderr)
             except Exception as e:
