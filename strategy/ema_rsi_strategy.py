@@ -241,6 +241,8 @@ class EMARSIStrategy:
     
     def generate_signal(self, candles: List[Dict], pair: str = "") -> Optional[Dict]:
         """Generate trading signal based on indicators."""
+        import sys
+        
         if len(candles) < max(self.ema_period, self.rsi_period, self.volume_period) + 1:
             return None
         
@@ -253,6 +255,9 @@ class EMARSIStrategy:
         rsi = indicators['rsi']
         volume_ratio = indicators['volume_ratio']
         
+        # Diagnostic logging - show actual values
+        print(f"    [{pair}] Strategy eval: Price=${price:.2f}, EMA=${ema:.2f}, RSI={rsi:.1f}, Vol={volume_ratio:.2f}x", file=sys.stderr, flush=True)
+        
         # Log signal check for monitoring
         self._log_signal_check(price, ema, rsi, volume_ratio, pair)
         
@@ -264,8 +269,11 @@ class EMARSIStrategy:
         long_rsi_ok = self.rsi_long_min <= rsi <= self.rsi_long_max
         long_volume_ok = volume_ratio >= self.volume_multiplier
         
+        print(f"    [{pair}] LONG conditions: Price>EMA={long_price_ok} ({price:.2f}>{ema:.2f}), RSI_in_range={long_rsi_ok} (RSI={rsi:.1f}, need {self.rsi_long_min}-{self.rsi_long_max}), Volume_ok={long_volume_ok} (Vol={volume_ratio:.2f}x, need {self.volume_multiplier}x)", file=sys.stderr, flush=True)
+        
         if long_price_ok and long_rsi_ok and long_volume_ok:
             confidence = self.calculate_confidence_score(indicators, 'LONG')
+            print(f"    [{pair}] LONG all conditions met! Confidence={confidence:.1f}% (min={self.min_confidence}%)", file=sys.stderr, flush=True)
             if confidence >= self.min_confidence:
                 take_profit, stop_loss = self.calculate_exit_levels(price, 'LONG', confidence)
                 signal = {
@@ -277,11 +285,23 @@ class EMARSIStrategy:
                     'indicators': indicators
                 }
                 self.signals_generated_today += 1
+                print(f"    [{pair}] ✅✅✅ LONG SIGNAL GENERATED! Confidence={confidence:.1f}%", file=sys.stderr, flush=True)
                 logger.info(
                     f"[{pair}] ✅ LONG signal generated: RSI={rsi:.2f} ({self.rsi_long_min}-{self.rsi_long_max}), "
                     f"Vol={volume_ratio:.2f}x (need {self.volume_multiplier}x), Confidence={confidence:.1f}%"
                 )
-        # Note: Near-misses already logged in _log_signal_check
+            else:
+                gap = self.min_confidence - confidence
+                print(f"    [{pair}] LONG confidence too low: {confidence:.1f}% < {self.min_confidence}% (gap: {gap:.1f}%)", file=sys.stderr, flush=True)
+        else:
+            failed_conditions = []
+            if not long_price_ok:
+                failed_conditions.append(f"Price>EMA (Price ${price:.2f} <= EMA ${ema:.2f})")
+            if not long_rsi_ok:
+                failed_conditions.append(f"RSI range (RSI {rsi:.1f} not in {self.rsi_long_min}-{self.rsi_long_max})")
+            if not long_volume_ok:
+                failed_conditions.append(f"Volume (Vol {volume_ratio:.2f}x < {self.volume_multiplier}x)")
+            print(f"    [{pair}] LONG conditions NOT met: {', '.join(failed_conditions)}", file=sys.stderr, flush=True)
         
         # Short entry conditions
         if signal is None:  # Only check short if long didn't trigger
@@ -289,8 +309,11 @@ class EMARSIStrategy:
             short_rsi_ok = self.rsi_short_min <= rsi <= self.rsi_short_max
             short_volume_ok = volume_ratio >= self.volume_multiplier
             
+            print(f"    [{pair}] SHORT conditions: Price<EMA={short_price_ok} ({price:.2f}<{ema:.2f}), RSI_in_range={short_rsi_ok} (RSI={rsi:.1f}, need {self.rsi_short_min}-{self.rsi_short_max}), Volume_ok={short_volume_ok} (Vol={volume_ratio:.2f}x, need {self.volume_multiplier}x)", file=sys.stderr, flush=True)
+            
             if short_price_ok and short_rsi_ok and short_volume_ok:
                 confidence = self.calculate_confidence_score(indicators, 'SHORT')
+                print(f"    [{pair}] SHORT all conditions met! Confidence={confidence:.1f}% (min={self.min_confidence}%)", file=sys.stderr, flush=True)
                 if confidence >= self.min_confidence:
                     take_profit, stop_loss = self.calculate_exit_levels(price, 'SHORT', confidence)
                     signal = {
@@ -302,11 +325,26 @@ class EMARSIStrategy:
                         'indicators': indicators
                     }
                     self.signals_generated_today += 1
+                    print(f"    [{pair}] ✅✅✅ SHORT SIGNAL GENERATED! Confidence={confidence:.1f}%", file=sys.stderr, flush=True)
                     logger.info(
                         f"[{pair}] ✅ SHORT signal generated: RSI={rsi:.2f} ({self.rsi_short_min}-{self.rsi_short_max}), "
                         f"Vol={volume_ratio:.2f}x (need {self.volume_multiplier}x), Confidence={confidence:.1f}%"
                     )
-        # Note: Near-misses already logged in _log_signal_check
+                else:
+                    gap = self.min_confidence - confidence
+                    print(f"    [{pair}] SHORT confidence too low: {confidence:.1f}% < {self.min_confidence}% (gap: {gap:.1f}%)", file=sys.stderr, flush=True)
+            else:
+                failed_conditions = []
+                if not short_price_ok:
+                    failed_conditions.append(f"Price<EMA (Price ${price:.2f} >= EMA ${ema:.2f})")
+                if not short_rsi_ok:
+                    failed_conditions.append(f"RSI range (RSI {rsi:.1f} not in {self.rsi_short_min}-{self.rsi_short_max})")
+                if not short_volume_ok:
+                    failed_conditions.append(f"Volume (Vol {volume_ratio:.2f}x < {self.volume_multiplier}x)")
+                print(f"    [{pair}] SHORT conditions NOT met: {', '.join(failed_conditions)}", file=sys.stderr, flush=True)
+        
+        if signal is None:
+            print(f"    [{pair}] ➖ No signal - returning None", file=sys.stderr, flush=True)
         
         return signal
     
