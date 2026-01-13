@@ -170,9 +170,34 @@ class ProductionConfig(Config):
 
 def get_config() -> Config:
     """Get configuration based on environment."""
+    import sys
+    print("    get_config() entered", file=sys.stderr, flush=True)
+    
+    print("    Reading ENVIRONMENT env var...", file=sys.stderr, flush=True)
     env = os.getenv('ENVIRONMENT', 'development').lower()
+    print(f"    ENVIRONMENT = {env}", file=sys.stderr, flush=True)
     
     if env == 'production':
-        return ProductionConfig()
+        print("    Instantiating ProductionConfig...", file=sys.stderr, flush=True)
+        try:
+            config = ProductionConfig()
+            print("    ✅ ProductionConfig created", file=sys.stderr, flush=True)
+            return config
+        except Exception as e:
+            print(f"    ❌ ProductionConfig instantiation FAILED: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise
     else:
-        return DevelopmentConfig()
+        print("    Instantiating DevelopmentConfig...", file=sys.stderr, flush=True)
+        try:
+            config = DevelopmentConfig()
+            print("    ✅ DevelopmentConfig created", file=sys.stderr, flush=True)
+            return config
+        except Exception as e:
+            print(f"    ❌ DevelopmentConfig instantiation FAILED: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise
+    
+    print("    get_config() completed", file=sys.stderr, flush=True)
