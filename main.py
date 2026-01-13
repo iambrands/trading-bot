@@ -224,9 +224,17 @@ class TradingBot:
     async def _trading_loop(self):
         """Main trading loop."""
         logger.info("Trading loop started")
+        iteration = 0
         
         while self.running and not self.kill_switch_activated:
+            iteration += 1
             try:
+                # Heartbeat log every 12 iterations (1 minute at 5s intervals)
+                if iteration % 12 == 0:
+                    import sys
+                    print(f"[HEARTBEAT] Trading loop iteration #{iteration} | Status: {self.status} | Positions: {len(self.positions)}", file=sys.stderr, flush=True)
+                    logger.info(f"Trading loop heartbeat - iteration #{iteration}, status: {self.status}, positions: {len(self.positions)}")
+                
                 # Update candle data periodically
                 if len(self.candle_cache.get(self.config.TRADING_PAIRS[0], [])) < 100:
                     await self._update_candle_data()
@@ -355,10 +363,15 @@ class TradingBot:
         # Force refresh market data for latest prices
         await self.exchange.get_market_data(self.config.TRADING_PAIRS)
         
+        import sys
+        min_confidence = self.config.MIN_CONFIDENCE_SCORE
+        
         for pair in self.config.TRADING_PAIRS:
             try:
                 candles = self.candle_cache.get(pair, [])
-                if len(candles) < max(self.config.EMA_PERIOD, self.config.RSI_PERIOD, self.config.VOLUME_PERIOD) + 1:
+                min_candles_needed = max(self.config.EMA_PERIOD, self.config.RSI_PERIOD, self.config.VOLUME_PERIOD) + 1
+                if len(candles) < min_candles_needed:
+                    logger.debug(f"[{pair}] Insufficient candles: {len(candles)} < {min_candles_needed}")
                     continue
                 
                 # Use latest ticker price instead of last candle close if available
@@ -374,31 +387,58 @@ class TradingBot:
                 # Generate signal (pass pair name for better logging)
                 signal = self.strategy.generate_signal(candles, pair=pair)
                 
-                if signal and signal['confidence'] >= self.config.MIN_CONFIDENCE_SCORE:
-                    # Check if we already have a position in this pair
-                    existing_position = next((p for p in self.positions if p['pair'] == pair), None)
-                    if existing_position:
-                        continue
+                if signal:
+                    signal_conf = signal['confidence']
+                    signal_type = signal.get('type', 'UNKNOWN')
+                    signal_price = signal.get('price', 0)
                     
-                    # Validate trade with risk manager
-                    position_size = self.risk_manager.calculate_position_size(
-                        balance,
-                        signal['price'],
-                        signal['stop_loss'],
-                        signal['type']
-                    )
+                    print(f"[{pair}] Signal generated: {signal_type} | Confidence: {signal_conf:.1f}% | Price: ${signal_price:.2f} | Threshold: {min_confidence}%", file=sys.stderr, flush=True)
+                    logger.debug(f"[{pair}] Signal: {signal_type}, confidence: {signal_conf:.1f}%, price: ${signal_price:.2f}, threshold: {min_confidence}%")
                     
-                    is_valid, message = self.risk_manager.validate_trade(
-                        balance,
-                        self.positions,
-                        position_size,
-                        signal['price']
-                    )
-                    
-                    if is_valid:
-                        await self._open_position(pair, signal, position_size)
+                    if signal_conf >= min_confidence:
+                        print(f"[{pair}] ✅ Signal meets threshold ({signal_conf:.1f}% >= {min_confidence}%)", file=sys.stderr, flush=True)
+                        logger.info(f"[{pair}] Signal meets confidence threshold: {signal_conf:.1f}% >= {min_confidence}%")
+                        
+                        # Check if we already have a position in this pair
+                        existing_position = next((p for p in self.positions if p['pair'] == pair), None)
+                        if existing_position:
+                            print(f"[{pair}] ⏭️ Skipping - already have position", file=sys.stderr, flush=True)
+                            logger.debug(f"[{pair}] Skipping signal - position already exists")
+                            continue
+                        
+                        # Validate trade with risk manager
+                        position_size = self.risk_manager.calculate_position_size(
+                            balance,
+                            signal['price'],
+                            signal['stop_loss'],
+                            signal['type']
+                        )
+                        
+                        print(f"[{pair}] Calculating position size: {position_size:.6f}", file=sys.stderr, flush=True)
+                        
+                        is_valid, message = self.risk_manager.validate_trade(
+                            balance,
+                            self.positions,
+                            position_size,
+                            signal['price']
+                        )
+                        
+                        if is_valid:
+                            print(f"[{pair}] ✅ Risk validation passed - executing trade", file=sys.stderr, flush=True)
+                            logger.info(f"[{pair}] Risk validation passed - executing {signal_type} trade")
+                            await self._open_position(pair, signal, position_size)
+                        else:
+                            print(f"[{pair}] ❌ Risk validation failed: {message}", file=sys.stderr, flush=True)
+                            logger.warning(f"[{pair}] Trade validation failed: {message}")
                     else:
-                        logger.debug(f"Trade validation failed for {pair}: {message}")
+                        logger.debug(f"[{pair}] Signal below threshold: {signal_conf:.1f}% < {min_confidence}%")
+                else:
+                    logger.debug(f"[{pair}] No signal generated")
+            
+            except Exception as e:
+                logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
+                import sys
+                print(f"[{pair}] ❌ Error checking signals: {e}", file=sys.stderr, flush=True)
             
             except Exception as e:
                 logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
