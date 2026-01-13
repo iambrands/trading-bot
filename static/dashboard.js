@@ -91,7 +91,7 @@ const pageTitles = {
     'orders': 'Advanced Orders',
     'grid': 'Grid Trading & DCA',
     'backtest': 'Strategy Backtesting',
-    'logs': 'System Logs',
+    'logs': 'Live Monitor',
     'settings': 'Settings'
 };
 
@@ -885,10 +885,37 @@ async function updateMarketConditions() {
             }
 
             const ind = condition.indicators;
+            const long = condition.long_signal;
+            const short = condition.short_signal;
+            const minConfidence = condition.requirements.min_confidence;
+            const readyToTrade = condition.ready_to_trade || false;
+            
+            // Determine overall signal (BUY/SELL/HOLD)
+            let overallSignal = 'HOLD';
+            if (long.meets_threshold && long.confidence >= minConfidence) {
+                if (short.meets_threshold && short.confidence >= minConfidence) {
+                    // Both signals meet threshold - choose the one with higher confidence
+                    overallSignal = long.confidence >= short.confidence ? 'BUY' : 'SELL';
+                } else {
+                    overallSignal = 'BUY';
+                }
+            } else if (short.meets_threshold && short.confidence >= minConfidence) {
+                overallSignal = 'SELL';
+            }
+            
             html += `<div class="market-pair card" style="margin-bottom: 1.5rem; padding: 1.5rem;">`;
-            html += `<div class="pair-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--gray-200);">`;
-            html += `<h2 style="margin: 0; font-size: 1.5rem; color: var(--gray-900);">${pair}</h2>`;
-            html += `<div style="text-align: right;"><div style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.25rem;">Current Price</div><div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-blue);">${formatCurrency(ind.price)}</div></div>`;
+            html += `<div class="pair-header" style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--gray-200);">`;
+            html += `<div class="pair-name-section">`;
+            html += `<h2 style="margin: 0; font-size: 1.5rem; color: var(--gray-900); margin-bottom: 0.5rem;">${pair}</h2>`;
+            html += `<div class="pair-status-header" style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">`;
+            html += `<span class="signal-badge ${overallSignal.toLowerCase()}">${overallSignal}</span>`;
+            html += `<span class="ready-to-trade-badge ${readyToTrade ? 'ready' : 'waiting'}">`;
+            html += `<span class="status-dot"></span>`;
+            html += `${readyToTrade ? 'Ready to Trade' : 'Waiting'}`;
+            html += `</span>`;
+            html += `</div>`;
+            html += `</div>`;
+            html += `<div class="pair-price-section" style="text-align: right;"><div style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.25rem;">Current Price</div><div style="font-size: 1.75rem; font-weight: 700; color: var(--primary-blue);">${formatCurrency(ind.price)}</div></div>`;
             html += `</div>`;
 
             // Determine RSI status for better visual display
@@ -923,24 +950,40 @@ async function updateMarketConditions() {
             html += `<div class="indicator-box"><div class="indicator-label">Volume Ratio</div><div class="indicator-value ${ind.volume_ratio >= 1.5 ? 'positive' : 'neutral'}">${ind.volume_ratio.toFixed(2)}x</div></div>`;
             html += `</div>`;
 
-            // Long signal
-            const long = condition.long_signal;
+            // Long signal with strength indicator
             html += `<div class="signal-box ${long.meets_threshold ? 'long' : 'neutral'}">`;
-            html += `<h3>LONG Signal ${long.meets_threshold ? '✓' : '✗'}</h3>`;
+            html += `<div class="signal-header-with-badge">`;
+            html += `<h3>LONG Signal</h3>`;
+            html += `<span class="signal-badge ${long.meets_threshold ? 'buy' : 'hold'}">${long.meets_threshold ? 'BUY' : 'HOLD'}</span>`;
+            html += `</div>`;
+            html += `<div class="signal-strength-container">`;
+            html += `<div class="signal-strength-bar">`;
+            html += `<div class="signal-strength-fill ${long.meets_threshold ? 'buy' : 'hold'}" style="width: ${Math.min(100, Math.max(0, long.confidence))}%"></div>`;
+            html += `</div>`;
+            html += `<span class="signal-strength-score">${long.confidence.toFixed(0)}%</span>`;
+            html += `</div>`;
             html += `<div class="condition-check"><span class="check-icon ${long.checks.price_above_ema ? 'check-pass' : 'check-fail'}">${long.checks.price_above_ema ? '✓' : '✗'}</span> Price > EMA: ${long.checks.price_above_ema ? 'Yes' : 'No'}</div>`;
             html += `<div class="condition-check"><span class="check-icon ${long.checks.rsi_in_range ? 'check-pass' : 'check-fail'}">${long.checks.rsi_in_range ? '✓' : '✗'}</span> RSI in range (${long.rsi_range}): ${long.checks.rsi_in_range ? 'Yes' : 'No'}</div>`;
             html += `<div class="condition-check"><span class="check-icon ${long.checks.volume_sufficient ? 'check-pass' : 'check-fail'}">${long.checks.volume_sufficient ? '✓' : '✗'}</span> Volume > ${long.volume_required}: ${long.checks.volume_sufficient ? 'Yes' : 'No'}</div>`;
-            html += `<p><strong>Confidence:</strong> ${long.confidence.toFixed(1)}% (Need ${condition.requirements.min_confidence}%)</p>`;
+            html += `<p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--gray-600);"><strong>Required:</strong> ${minConfidence}% confidence</p>`;
             html += `</div>`;
 
-            // Short signal
-            const short = condition.short_signal;
+            // Short signal with strength indicator
             html += `<div class="signal-box ${short.meets_threshold ? 'short' : 'neutral'}">`;
-            html += `<h3>SHORT Signal ${short.meets_threshold ? '✓' : '✗'}</h3>`;
+            html += `<div class="signal-header-with-badge">`;
+            html += `<h3>SHORT Signal</h3>`;
+            html += `<span class="signal-badge ${short.meets_threshold ? 'sell' : 'hold'}">${short.meets_threshold ? 'SELL' : 'HOLD'}</span>`;
+            html += `</div>`;
+            html += `<div class="signal-strength-container">`;
+            html += `<div class="signal-strength-bar">`;
+            html += `<div class="signal-strength-fill ${short.meets_threshold ? 'sell' : 'hold'}" style="width: ${Math.min(100, Math.max(0, short.confidence))}%"></div>`;
+            html += `</div>`;
+            html += `<span class="signal-strength-score">${short.confidence.toFixed(0)}%</span>`;
+            html += `</div>`;
             html += `<div class="condition-check"><span class="check-icon ${short.checks.price_below_ema ? 'check-pass' : 'check-fail'}">${short.checks.price_below_ema ? '✓' : '✗'}</span> Price < EMA: ${short.checks.price_below_ema ? 'Yes' : 'No'}</div>`;
             html += `<div class="condition-check"><span class="check-icon ${short.checks.rsi_in_range ? 'check-pass' : 'check-fail'}">${short.checks.rsi_in_range ? '✓' : '✗'}</span> RSI in range (${short.rsi_range}): ${short.checks.rsi_in_range ? 'Yes' : 'No'}</div>`;
             html += `<div class="condition-check"><span class="check-icon ${short.checks.volume_sufficient ? 'check-pass' : 'check-fail'}">${short.checks.volume_sufficient ? '✓' : '✗'}</span> Volume > ${short.volume_required}: ${short.checks.volume_sufficient ? 'Yes' : 'No'}</div>`;
-            html += `<p><strong>Confidence:</strong> ${short.confidence.toFixed(1)}% (Need ${condition.requirements.min_confidence}%)</p>`;
+            html += `<p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--gray-600);"><strong>Required:</strong> ${minConfidence}% confidence</p>`;
             html += `</div>`;
 
             // Blockers

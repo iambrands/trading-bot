@@ -904,11 +904,159 @@ tr:hover {
     margin-bottom: 1rem;
     color: var(--gray-900);
     text-align: left;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
 }
 
 .signal-box p {
     text-align: left;
     margin-bottom: 0.5rem;
+}
+
+/* Signal Badge */
+.signal-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.signal-badge.buy {
+    background: var(--success-green);
+    color: var(--white);
+}
+
+.signal-badge.sell {
+    background: var(--danger-red);
+    color: var(--white);
+}
+
+.signal-badge.hold {
+    background: var(--gray-400);
+    color: var(--white);
+}
+
+/* Signal Strength Bar */
+.signal-strength-container {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.signal-strength-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--gray-200);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.signal-strength-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease, background-color 0.3s ease;
+}
+
+.signal-strength-fill.buy {
+    background: linear-gradient(90deg, var(--success-green), var(--success-green-dark));
+}
+
+.signal-strength-fill.sell {
+    background: linear-gradient(90deg, var(--danger-red), var(--danger-red-dark));
+}
+
+.signal-strength-fill.hold {
+    background: var(--gray-400);
+}
+
+.signal-strength-score {
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    color: var(--gray-700);
+    min-width: 45px;
+    text-align: right;
+}
+
+/* Ready to Trade Badge */
+.ready-to-trade-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 16px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.ready-to-trade-badge.ready {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-green-dark);
+}
+
+.ready-to-trade-badge.waiting {
+    background: rgba(107, 114, 128, 0.1);
+    color: var(--gray-600);
+}
+
+.ready-to-trade-badge .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.ready-to-trade-badge.ready .status-dot {
+    background: var(--success-green);
+    animation: pulse 2s infinite;
+}
+
+.ready-to-trade-badge.waiting .status-dot {
+    background: var(--gray-400);
+}
+
+/* Market Card Improvements */
+.market-pair {
+    transition: all 0.3s ease;
+}
+
+.market-pair:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+.pair-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.pair-name-section {
+    flex: 1;
+}
+
+.pair-price-section {
+    text-align: right;
+    flex-shrink: 0;
+}
+
+/* Signal Header with Badge */
+.signal-header-with-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
 }
 
 .condition-check {
