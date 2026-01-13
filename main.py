@@ -459,14 +459,6 @@ class TradingBot:
                 logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
         
         print(f"[CHECK SIGNALS] Complete: {signals_checked} checked, {signals_generated} generated, {signals_above_threshold} above threshold", file=sys.stderr, flush=True)
-            
-            except Exception as e:
-                logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
-                import sys
-                print(f"[{pair}] ❌ Error checking signals: {e}", file=sys.stderr, flush=True)
-            
-            except Exception as e:
-                logger.error(f"Error checking signals for {pair}: {e}", exc_info=True)
     
     async def _open_position(self, pair: str, signal: Dict, size: float):
         """Open a new position."""
