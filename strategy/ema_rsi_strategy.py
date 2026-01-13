@@ -243,11 +243,18 @@ class EMARSIStrategy:
         """Generate trading signal based on indicators."""
         import sys
         
-        if len(candles) < max(self.ema_period, self.rsi_period, self.volume_period) + 1:
+        # Log immediately to verify method is being called
+        print(f"    [{pair}] generate_signal() CALLED with {len(candles)} candles", file=sys.stderr, flush=True)
+        
+        min_candles_needed = max(self.ema_period, self.rsi_period, self.volume_period) + 1
+        if len(candles) < min_candles_needed:
+            print(f"    [{pair}] ❌ Insufficient candles: {len(candles)} < {min_candles_needed} (returning None)", file=sys.stderr, flush=True)
             return None
         
+        print(f"    [{pair}] Calculating indicators...", file=sys.stderr, flush=True)
         indicators = self.calculate_indicators(candles)
         if not indicators:
+            print(f"    [{pair}] ❌ calculate_indicators() returned None (returning None)", file=sys.stderr, flush=True)
             return None
         
         price = indicators['price']

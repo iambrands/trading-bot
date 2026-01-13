@@ -396,7 +396,9 @@ class TradingBot:
                         candles[-1]['low'] = min(candles[-1].get('low', market_data[pair]['price']), market_data[pair]['price'])
                 
                 # Generate signal (pass pair name for better logging)
+                print(f"[{pair}] About to call generate_signal() with {len(candles)} candles", file=sys.stderr, flush=True)
                 signal = self.strategy.generate_signal(candles, pair=pair)
+                print(f"[{pair}] generate_signal() returned: {signal is not None}", file=sys.stderr, flush=True)
                 
                 if signal:
                     signals_generated += 1
