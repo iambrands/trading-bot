@@ -271,10 +271,12 @@ async def init_app():
 
 async def main():
     """Main entry point for Heroku."""
-    print("main() async function called!", file=sys.stderr, flush=True)
+    print("=" * 60, file=sys.stderr, flush=True)
+    print("main() async function CALLED", file=sys.stderr, flush=True)
+    print("=" * 60, file=sys.stderr, flush=True)
     try:
         # Get port from Heroku environment variable
-        print("  Getting PORT from environment...", file=sys.stderr, flush=True)
+        print("main() Step 1: Getting PORT from environment...", file=sys.stderr, flush=True)
         port = int(os.environ.get('PORT', 4000))
         print(f"  ✅ PORT = {port}", file=sys.stderr, flush=True)
         
@@ -282,17 +284,35 @@ async def main():
         logger.info(f"Environment: {os.environ.get('ENVIRONMENT', 'development')}")
         
         # Create and initialize app
-        print("  Calling init_app()...", file=sys.stderr, flush=True)
+        print("main() Step 2: Calling init_app()...", file=sys.stderr, flush=True)
         logger.info("📦 Initializing application...")
         app = await init_app()
-        print("  ✅ init_app() completed", file=sys.stderr, flush=True)
+        print("  ✅ init_app() returned successfully", file=sys.stderr, flush=True)
         logger.info("✅ Application initialized")
         
         # Run the server (this sets up and starts the server)
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("main() Step 3: STARTING WEB SERVER", file=sys.stderr, flush=True)
+        print(f"  Host: 0.0.0.0", file=sys.stderr, flush=True)
+        print(f"  Port: {port}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         logger.info(f"🌐 Setting up web server on 0.0.0.0:{port}...")
-        await run_api(app, host='0.0.0.0', port=port)
+        
+        print("  Calling run_api()...", file=sys.stderr, flush=True)
+        try:
+            await run_api(app, host='0.0.0.0', port=port)
+            print("  ✅ run_api() completed", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"  ❌ run_api() FAILED: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise
         
         # Keep the server running
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("✅ SERVER IS RUNNING", file=sys.stderr, flush=True)
+        print(f"   URL: http://0.0.0.0:{port}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         logger.info("✅ API server started successfully, waiting for requests...")
         logger.info("=" * 60)
         logger.info("TRADEPILOT IS READY")
@@ -300,12 +320,19 @@ async def main():
         logger.info("=" * 60)
         
         # Wait indefinitely to keep the server alive
+        print("  Waiting indefinitely to keep server alive...", file=sys.stderr, flush=True)
         try:
             await asyncio.Event().wait()  # Wait indefinitely
         except KeyboardInterrupt:
+            print("  KeyboardInterrupt received", file=sys.stderr, flush=True)
             logger.info("Shutting down API server...")
     except Exception as e:
+        print("=" * 60, file=sys.stderr, flush=True)
+        print(f"main() FAILED: {e}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         logger.error(f"❌ Failed to start API server: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         raise
 
 
