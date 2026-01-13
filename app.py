@@ -131,50 +131,98 @@ print("Step 8: About to define async functions...", file=sys.stderr, flush=True)
 
 async def init_app():
     """Initialize the web application."""
-    print("init_app() called - Step 1: Loading configuration...", file=sys.stderr, flush=True)
+    print("=" * 60, file=sys.stderr, flush=True)
+    print("init_app() CALLED", file=sys.stderr, flush=True)
+    print("=" * 60, file=sys.stderr, flush=True)
+    
     try:
+        # Step 1: Load configuration
+        print("init_app() Step 1: Loading configuration...", file=sys.stderr, flush=True)
         logger.info("Step 1: Loading configuration...")
         print("  Calling get_config()...", file=sys.stderr, flush=True)
         config = get_config()
-        print("  ✅ Config loaded", file=sys.stderr, flush=True)
+        print("  ✅ Config loaded successfully", file=sys.stderr, flush=True)
         logger.info("Step 2: Configuration loaded")
+        print(f"  Config ENVIRONMENT: {config.ENVIRONMENT}", file=sys.stderr, flush=True)
+        print(f"  Config DATABASE_URL present: {'YES' if hasattr(config, 'DB_HOST') and config.DB_HOST else 'NO'}", file=sys.stderr, flush=True)
 
-        # If RUN_BOT=true, we boot the full TradingBot instance (initialized but not started).
-        # This is useful on Railway where Start Command / CMD selection can be confusing.
+        # Step 2: Check RUN_BOT
+        print("init_app() Step 2: Checking RUN_BOT env var...", file=sys.stderr, flush=True)
         run_bot = os.getenv('RUN_BOT', 'false').lower() == 'true'
+        print(f"  RUN_BOT = {run_bot}", file=sys.stderr, flush=True)
         logger.info(f"Step 3: RUN_BOT={run_bot}")
         
-        # Create database manager and initialize it
+        # Step 3: Create database manager
+        print("init_app() Step 3: Creating DatabaseManager...", file=sys.stderr, flush=True)
         logger.info("Step 4: Creating database manager...")
-        db_manager = DatabaseManager(config)
-        logger.info("Step 5: Initializing database connection...")
-        
-        # Add timeout to database initialization to prevent hanging
+        print("  Instantiating DatabaseManager(config)...", file=sys.stderr, flush=True)
         try:
-            db_initialized = await asyncio.wait_for(db_manager.initialize(), timeout=30.0)
-        except asyncio.TimeoutError:
-            logger.error("Database initialization timed out after 30 seconds!")
+            db_manager = DatabaseManager(config)
+            print("  ✅ DatabaseManager created", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"  ❌ DatabaseManager creation FAILED: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            db_manager = None
+        
+        # Step 4: Initialize database connection
+        if db_manager:
+            print("init_app() Step 4: Initializing database connection...", file=sys.stderr, flush=True)
+            logger.info("Step 5: Initializing database connection...")
+            print("  Calling db_manager.initialize() with 30s timeout...", file=sys.stderr, flush=True)
+            
+            # Add timeout to database initialization to prevent hanging
+            try:
+                db_initialized = await asyncio.wait_for(db_manager.initialize(), timeout=30.0)
+                print(f"  ✅ Database initialized: {db_initialized}", file=sys.stderr, flush=True)
+            except asyncio.TimeoutError:
+                print("  ❌ DATABASE TIMEOUT after 30s - continuing without DB", file=sys.stderr, flush=True)
+                logger.error("Database initialization timed out after 30 seconds!")
+                db_initialized = False
+            except Exception as e:
+                print(f"  ❌ Database initialization error: {e}", file=sys.stderr, flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
+                db_initialized = False
+            
+            if not db_initialized:
+                logger.warning("Database initialization failed, but continuing anyway. Some features may not work.")
+            else:
+                logger.info("Step 6: Database initialized successfully")
+        else:
+            print("init_app() Step 4: Skipping database (DatabaseManager creation failed)", file=sys.stderr, flush=True)
             db_initialized = False
         
-        if not db_initialized:
-            logger.warning("Database initialization failed, but continuing anyway. Some features may not work.")
-        else:
-            logger.info("Step 6: Database initialized successfully")
-        
+        # Step 5: TradingBot initialization (if RUN_BOT=true)
         bot_instance = None
         if run_bot:
+            print("init_app() Step 5: Initializing TradingBot (RUN_BOT=true)...", file=sys.stderr, flush=True)
             try:
+                print("  Importing TradingBot from main...", file=sys.stderr, flush=True)
                 logger.info("Step 7: Importing TradingBot...")
                 from main import TradingBot
+                print("  ✅ TradingBot imported", file=sys.stderr, flush=True)
+                
+                print("  Creating TradingBot instance...", file=sys.stderr, flush=True)
                 logger.info("Step 8: Creating TradingBot instance...")
                 bot_instance = TradingBot()
+                print("  ✅ TradingBot instance created", file=sys.stderr, flush=True)
+                
+                print("  Initializing TradingBot (60s timeout)...", file=sys.stderr, flush=True)
                 logger.info("Step 9: Initializing TradingBot (this may take a moment)...")
                 
                 # Add timeout to bot initialization to prevent hanging
                 try:
                     ok = await asyncio.wait_for(bot_instance.initialize(), timeout=60.0)
+                    print(f"  ✅ TradingBot initialized: {ok}", file=sys.stderr, flush=True)
                 except asyncio.TimeoutError:
+                    print("  ❌ BOT TIMEOUT after 60s - continuing in API-only mode", file=sys.stderr, flush=True)
                     logger.error("TradingBot initialization timed out after 60 seconds!")
+                    ok = False
+                except Exception as e:
+                    print(f"  ❌ Bot initialization error: {e}", file=sys.stderr, flush=True)
+                    import traceback
+                    traceback.print_exc(file=sys.stderr)
                     ok = False
                 
                 if not ok:
@@ -183,18 +231,41 @@ async def init_app():
                 else:
                     logger.info("Step 10: TradingBot initialized successfully (waiting for /api/start)")
             except Exception as e:
+                print(f"  ❌ TradingBot setup FAILED: {e}", file=sys.stderr, flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
                 logger.error(f"Failed to initialize TradingBot; continuing in API-only mode: {e}", exc_info=True)
                 bot_instance = None
         else:
+            print("init_app() Step 5: Skipping TradingBot (RUN_BOT=false)", file=sys.stderr, flush=True)
             logger.info("Step 7: Skipping TradingBot initialization (RUN_BOT=false)")
 
+        # Step 6: Create web application
+        print("init_app() Step 6: Creating web application...", file=sys.stderr, flush=True)
         logger.info("Step 11: Creating web application...")
-        # If we created a bot, prefer its DB manager; otherwise use the API-only db_manager.
-        app = create_app(bot_instance=bot_instance, db_manager=(getattr(bot_instance, 'db', None) or db_manager))
-        logger.info("Step 12: Application initialized successfully")
+        print("  Calling create_app()...", file=sys.stderr, flush=True)
+        try:
+            # If we created a bot, prefer its DB manager; otherwise use the API-only db_manager.
+            app = create_app(bot_instance=bot_instance, db_manager=(getattr(bot_instance, 'db', None) or db_manager))
+            print("  ✅ Web application created", file=sys.stderr, flush=True)
+            logger.info("Step 12: Application initialized successfully")
+        except Exception as e:
+            print(f"  ❌ create_app() FAILED: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            raise
+        
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("init_app() COMPLETED SUCCESSFULLY", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         return app
     except Exception as e:
+        print("=" * 60, file=sys.stderr, flush=True)
+        print(f"init_app() FAILED: {e}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         logger.error(f"Failed to initialize application: {e}", exc_info=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
         raise
 
 
