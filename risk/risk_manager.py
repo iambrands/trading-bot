@@ -19,6 +19,7 @@ class RiskManager:
         self.max_positions = self.config.MAX_POSITIONS
         self.daily_loss_limit = self.config.DAILY_LOSS_LIMIT
         self.max_position_size_pct = self.config.MAX_POSITION_SIZE_PCT
+        self.max_position_size_usdt = getattr(self.config, 'MAX_POSITION_SIZE_USDT', 500.0)  # Hard cap in USD
         self.position_timeout_minutes = self.config.POSITION_TIMEOUT_MINUTES
         
         # Tracking

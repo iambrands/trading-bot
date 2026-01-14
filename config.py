@@ -51,7 +51,8 @@ class Config:
     RISK_PER_TRADE_PCT = 0.25  # 0.25% per trade
     MAX_POSITIONS = 2  # Maximum simultaneous positions
     DAILY_LOSS_LIMIT = 2000.0  # $2,000 daily loss limit
-    MAX_POSITION_SIZE_PCT = 50.0  # 50% of account max per position
+    MAX_POSITION_SIZE_PCT = 2.0  # 2% of account max per position (conservative for scalping)
+    MAX_POSITION_SIZE_USDT = 500.0  # Hard cap: $500 max per trade (prevents oversized positions)
     POSITION_TIMEOUT_MINUTES = 10  # 10 minutes max hold time
     
     # Strategy Parameters
