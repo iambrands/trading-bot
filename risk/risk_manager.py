@@ -52,17 +52,31 @@ class RiskManager:
             logger.warning(f"Invalid stop loss: entry={entry_price}, stop={stop_loss_price}")
             return 0.0
         
-        # Calculate position size
+        # Calculate position size based on risk (stop loss distance)
         position_size = risk_amount / price_diff
         
-        # Cap at maximum position size percentage
-        max_position_value = account_balance * (self.max_position_size_pct / 100.0)
+        # Apply caps: percentage-based and absolute USD limit
+        max_position_value_pct = account_balance * (self.max_position_size_pct / 100.0)  # e.g., 2% = $2,000
+        max_position_value_usd = self.max_position_size_usdt  # Hard cap: $500
+        
+        # Use the smaller of the two caps
+        max_position_value = min(max_position_value_pct, max_position_value_usd)
         max_position_size = max_position_value / entry_price
         
         position_size = min(position_size, max_position_size)
         
-        logger.debug(f"Position size calculated: {position_size:.6f} (risk: ${risk_amount:.2f}, "
-                    f"price_diff: ${price_diff:.2f})")
+        # Calculate actual position value for logging
+        position_value_usd = position_size * entry_price
+        position_pct = (position_value_usd / account_balance) * 100.0
+        
+        import sys
+        print(f"[POSITION SIZE] Balance=${account_balance:.2f}, Risk=${risk_amount:.2f} ({self.risk_per_trade_pct}%), "
+              f"MaxPct=${max_position_value_pct:.2f} ({self.max_position_size_pct}%), "
+              f"MaxUSD=${max_position_value_usd:.2f}, "
+              f"Final=${position_value_usd:.2f} ({position_pct:.2f}% of account), "
+              f"Qty={position_size:.6f}", file=sys.stderr, flush=True)
+        
+        logger.info(f"Position size: {position_size:.6f} (${position_value_usd:.2f}, {position_pct:.2f}% of ${account_balance:.2f})")
         
         return position_size
     
