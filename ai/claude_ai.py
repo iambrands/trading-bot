@@ -133,17 +133,24 @@ class ClaudeAIAnalyst:
             logger.error(f"Failed to get AI backtest analysis: {e}", exc_info=True)
             return None
     
-    async def _call_claude(self, prompt: str) -> str:
-        """Make API call to Claude AI."""
+    async def _call_claude(self, prompt: str) -> Optional[str]:
+        """Make API call to Claude AI with comprehensive logging and robust parsing."""
         import sys
         
-        logger.info("=== CLAUDE AI REQUEST ===")
+        logger.info("=" * 60)
+        logger.info("[_call_claude] STARTING CLAUDE API CALL")
+        logger.info("=" * 60)
         logger.info(f"API Key present: {bool(self.api_key)}")
         logger.info(f"API Key length: {len(self.api_key) if self.api_key else 0}")
         logger.info(f"Model: {self.model}")
         logger.info(f"Base URL: {self.base_url}")
         logger.info(f"Prompt length: {len(prompt)} characters")
         print(f"[_call_claude] Starting Claude API call...", file=sys.stderr, flush=True)
+        
+        if not self.api_key:
+            logger.error("[_call_claude] ❌ NO API KEY FOUND")
+            print(f"[_call_claude] ❌ NO API KEY FOUND", file=sys.stderr, flush=True)
+            return None
         
         async with aiohttp.ClientSession() as session:
             headers = {
@@ -164,7 +171,7 @@ class ClaudeAIAnalyst:
             }
             
             try:
-                logger.info(f"Sending request to {self.base_url}/messages")
+                logger.info(f"[_call_claude] Making HTTP request to {self.base_url}/messages")
                 print(f"[_call_claude] POST {self.base_url}/messages", file=sys.stderr, flush=True)
                 
                 async with session.post(
@@ -173,116 +180,176 @@ class ClaudeAIAnalyst:
                     json=payload,
                     timeout=aiohttp.ClientTimeout(total=30)
                 ) as response:
-                    logger.info(f"Claude API response status: {response.status}")
-                    print(f"[_call_claude] Response status: {response.status}", file=sys.stderr, flush=True)
+                    status = response.status
+                    logger.info(f"[_call_claude] Response status: {status}")
+                    print(f"[_call_claude] Response status: {status}", file=sys.stderr, flush=True)
                     
-                    if response.status != 200:
+                    if status != 200:
                         error_text = await response.text()
-                        logger.error(f"Claude API error {response.status}: {error_text}")
-                        print(f"[_call_claude] ❌ Error {response.status}: {error_text[:200]}", file=sys.stderr, flush=True)
+                        logger.error(f"[_call_claude] ❌ API error {status}: {error_text}")
+                        print(f"[_call_claude] ❌ Error {status}: {error_text[:200]}", file=sys.stderr, flush=True)
                         # Provide more detailed error messages
-                        if response.status == 401:
+                        if status == 401:
                             raise Exception("Invalid API key. Please check your CLAUDE_API_KEY.")
-                        elif response.status == 429:
+                        elif status == 429:
                             raise Exception("Rate limit exceeded. Please try again later.")
-                        elif response.status == 500:
+                        elif status == 500:
                             raise Exception("Claude API server error. Please try again later.")
                         else:
-                            raise Exception(f"Claude API error {response.status}: {error_text[:200]}")
+                            raise Exception(f"Claude API error {status}: {error_text[:200]}")
                     
                     # Parse response
-                    logger.info("Parsing Claude API response...")
-                    result = await response.json()
+                    logger.info("[_call_claude] Parsing Claude API response...")
+                    response_data = await response.json()
                     
-                    logger.info("=== CLAUDE AI RESPONSE ===")
-                    logger.info(f"Response type: {type(result)}")
-                    logger.info(f"Response keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+                    logger.info("=" * 60)
+                    logger.info("[_call_claude] RESPONSE RECEIVED")
+                    logger.info("=" * 60)
+                    logger.info(f"[_call_claude] Response type: {type(response_data)}")
                     
-                    # Log full response structure for debugging (without exposing sensitive data)
-                    if isinstance(result, dict):
-                        logger.info(f"Response has 'content' key: {'content' in result}")
-                        logger.info(f"Response has 'id' key: {'id' in result}")
-                        logger.info(f"Response has 'model' key: {'model' in result}")
+                    # Log the full response structure for debugging
+                    if isinstance(response_data, dict):
+                        logger.info(f"[_call_claude] Response keys: {list(response_data.keys())}")
+                        # Log full response structure (truncated for size)
+                        response_json = json.dumps(response_data, indent=2, default=str)
+                        logger.info(f"[_call_claude] Full response preview (first 1000 chars):\n{response_json[:1000]}...")
+                        print(f"[_call_claude] Response keys: {list(response_data.keys())}", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Response preview: {response_json[:500]}...", file=sys.stderr, flush=True)
                         
-                        # Check content structure
-                        content = result.get('content', [])
-                        logger.info(f"Content type: {type(content)}")
-                        logger.info(f"Content length: {len(content) if isinstance(content, (list, str)) else 'N/A'}")
+                        # Extract content - handle multiple possible structures
+                        content = response_data.get('content')
                         
-                        print(f"[_call_claude] Response structure: keys={list(result.keys())}", file=sys.stderr, flush=True)
-                        print(f"[_call_claude] Content type: {type(content)}, length: {len(content) if isinstance(content, list) else 'N/A'}", file=sys.stderr, flush=True)
+                        if content is None:
+                            logger.error("[_call_claude] ❌ No 'content' field in response")
+                            logger.error(f"[_call_claude] Available keys: {list(response_data.keys())}")
+                            print(f"[_call_claude] ❌ No 'content' field. Keys: {list(response_data.keys())}", file=sys.stderr, flush=True)
+                            return None
                         
-                        # Extract text from response - handle different response formats
-                        if isinstance(content, list) and len(content) > 0:
-                            first_item = content[0]
-                            logger.info(f"First content item type: {type(first_item)}")
-                            logger.info(f"First content item keys: {list(first_item.keys()) if isinstance(first_item, dict) else 'Not a dict'}")
+                        logger.info(f"[_call_claude] Content type: {type(content)}")
+                        logger.info(f"[_call_claude] Content value preview: {str(content)[:200]}...")
+                        print(f"[_call_claude] Content type: {type(content)}", file=sys.stderr, flush=True)
+                        
+                        # Handle different content structures
+                        text = None
+                        
+                        # Case 1: content is a list of blocks
+                        if isinstance(content, list):
+                            logger.info(f"[_call_claude] Content is list with {len(content)} items")
+                            print(f"[_call_claude] Content is list with {len(content)} items", file=sys.stderr, flush=True)
                             
-                            # Handle both old and new API response formats
+                            if len(content) == 0:
+                                logger.error("[_call_claude] ❌ Content list is empty")
+                                print(f"[_call_claude] ❌ Content list is empty", file=sys.stderr, flush=True)
+                                return None
+                            
+                            first_item = content[0]
+                            logger.info(f"[_call_claude] First item type: {type(first_item)}")
+                            logger.info(f"[_call_claude] First item: {first_item}")
+                            print(f"[_call_claude] First item type: {type(first_item)}", file=sys.stderr, flush=True)
+                            
+                            # Standard format: [{"type": "text", "text": "..."}]
                             if isinstance(first_item, dict):
-                                # Try 'text' key first (newer format)
+                                first_item_keys = list(first_item.keys())
+                                logger.info(f"[_call_claude] First item keys: {first_item_keys}")
+                                print(f"[_call_claude] First item keys: {first_item_keys}", file=sys.stderr, flush=True)
+                                
                                 text = first_item.get('text', '')
-                                if text and isinstance(text, str) and text.strip():
-                                    logger.info(f"Extracted text from 'text' key: {len(text)} characters")
-                                    print(f"[_call_claude] ✅ Extracted text: {len(text)} chars", file=sys.stderr, flush=True)
-                                    return text.strip()
-                                elif text == '':
-                                    logger.warning("Claude API returned empty text string (text='')")
-                                    print(f"[_call_claude] ⚠️ Empty text string returned from API", file=sys.stderr, flush=True)
-                                    # Continue to check other keys, but log the issue
-                                elif not text:
-                                    logger.warning(f"Claude API 'text' key is missing or None")
-                                    print(f"[_call_claude] ⚠️ 'text' key missing or None", file=sys.stderr, flush=True)
+                                logger.info(f"[_call_claude] Extracted from dict.text: '{text[:100] if text else 'EMPTY'}'")
+                                print(f"[_call_claude] Extracted from dict.text: length={len(text) if text else 0}", file=sys.stderr, flush=True)
                                 
-                                # Try 'content' key (alternative format)
-                                nested_content = first_item.get('content', '')
-                                if nested_content:
-                                    logger.info(f"Extracted text from nested 'content' key: {len(nested_content)} characters")
-                                    print(f"[_call_claude] ✅ Extracted text from nested content: {len(nested_content)} chars", file=sys.stderr, flush=True)
-                                    return nested_content
-                                
-                                # Log what keys we have
-                                logger.warning(f"No 'text' or 'content' key found in first item. Available keys: {list(first_item.keys())}")
-                                print(f"[_call_claude] ⚠️ No text found in first item. Keys: {list(first_item.keys())}", file=sys.stderr, flush=True)
+                                # If text key didn't work, try other possible keys
+                                if not text or text == '':
+                                    # Try 'content' key
+                                    nested_content = first_item.get('content', '')
+                                    if nested_content:
+                                        text = nested_content
+                                        logger.info(f"[_call_claude] Found text in 'content' key: {len(text)} chars")
+                                        print(f"[_call_claude] Found text in 'content' key: {len(text)} chars", file=sys.stderr, flush=True)
+                                    else:
+                                        # Try 'value' key
+                                        value = first_item.get('value', '')
+                                        if value:
+                                            text = value
+                                            logger.info(f"[_call_claude] Found text in 'value' key: {len(text)} chars")
+                                            print(f"[_call_claude] Found text in 'value' key: {len(text)} chars", file=sys.stderr, flush=True)
+                            
+                            # Edge case: list of strings
                             elif isinstance(first_item, str):
-                                # Content might be a string directly
-                                logger.info(f"Content is a string: {len(first_item)} characters")
-                                print(f"[_call_claude] ✅ Content is string: {len(first_item)} chars", file=sys.stderr, flush=True)
-                                return first_item
-                        elif isinstance(content, str):
-                            # Content might be a string directly (some API versions)
-                            logger.info(f"Content is a string (not array): {len(content)} characters")
-                            print(f"[_call_claude] ✅ Content is string: {len(content)} chars", file=sys.stderr, flush=True)
-                            return content
-                        else:
-                            logger.error(f"Unexpected content format: {type(content)}")
-                            logger.error(f"Content value: {str(content)[:500]}")
-                            print(f"[_call_claude] ❌ Unexpected content format: {type(content)}", file=sys.stderr, flush=True)
-                            print(f"[_call_claude] ❌ Content: {str(content)[:200]}", file=sys.stderr, flush=True)
+                                text = first_item
+                                logger.info(f"[_call_claude] Content is list of strings, using first: {len(text)} chars")
+                                print(f"[_call_claude] Content is list of strings: {len(text)} chars", file=sys.stderr, flush=True)
+                            
+                            else:
+                                logger.error(f"[_call_claude] ❌ Unexpected first item type: {type(first_item)}")
+                                logger.error(f"[_call_claude] First item value: {first_item}")
+                                print(f"[_call_claude] ❌ Unexpected first item type: {type(first_item)}", file=sys.stderr, flush=True)
                         
-                        # If we get here, we couldn't extract text
-                        logger.error("Failed to extract text from Claude API response")
-                        logger.error(f"Full response structure: {json.dumps(result, indent=2)[:1000]}")
-                        print(f"[_call_claude] ❌ Failed to extract text from response", file=sys.stderr, flush=True)
-                        return None  # Return None so the endpoint can handle it properly
+                        # Case 2: content is a dict
+                        elif isinstance(content, dict):
+                            logger.info("[_call_claude] Content is dict")
+                            print(f"[_call_claude] Content is dict", file=sys.stderr, flush=True)
+                            text = content.get('text', '') or content.get('content', '') or content.get('value', '')
+                            logger.info(f"[_call_claude] Extracted from dict: '{text[:100] if text else 'EMPTY'}'")
+                            print(f"[_call_claude] Extracted from dict: length={len(text) if text else 0}", file=sys.stderr, flush=True)
+                        
+                        # Case 3: content is a string
+                        elif isinstance(content, str):
+                            logger.info("[_call_claude] Content is string")
+                            print(f"[_call_claude] Content is string: {len(content)} chars", file=sys.stderr, flush=True)
+                            text = content
+                        
+                        else:
+                            logger.error(f"[_call_claude] ❌ Unexpected content type: {type(content)}")
+                            logger.error(f"[_call_claude] Content value: {str(content)[:500]}")
+                            print(f"[_call_claude] ❌ Unexpected content type: {type(content)}", file=sys.stderr, flush=True)
+                            return None
+                        
+                        # Validate extracted text
+                        logger.info(f"[_call_claude] Extracted text type: {type(text)}")
+                        logger.info(f"[_call_claude] Extracted text length: {len(text) if text else 0}")
+                        logger.info(f"[_call_claude] Text is None: {text is None}")
+                        logger.info(f"[_call_claude] Text is empty string: {text == ''}")
+                        print(f"[_call_claude] Text type: {type(text)}, length: {len(text) if text else 0}", file=sys.stderr, flush=True)
+                        
+                        # Return text if valid
+                        if text and isinstance(text, str) and text.strip():
+                            final_text = text.strip()
+                            logger.info(f"[_call_claude] ✅ SUCCESS - Returning {len(final_text)} chars")
+                            logger.info(f"[_call_claude] Preview: {final_text[:200]}...")
+                            print(f"[_call_claude] ✅ SUCCESS - Returning {len(final_text)} chars", file=sys.stderr, flush=True)
+                            print(f"[_call_claude] Preview: {final_text[:200]}...", file=sys.stderr, flush=True)
+                            return final_text
+                        
+                        elif text == '':
+                            logger.warning("[_call_claude] ⚠️ Claude returned empty string")
+                            print(f"[_call_claude] ⚠️ Empty string returned", file=sys.stderr, flush=True)
+                            return None
+                        
+                        else:
+                            logger.error(f"[_call_claude] ❌ Invalid text value: {repr(text)}")
+                            logger.error(f"[_call_claude] Full response for debugging:\n{json.dumps(response_data, indent=2, default=str)[:2000]}")
+                            print(f"[_call_claude] ❌ Invalid text value: {repr(text)}", file=sys.stderr, flush=True)
+                            return None
+                    
                     else:
-                        logger.error(f"Response is not a dict: {type(result)}")
-                        print(f"[_call_claude] ❌ Response not a dict: {type(result)}", file=sys.stderr, flush=True)
+                        logger.error(f"[_call_claude] ❌ Response is not a dict: {type(response_data)}")
+                        logger.error(f"[_call_claude] Response value: {str(response_data)[:500]}")
+                        print(f"[_call_claude] ❌ Response not a dict: {type(response_data)}", file=sys.stderr, flush=True)
                         return None
                         
             except aiohttp.ClientError as e:
                 error_msg = f"HTTP client error: {str(e)}"
-                logger.error(error_msg, exc_info=True)
+                logger.error(f"[_call_claude] ❌ ClientError: {error_msg}", exc_info=True)
                 print(f"[_call_claude] ❌ ClientError: {e}", file=sys.stderr, flush=True)
                 raise Exception(error_msg)
             except asyncio.TimeoutError as e:
                 error_msg = "Claude API request timed out after 30 seconds"
-                logger.error(error_msg)
+                logger.error(f"[_call_claude] ❌ Timeout: {error_msg}")
                 print(f"[_call_claude] ❌ Timeout: {error_msg}", file=sys.stderr, flush=True)
                 raise Exception(error_msg)
             except Exception as e:
                 error_msg = f"Unexpected error calling Claude API: {str(e)}"
-                logger.error(error_msg, exc_info=True)
+                logger.error(f"[_call_claude] ❌ Exception: {error_msg}", exc_info=True)
                 print(f"[_call_claude] ❌ Exception: {e}", file=sys.stderr, flush=True)
                 raise
     
