@@ -127,6 +127,12 @@ class Config:
     
     # AI Settings (Claude AI)
     # Strip whitespace and remove quotes if present (Railway sometimes adds quotes)
+    # AI Configuration - OpenAI (Primary)
+    _openai_key = os.getenv('OPENAI_API_KEY', '').strip()
+    OPENAI_API_KEY = _openai_key.strip('"').strip("'") if _openai_key else ''
+    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')  # Default to gpt-4o-mini (cost-effective)
+    
+    # AI Configuration - Claude (Legacy, optional)
     _claude_key = os.getenv('CLAUDE_API_KEY', '').strip()
     CLAUDE_API_KEY = _claude_key.strip('"').strip("'") if _claude_key else ''
     CLAUDE_MODEL = os.getenv('CLAUDE_MODEL', 'claude-3-haiku-20240307')

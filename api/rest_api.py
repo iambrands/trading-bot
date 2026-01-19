@@ -446,21 +446,22 @@ class TradingBotAPI:
     async def ai_status(self, request):
         """Get AI configuration status for diagnostics."""
         try:
-            from ai import ClaudeAIAnalyst
+            from ai import OpenAIAnalyst
             
-            api_key = self.config.CLAUDE_API_KEY or ''
+            api_key = self.config.OPENAI_API_KEY or ''
             api_key_trimmed = api_key.strip().strip('"').strip("'") if api_key else ''
             has_key = bool(api_key_trimmed)
             key_length = len(api_key_trimmed) if api_key_trimmed else 0
             
             # Try to initialize to check if it's enabled
-            ai_analyst = ClaudeAIAnalyst(self.config)
+            ai_analyst = OpenAIAnalyst(self.config)
             
             return web.json_response({
                 'configured': has_key,
                 'enabled': ai_analyst.enabled,
                 'key_length': key_length,
-                'model': self.config.CLAUDE_MODEL,
+                'model': self.config.OPENAI_MODEL,
+                'provider': 'OpenAI',
                 'diagnostic': {
                     'key_exists': has_key,
                     'key_valid_format': key_length > 10 if has_key else False,
@@ -3196,7 +3197,7 @@ class TradingBotAPI:
             try:
                 print(f"[AI_ANALYZE_MARKET] ✅ Calling analyze_market_conditions...", file=sys.stderr, flush=True)
                 logger.info("=" * 60)
-                logger.info("[AI_ANALYZE_MARKET] Calling Claude AI analyze_market_conditions...")
+                logger.info("[AI_ANALYZE_MARKET] Calling OpenAI analyze_market_conditions...")
                 logger.info(f"Market data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Not a dict'}")
                 logger.info(f"Trading signals keys: {list(trading_signals.keys()) if isinstance(trading_signals, dict) else 'Not a dict'}")
                 
@@ -3214,7 +3215,7 @@ class TradingBotAPI:
                     logger.error("=== AI ANALYSIS RETURNED NONE/EMPTY ===")
                     logger.error(f"Analysis value: {analysis}")
                     logger.error(f"Analysis type: {type(analysis)}")
-                    logger.error("Check Claude API response parsing in ai/claude_ai.py _call_claude() method")
+                    logger.error("Check OpenAI API response parsing in ai/openai_ai.py _call_openai() method")
                     
                     # Use fallback message instead of returning error
                     logger.warning("Using fallback message for empty analysis")
@@ -3225,9 +3226,9 @@ class TradingBotAPI:
                         "**Market data is still available** on this page - you can view current prices, "
                         "indicators, and trading signals above.\n\n"
                         "**To troubleshoot:**\n"
-                        "- Check Railway logs for '[_call_claude]' messages\n"
-                        "- Visit `/api/test/claude-ai` endpoint for diagnostics\n"
-                        "- Verify CLAUDE_API_KEY is correctly set in Railway"
+                        "- Check Railway logs for '[_call_openai]' messages\n"
+                        "- Visit `/api/test/openai-ai` endpoint for diagnostics\n"
+                        "- Verify OPENAI_API_KEY is correctly set in Railway"
                     )
                 
                 # Log successful analysis
@@ -3242,16 +3243,16 @@ class TradingBotAPI:
                 })
                 
             except Exception as api_error:
-                logger.error(f"Error calling Claude API: {api_error}", exc_info=True)
+                logger.error(f"Error calling OpenAI API: {api_error}", exc_info=True)
                 error_msg = str(api_error).lower()
                 print(f"[AI_ANALYZE_MARKET] ❌ API error: {api_error}", file=sys.stderr, flush=True)
                 
                 if 'api key' in error_msg or 'authentication' in error_msg or '401' in error_msg:
                     return web.json_response({
-                        'error': 'AI analysis failed. Invalid API key. Please verify your CLAUDE_API_KEY is correct in Railway environment variables.',
+                        'error': 'AI analysis failed. Invalid API key. Please verify your OPENAI_API_KEY is correct in Railway environment variables.',
                         'diagnostic': {
                             'error_type': 'authentication',
-                            'note': 'The API key was rejected by Anthropic. Check that the key is correct and hasn\'t been revoked.'
+                            'note': 'The API key was rejected by OpenAI. Check that the key is correct and hasn\'t been revoked.'
                         }
                     }, status=503)
                 elif 'rate limit' in error_msg or '429' in error_msg:
@@ -3267,7 +3268,7 @@ class TradingBotAPI:
                         'error': f'AI analysis error: {str(api_error)}',
                         'diagnostic': {
                             'error_type': 'api_error',
-                            'note': 'An unexpected error occurred while calling the Claude API.'
+                            'note': 'An unexpected error occurred while calling the OpenAI API.'
                         }
                     }, status=500)
             
@@ -3287,19 +3288,24 @@ class TradingBotAPI:
     async def ai_explain_strategy(self, request):
         """Get AI explanation of trading strategy."""
         try:
-            from ai import ClaudeAIAnalyst
+            from ai import OpenAIAnalyst
             
             data = await request.json()
             strategy_config = data.get('strategy_config', {})
             metrics = data.get('metrics', {})
             
-            ai_analyst = ClaudeAIAnalyst(self.config)
+            ai_analyst = OpenAIAnalyst(self.config)
+            
+            if not ai_analyst.enabled:
+                return web.json_response({
+                    'error': 'AI explanation not available. Please configure OPENAI_API_KEY in Railway environment variables.'
+                }, status=503)
             
             explanation = await ai_analyst.explain_strategy(strategy_config, metrics)
             
             if not explanation:
                 return web.json_response({
-                    'error': 'AI explanation not available. Please configure CLAUDE_API_KEY in .env'
+                    'error': 'AI explanation not available. Please configure OPENAI_API_KEY in Railway environment variables.'
                 }, status=503)
             
             return web.json_response({
@@ -3314,7 +3320,7 @@ class TradingBotAPI:
     async def ai_get_guidance(self, request):
         """Get AI-powered user guidance."""
         try:
-            from ai import ClaudeAIAnalyst
+            from ai import OpenAIAnalyst
             
             data = await request.json()
             question = data.get('question', '')
@@ -3323,13 +3329,18 @@ class TradingBotAPI:
             if not question:
                 return web.json_response({'error': 'Question is required'}, status=400)
             
-            ai_analyst = ClaudeAIAnalyst(self.config)
+            ai_analyst = OpenAIAnalyst(self.config)
+            
+            if not ai_analyst.enabled:
+                return web.json_response({
+                    'error': 'AI guidance not available. Please configure OPENAI_API_KEY in Railway environment variables.'
+                }, status=503)
             
             guidance = await ai_analyst.get_user_guidance(question, context)
             
             if not guidance:
                 return web.json_response({
-                    'error': 'AI guidance not available. Please configure CLAUDE_API_KEY in .env'
+                    'error': 'AI guidance not available. Please configure OPENAI_API_KEY in Railway environment variables.'
                 }, status=503)
             
             return web.json_response({
@@ -3344,17 +3355,17 @@ class TradingBotAPI:
     async def ai_analyze_backtest(self, request):
         """Analyze backtest results using AI."""
         try:
-            from ai.claude_ai import ClaudeAIAnalyst
+            from ai import OpenAIAnalyst
             
             data = await request.json()
             backtest_results = data.get('results', {})
             strategy_config = data.get('strategy_config')
             
-            ai_analyst = ClaudeAIAnalyst(self.config)
+            ai_analyst = OpenAIAnalyst(self.config)
             
             if not ai_analyst.enabled:
                 return web.json_response({
-                    'error': 'AI analysis not available. Please configure CLAUDE_API_KEY in .env'
+                    'error': 'AI analysis not available. Please configure OPENAI_API_KEY in Railway environment variables.'
                 }, status=503)
             
             analysis = await ai_analyst.analyze_backtest_results(backtest_results, strategy_config)
