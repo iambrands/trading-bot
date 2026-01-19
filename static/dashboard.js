@@ -2566,26 +2566,38 @@ function escapeHtml(text) {
 
 // AI Analysis Functions
 async function getAIAnalysis() {
+    console.log('[getAIAnalysis] Function called');
     const analysisCard = document.getElementById('aiAnalysisCard');
     const analysisContent = document.getElementById('aiAnalysisContent');
     
-    if (!analysisCard || !analysisContent) return;
+    if (!analysisCard || !analysisContent) {
+        console.error('[getAIAnalysis] ❌ Analysis card or content element not found');
+        return;
+    }
     
     try {
         // Prevent concurrent runs (e.g. refresh loop + user click)
-        if (aiAnalysisInFlight) return;
+        if (aiAnalysisInFlight) {
+            console.log('[getAIAnalysis] ⚠️ Already in flight, skipping');
+            return;
+        }
         aiAnalysisInFlight = true;
+        console.log('[getAIAnalysis] ✅ Starting AI analysis request');
 
         analysisCard.style.display = 'block';
         analysisContent.innerHTML = '<div class="loading">Analyzing market conditions with AI...</div>';
         
         // Get current market data
+        console.log('[getAIAnalysis] Fetching market data...');
         const marketData = await fetchAPI('/market-conditions');
         if (!marketData) {
             throw new Error('Failed to fetch market data');
         }
+        console.log('[getAIAnalysis] Market data fetched:', Object.keys(marketData));
         
-        const response = await fetch(`${API_BASE}/ai/analyze-market`, {
+        const url = `${API_BASE}/ai/analyze-market`;
+        console.log('[getAIAnalysis] Making POST request to:', url);
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -2598,8 +2610,11 @@ async function getAIAnalysis() {
             })
         });
         
+        console.log('[getAIAnalysis] Response received:', response.status, response.statusText);
+        
         // Handle 503 Service Unavailable - API key not configured
         if (response.status === 503) {
+            console.log('[getAIAnalysis] ⚠️ Received 503 status');
             const error = await response.json().catch(() => ({error: 'AI analysis not available'}));
             const errorMessage = error.error || 'AI analysis is not available';
             
@@ -2632,18 +2647,21 @@ async function getAIAnalysis() {
         }
         
         const result = await response.json();
+        console.log('[getAIAnalysis] Response JSON:', { success: result.success, hasAnalysis: !!result.analysis, analysisLength: result.analysis ? result.analysis.length : 0 });
         
         if (result.success && result.analysis) {
+            console.log('[getAIAnalysis] ✅ Success! Analysis length:', result.analysis.length);
             // Format AI response with professional section-based formatting
             const formattedAnalysis = formatAIAnalysis(result.analysis);
             analysisContent.innerHTML = formattedAnalysis;
             showToast('AI analysis complete!', 'success');
         } else {
+            console.error('[getAIAnalysis] ❌ No analysis in response:', result);
             throw new Error(result.error || 'No analysis received');
         }
         
     } catch (error) {
-        console.error('AI analysis error:', error);
+        console.error('[getAIAnalysis] ❌ Error:', error);
         let errorMessage = error.message || 'Unknown error occurred';
         
         // Don't show duplicate error if we already handled it
