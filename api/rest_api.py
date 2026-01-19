@@ -3196,13 +3196,18 @@ class TradingBotAPI:
             
             # Get analysis
             try:
+                print("=" * 60, file=sys.stderr, flush=True)
                 print(f"[AI_ANALYZE_MARKET] ✅ Calling analyze_market_conditions...", file=sys.stderr, flush=True)
+                print(f"[AI_ANALYZE_MARKET] Market data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Not a dict'}", file=sys.stderr, flush=True)
+                print(f"[AI_ANALYZE_MARKET] Trading signals keys: {list(trading_signals.keys()) if isinstance(trading_signals, dict) else 'Not a dict'}", file=sys.stderr, flush=True)
                 logger.info("=" * 60)
                 logger.info("[AI_ANALYZE_MARKET] Calling OpenAI analyze_market_conditions...")
                 logger.info(f"Market data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Not a dict'}")
                 logger.info(f"Trading signals keys: {list(trading_signals.keys()) if isinstance(trading_signals, dict) else 'Not a dict'}")
                 
+                print(f"[AI_ANALYZE_MARKET] About to call ai_analyst.analyze_market_conditions()...", file=sys.stderr, flush=True)
                 analysis = await ai_analyst.analyze_market_conditions(market_data, trading_signals)
+                print(f"[AI_ANALYZE_MARKET] analyze_market_conditions() returned. Type: {type(analysis)}, Length: {len(analysis) if analysis else 0}", file=sys.stderr, flush=True)
                 
                 logger.info(f"[AI_ANALYZE_MARKET] Analysis result received")
                 logger.info(f"Analysis type: {type(analysis)}")
