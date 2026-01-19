@@ -324,33 +324,59 @@ async def main():
         logger.info(f"🌐 Setting up web server on 0.0.0.0:{port}...")
         
         print("  Calling run_api()...", file=sys.stderr, flush=True)
+        runner = None
         try:
-            await run_api(app, host='0.0.0.0', port=port)
-            print("  ✅ run_api() completed", file=sys.stderr, flush=True)
-        except Exception as e:
-            print(f"  ❌ run_api() FAILED: {e}", file=sys.stderr, flush=True)
+            runner = await run_api(app, host='0.0.0.0', port=port)
+            print("  ✅✅✅ run_api() completed successfully!", file=sys.stderr, flush=True)
+            logger.info("✅✅✅ run_api() returned - server should be running")
+        except OSError as e:
+            print(f"  ❌❌❌ OSError in run_api(): {e}", file=sys.stderr, flush=True)
+            if "Address already in use" in str(e):
+                print(f"  ⚠️ Port {port} is already in use. Checking if another instance is running...", file=sys.stderr, flush=True)
             import traceback
             traceback.print_exc(file=sys.stderr)
+            logger.error(f"❌❌❌ Failed to start server: {e}", exc_info=True)
             raise
+        except Exception as e:
+            print(f"  ❌❌❌ Exception in run_api(): {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
+            logger.error(f"❌❌❌ Failed to start server: {e}", exc_info=True)
+            raise
+        
+        # Verify server started
+        print("  Verifying server is running...", file=sys.stderr, flush=True)
+        if runner:
+            print(f"  ✅ Runner object exists: {runner}", file=sys.stderr, flush=True)
+            print(f"  ✅ Runner.app: {runner.app}", file=sys.stderr, flush=True)
+        else:
+            print("  ⚠️ Runner is None - this might be okay if run_api doesn't return it", file=sys.stderr, flush=True)
         
         # Keep the server running
         print("=" * 60, file=sys.stderr, flush=True)
-        print("✅ SERVER IS RUNNING", file=sys.stderr, flush=True)
+        print("✅✅✅ SERVER IS RUNNING", file=sys.stderr, flush=True)
         print(f"   URL: http://0.0.0.0:{port}", file=sys.stderr, flush=True)
+        print(f"   Railway will proxy to: https://web-production-f8308.up.railway.app", file=sys.stderr, flush=True)
         print("=" * 60, file=sys.stderr, flush=True)
-        logger.info("✅ API server started successfully, waiting for requests...")
+        logger.info("✅✅✅ API server started successfully, waiting for requests...")
         logger.info("=" * 60)
-        logger.info("TRADEPILOT IS READY")
-        logger.info(f"Server listening on http://0.0.0.0:{port}")
+        logger.info("✅✅✅ TRADEPILOT IS READY")
+        logger.info(f"✅✅✅ Server listening on http://0.0.0.0:{port}")
+        logger.info(f"✅✅✅ External URL: https://web-production-f8308.up.railway.app")
         logger.info("=" * 60)
         
         # Wait indefinitely to keep the server alive
         print("  Waiting indefinitely to keep server alive...", file=sys.stderr, flush=True)
         try:
-            await asyncio.Event().wait()  # Wait indefinitely
+            # Keep the event loop alive
+            while True:
+                await asyncio.sleep(3600)  # Sleep for 1 hour at a time (keeps server alive)
+                print("  Server heartbeat - still running...", file=sys.stderr, flush=True)
         except KeyboardInterrupt:
             print("  KeyboardInterrupt received", file=sys.stderr, flush=True)
             logger.info("Shutting down API server...")
+            if runner:
+                await runner.cleanup()
     except Exception as e:
         print("=" * 60, file=sys.stderr, flush=True)
         print(f"main() FAILED: {e}", file=sys.stderr, flush=True)

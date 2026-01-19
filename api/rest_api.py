@@ -3871,26 +3871,53 @@ def create_app(bot_instance=None, db_manager=None) -> web.Application:
 async def run_api(app: web.Application, host: str = '0.0.0.0', port: int = 8000):
     """Run API server."""
     import sys
-    print("run_api() called", file=sys.stderr, flush=True)
-    print(f"  Host: {host}, Port: {port}", file=sys.stderr, flush=True)
-    
-    logger.info(f"Creating AppRunner for {host}:{port}...")
-    print("  Creating AppRunner...", file=sys.stderr, flush=True)
-    runner = web.AppRunner(app)
-    print("  ✅ AppRunner created", file=sys.stderr, flush=True)
-    
-    logger.info("Setting up AppRunner...")
-    print("  Setting up AppRunner...", file=sys.stderr, flush=True)
-    await runner.setup()
-    print("  ✅ AppRunner setup complete", file=sys.stderr, flush=True)
-    
-    logger.info("Creating TCPSite...")
-    print("  Creating TCPSite...", file=sys.stderr, flush=True)
-    site = web.TCPSite(runner, host, port)
-    print("  ✅ TCPSite created", file=sys.stderr, flush=True)
-    
-    logger.info(f"Starting TCPSite on {host}:{port}...")
-    print(f"  Starting TCPSite on {host}:{port}...", file=sys.stderr, flush=True)
-    await site.start()
-    print("  ✅ TCPSite started", file=sys.stderr, flush=True)
-    logger.info(f"✅ API server started successfully on {host}:{port}")
+    try:
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("run_api() CALLED", file=sys.stderr, flush=True)
+        print(f"  Host: {host}, Port: {port}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
+        
+        logger.info(f"Creating AppRunner for {host}:{port}...")
+        print("  Creating AppRunner...", file=sys.stderr, flush=True)
+        runner = web.AppRunner(app)
+        print("  ✅ AppRunner created", file=sys.stderr, flush=True)
+        
+        logger.info("Setting up AppRunner...")
+        print("  Setting up AppRunner...", file=sys.stderr, flush=True)
+        await runner.setup()
+        print("  ✅ AppRunner setup complete", file=sys.stderr, flush=True)
+        
+        logger.info("Creating TCPSite...")
+        print("  Creating TCPSite...", file=sys.stderr, flush=True)
+        site = web.TCPSite(runner, host, port)
+        print("  ✅ TCPSite created", file=sys.stderr, flush=True)
+        
+        logger.info(f"Starting TCPSite on {host}:{port}...")
+        print(f"  Starting TCPSite on {host}:{port}...", file=sys.stderr, flush=True)
+        await site.start()
+        print("  ✅✅✅ TCPSite started successfully!", file=sys.stderr, flush=True)
+        print(f"  ✅✅✅ Server is now listening on {host}:{port}", file=sys.stderr, flush=True)
+        logger.info(f"✅✅✅ API server started successfully on {host}:{port}")
+        logger.info(f"✅✅✅ Server is ready to accept connections!")
+        
+        # Verify server is actually running by checking the site
+        if not site._server:
+            raise RuntimeError("TCPSite started but _server is None!")
+        
+        print(f"  ✅ Server object verified: {site._server}", file=sys.stderr, flush=True)
+        return runner  # Return runner so it can be cleaned up if needed
+        
+    except OSError as e:
+        error_msg = f"Failed to bind to {host}:{port} - {str(e)}"
+        print(f"  ❌❌❌ OSError: {error_msg}", file=sys.stderr, flush=True)
+        logger.error(f"❌❌❌ {error_msg}")
+        if "Address already in use" in str(e):
+            print(f"  ⚠️ Port {port} is already in use. Another process may be running.", file=sys.stderr, flush=True)
+        raise
+    except Exception as e:
+        error_msg = f"Failed to start API server: {str(e)}"
+        print(f"  ❌❌❌ Exception in run_api(): {error_msg}", file=sys.stderr, flush=True)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        logger.error(f"❌❌❌ {error_msg}", exc_info=True)
+        raise
