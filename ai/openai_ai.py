@@ -252,11 +252,34 @@ class OpenAIAnalyst:
                             return None
                         
                         first_choice = choices[0]
-                        message = first_choice.get('message', {})
-                        text = message.get('content', '')
+                        logger.info(f"[_call_openai] First choice type: {type(first_choice)}")
+                        logger.info(f"[_call_openai] First choice keys: {list(first_choice.keys()) if isinstance(first_choice, dict) else 'Not a dict'}")
+                        print(f"[_call_openai] First choice type: {type(first_choice)}", file=sys.stderr, flush=True)
+                        print(f"[_call_openai] First choice keys: {list(first_choice.keys()) if isinstance(first_choice, dict) else 'Not a dict'}", file=sys.stderr, flush=True)
                         
+                        if not isinstance(first_choice, dict):
+                            logger.error(f"[_call_openai] ❌ First choice is not a dict: {type(first_choice)}")
+                            print(f"[_call_openai] ❌ First choice is not a dict: {type(first_choice)}", file=sys.stderr, flush=True)
+                            return None
+                        
+                        message = first_choice.get('message', {})
+                        logger.info(f"[_call_openai] Message type: {type(message)}")
+                        logger.info(f"[_call_openai] Message keys: {list(message.keys()) if isinstance(message, dict) else 'Not a dict'}")
+                        print(f"[_call_openai] Message type: {type(message)}", file=sys.stderr, flush=True)
+                        print(f"[_call_openai] Message keys: {list(message.keys()) if isinstance(message, dict) else 'Not a dict'}", file=sys.stderr, flush=True)
+                        
+                        if not isinstance(message, dict):
+                            logger.error(f"[_call_openai] ❌ Message is not a dict: {type(message)}")
+                            print(f"[_call_openai] ❌ Message is not a dict: {type(message)}", file=sys.stderr, flush=True)
+                            return None
+                        
+                        text = message.get('content', '')
+                        logger.info(f"[_call_openai] Extracted text type: {type(text)}")
                         logger.info(f"[_call_openai] Extracted text length: {len(text) if text else 0}")
+                        logger.info(f"[_call_openai] Extracted text value: {repr(text)[:100]}")
+                        print(f"[_call_openai] Extracted text type: {type(text)}", file=sys.stderr, flush=True)
                         print(f"[_call_openai] Extracted text length: {len(text) if text else 0}", file=sys.stderr, flush=True)
+                        print(f"[_call_openai] Extracted text value: {repr(text)[:100]}", file=sys.stderr, flush=True)
                         
                         # Return text if valid
                         if text and isinstance(text, str) and text.strip():
