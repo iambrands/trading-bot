@@ -3904,7 +3904,27 @@ async def run_api(app: web.Application, host: str = '0.0.0.0', port: int = 8000)
         if not site._server:
             raise RuntimeError("TCPSite started but _server is None!")
         
+        # Additional verification - check if server has sockets
+        server_sockets = getattr(site._server, 'sockets', None)
+        if server_sockets:
+            print(f"  ✅ Server has {len(server_sockets)} socket(s) bound", file=sys.stderr, flush=True)
+            for sock in server_sockets:
+                addr = sock.getsockname()
+                print(f"    Socket bound to: {addr}", file=sys.stderr, flush=True)
+        else:
+            print(f"  ⚠️ Warning: Server object exists but no sockets found", file=sys.stderr, flush=True)
+        
         print(f"  ✅ Server object verified: {site._server}", file=sys.stderr, flush=True)
+        
+        # CRITICAL: Force flush and print a highly visible marker
+        print("", file=sys.stderr, flush=True)
+        print("=" * 80, file=sys.stderr, flush=True)
+        print("🚀🚀🚀 WEB SERVER IS NOW RUNNING AND LISTENING 🚀🚀🚀", file=sys.stderr, flush=True)
+        print(f"🚀🚀🚀 Listening on {host}:{port} 🚀🚀🚀", file=sys.stderr, flush=True)
+        print(f"🚀🚀🚀 Ready to accept HTTP requests! 🚀🚀🚀", file=sys.stderr, flush=True)
+        print("=" * 80, file=sys.stderr, flush=True)
+        print("", file=sys.stderr, flush=True)
+        
         return runner  # Return runner so it can be cleaned up if needed
         
     except OSError as e:
