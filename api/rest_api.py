@@ -151,6 +151,11 @@ class TradingBotAPI:
     
     def _setup_routes(self):
         """Setup API routes."""
+        import sys
+        logger.info("=" * 60)
+        logger.info("REGISTERING API ROUTES")
+        logger.info("=" * 60)
+        
         # Public landing and auth pages
         self.app.router.add_get('/landing', self.serve_landing)
         self.app.router.add_get('/signup', self.serve_signup)
@@ -286,6 +291,8 @@ class TradingBotAPI:
         self.app.router.add_get('/api/runtime', self.get_runtime_info)
         self.app.router.add_get('/api/ai/status', self.ai_status)
         self.app.router.add_get('/api/test/claude-ai', self.test_claude_ai)  # Comprehensive Claude AI diagnostic
+        logger.info("✅ Registered /api/test/claude-ai diagnostic endpoint")
+        print("✅ Registered /api/test/claude-ai diagnostic endpoint", file=sys.stderr, flush=True)
         
         # Control endpoints
         self.app.router.add_post('/api/start', self.start_bot)
@@ -294,6 +301,19 @@ class TradingBotAPI:
         self.app.router.add_post('/api/stop', self.stop_bot)
         self.app.router.add_post('/api/close-all', self.close_all_positions)
         self.app.router.add_post('/api/kill-switch', self.kill_switch)
+        
+        # Log all registered routes
+        logger.info("=" * 60)
+        logger.info("REGISTERED ROUTES:")
+        for route in self.app.router.routes():
+            route_info = f"  {route.method} {route.resource.canonical if hasattr(route.resource, 'canonical') else route.resource}"
+            logger.info(route_info)
+            if 'claude-ai' in route_info.lower():
+                print(route_info, file=sys.stderr, flush=True)
+        logger.info("=" * 60)
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("ROUTE REGISTRATION COMPLETE", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
     
     async def serve_dashboard(self, request):
         """Serve the dashboard HTML page."""
@@ -457,8 +477,15 @@ class TradingBotAPI:
         import os
         import sys
         
+        # Force console output (Railway should capture this)
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("[DIAGNOSTIC] Claude AI test endpoint called", file=sys.stderr, flush=True)
+        print(f"[DIAGNOSTIC] Timestamp: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
+        
         logger.info("=" * 60)
         logger.info("CLAUDE AI DIAGNOSTIC TEST STARTED")
+        logger.info(f"Timestamp: {datetime.now().isoformat()}")
         logger.info("=" * 60)
         
         result = {
@@ -555,7 +582,11 @@ class TradingBotAPI:
             
             try:
                 logger.info(f"Calling analyze_market_conditions with test data...")
+                print(f"[DIAGNOSTIC] Calling analyze_market_conditions with test data...", file=sys.stderr, flush=True)
                 test_response = await ai_analyst.analyze_market_conditions(test_market_data, test_trading_signals)
+                
+                print(f"[DIAGNOSTIC] API call completed. Response type: {type(test_response)}", file=sys.stderr, flush=True)
+                print(f"[DIAGNOSTIC] Response length: {len(test_response) if test_response else 0}", file=sys.stderr, flush=True)
                 
                 result['test_results']['api_call'] = {
                     'success': True,

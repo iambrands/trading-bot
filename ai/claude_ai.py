@@ -136,16 +136,28 @@ class ClaudeAIAnalyst:
     async def _call_claude(self, prompt: str) -> Optional[str]:
         """Make API call to Claude AI with comprehensive logging and robust parsing."""
         import sys
+        from datetime import datetime
+        
+        # Force immediate console output (Railway should capture this)
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("[_call_claude] STARTING CLAUDE API CALL", file=sys.stderr, flush=True)
+        print(f"[_call_claude] Timestamp: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        print(f"[_call_claude] API Key present: {bool(self.api_key)}", file=sys.stderr, flush=True)
+        print(f"[_call_claude] API Key length: {len(self.api_key) if self.api_key else 0}", file=sys.stderr, flush=True)
+        print(f"[_call_claude] Model: {self.model}", file=sys.stderr, flush=True)
+        print(f"[_call_claude] Base URL: {self.base_url}", file=sys.stderr, flush=True)
+        print(f"[_call_claude] Prompt length: {len(prompt)} characters", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
         
         logger.info("=" * 60)
         logger.info("[_call_claude] STARTING CLAUDE API CALL")
+        logger.info(f"[_call_claude] Timestamp: {datetime.now().isoformat()}")
         logger.info("=" * 60)
         logger.info(f"API Key present: {bool(self.api_key)}")
         logger.info(f"API Key length: {len(self.api_key) if self.api_key else 0}")
         logger.info(f"Model: {self.model}")
         logger.info(f"Base URL: {self.base_url}")
         logger.info(f"Prompt length: {len(prompt)} characters")
-        print(f"[_call_claude] Starting Claude API call...", file=sys.stderr, flush=True)
         
         if not self.api_key:
             logger.error("[_call_claude] ❌ NO API KEY FOUND")
