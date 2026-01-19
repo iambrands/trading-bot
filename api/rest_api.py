@@ -291,9 +291,9 @@ class TradingBotAPI:
         # Diagnostics (helps confirm whether deployment is API-only or full-bot)
         self.app.router.add_get('/api/runtime', self.get_runtime_info)
         self.app.router.add_get('/api/ai/status', self.ai_status)
-        self.app.router.add_get('/api/test/claude-ai', self.test_claude_ai)  # Comprehensive Claude AI diagnostic
-        logger.info("✅ Registered /api/test/claude-ai diagnostic endpoint")
-        print("✅ Registered /api/test/claude-ai diagnostic endpoint", file=sys.stderr, flush=True)
+        self.app.router.add_get('/api/test/openai-ai', self.test_openai_ai)  # Comprehensive OpenAI AI diagnostic
+        logger.info("✅ Registered /api/test/openai-ai diagnostic endpoint")
+        print("✅ Registered /api/test/openai-ai diagnostic endpoint", file=sys.stderr, flush=True)
         
         # Control endpoints
         self.app.router.add_post('/api/start', self.start_bot)
@@ -609,7 +609,7 @@ class TradingBotAPI:
                 
                 if not test_response:
                     result['warning'] = 'API call succeeded but returned empty/None response'
-                    result['next_steps'] = 'Check Railway logs for "[_call_claude]" messages to see Claude API response structure'
+                    result['next_steps'] = 'Check Railway logs for "[_call_openai]" messages to see OpenAI API response structure'
                     result['fix'] = 'The API call is working but response parsing may be failing. Check logs for detailed response structure.'
                     
             except Exception as e:
