@@ -285,6 +285,7 @@ class TradingBotAPI:
         # Diagnostics (helps confirm whether deployment is API-only or full-bot)
         self.app.router.add_get('/api/runtime', self.get_runtime_info)
         self.app.router.add_get('/api/ai/status', self.ai_status)
+        self.app.router.add_get('/api/test/claude-ai', self.test_claude_ai)  # Comprehensive Claude AI diagnostic
         
         # Control endpoints
         self.app.router.add_post('/api/start', self.start_bot)
@@ -3006,25 +3007,45 @@ class TradingBotAPI:
             # Get analysis
             try:
                 print(f"[AI_ANALYZE_MARKET] ✅ Calling analyze_market_conditions...", file=sys.stderr, flush=True)
+                logger.info("=" * 60)
+                logger.info("[AI_ANALYZE_MARKET] Calling Claude AI analyze_market_conditions...")
+                logger.info(f"Market data keys: {list(market_data.keys()) if isinstance(market_data, dict) else 'Not a dict'}")
+                logger.info(f"Trading signals keys: {list(trading_signals.keys()) if isinstance(trading_signals, dict) else 'Not a dict'}")
+                
                 analysis = await ai_analyst.analyze_market_conditions(market_data, trading_signals)
                 
-                if not analysis:
+                logger.info(f"[AI_ANALYZE_MARKET] Analysis result received")
+                logger.info(f"Analysis type: {type(analysis)}")
+                logger.info(f"Analysis is None: {analysis is None}")
+                logger.info(f"Analysis is empty string: {analysis == '' if analysis else False}")
+                logger.info(f"Analysis length: {len(analysis) if analysis else 0}")
+                
+                if not analysis or (isinstance(analysis, str) and not analysis.strip()):
                     logger.warning("AI analysis returned None/empty")
                     print(f"[AI_ANALYZE_MARKET] ❌ Analysis returned None or empty", file=sys.stderr, flush=True)
                     logger.error("=== AI ANALYSIS RETURNED NONE/EMPTY ===")
                     logger.error(f"Analysis value: {analysis}")
                     logger.error(f"Analysis type: {type(analysis)}")
                     logger.error("Check Claude API response parsing in ai/claude_ai.py _call_claude() method")
-                    return web.json_response({
-                        'error': 'AI analysis failed. The API call succeeded but returned no analysis. This may indicate a response parsing issue. Check Railway logs for detailed Claude API response structure.',
-                        'diagnostic': {
-                            'api_call_succeeded': True,
-                            'analysis_returned': False,
-                            'analysis_type': str(type(analysis)),
-                            'analysis_value': str(analysis)[:100] if analysis is not None else 'None',
-                            'note': 'Check Railway logs for "[_call_claude]" messages to see Claude API response structure'
-                        }
-                    }, status=503)
+                    
+                    # Use fallback message instead of returning error
+                    logger.warning("Using fallback message for empty analysis")
+                    analysis = (
+                        "⚠️ AI analysis temporarily unavailable.\n\n"
+                        "The AI service responded but didn't generate analysis content. "
+                        "This usually resolves itself. Please try again in a moment.\n\n"
+                        "**Market data is still available** on this page - you can view current prices, "
+                        "indicators, and trading signals above.\n\n"
+                        "**To troubleshoot:**\n"
+                        "- Check Railway logs for '[_call_claude]' messages\n"
+                        "- Visit `/api/test/claude-ai` endpoint for diagnostics\n"
+                        "- Verify CLAUDE_API_KEY is correctly set in Railway"
+                    )
+                
+                # Log successful analysis
+                if analysis and analysis.strip():
+                    logger.info(f"[AI_ANALYZE_MARKET] ✅ Analysis successful: {len(analysis)} characters")
+                    logger.info(f"Analysis preview: {analysis[:200]}...")
                 
                 print(f"[AI_ANALYZE_MARKET] ✅ Analysis successful (length: {len(analysis)})", file=sys.stderr, flush=True)
                 return web.json_response({
