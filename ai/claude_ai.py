@@ -222,10 +222,17 @@ class ClaudeAIAnalyst:
                             if isinstance(first_item, dict):
                                 # Try 'text' key first (newer format)
                                 text = first_item.get('text', '')
-                                if text:
+                                if text and isinstance(text, str) and text.strip():
                                     logger.info(f"Extracted text from 'text' key: {len(text)} characters")
                                     print(f"[_call_claude] ✅ Extracted text: {len(text)} chars", file=sys.stderr, flush=True)
-                                    return text
+                                    return text.strip()
+                                elif text == '':
+                                    logger.warning("Claude API returned empty text string (text='')")
+                                    print(f"[_call_claude] ⚠️ Empty text string returned from API", file=sys.stderr, flush=True)
+                                    # Continue to check other keys, but log the issue
+                                elif not text:
+                                    logger.warning(f"Claude API 'text' key is missing or None")
+                                    print(f"[_call_claude] ⚠️ 'text' key missing or None", file=sys.stderr, flush=True)
                                 
                                 # Try 'content' key (alternative format)
                                 nested_content = first_item.get('content', '')
