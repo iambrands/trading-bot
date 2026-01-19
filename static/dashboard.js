@@ -2163,7 +2163,7 @@ function displayBacktestResults(results) {
     html += '<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">';
     html += '<div>';
     html += '<h3 style="margin: 0 0 0.25rem 0; font-size: 1.5rem; font-weight: 700; color: var(--gray-900);">AI Analysis</h3>';
-    html += '<p class="ai-analysis-subtitle" style="margin: 0; font-size: 0.875rem; color: var(--gray-500);">Powered by Claude AI • Get insights on your backtest results</p>';
+    html += '<p class="ai-analysis-subtitle" style="margin: 0; font-size: 0.875rem; color: var(--gray-500);">Powered by OpenAI • Get insights on your backtest results</p>';
     html += '</div>';
     html += '<button class="btn btn-primary" id="analyzeBacktestBtn" style="min-width: 150px;">Analyze Results</button>';
     html += '</div>';
@@ -2323,7 +2323,7 @@ async function getBacktestAIAnalysis(results) {
             errorMessage = 'Server returned invalid response. The AI analysis feature may not be configured correctly.';
         }
         
-        analysisContent.innerHTML = `<div class="error">AI analysis error: ${escapeHtml(errorMessage)}<br><small>Please check that CLAUDE_API_KEY is configured in .env</small></div>`;
+        analysisContent.innerHTML = `<div class="error">AI analysis error: ${escapeHtml(errorMessage)}<br><small>Please check that OPENAI_API_KEY is configured in Railway environment variables</small></div>`;
         showToast(`AI analysis failed: ${errorMessage}`, 'error');
     }
 }
@@ -2610,8 +2610,8 @@ async function getAIAnalysis() {
                     <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; text-align: left; margin-top: 1rem;">
                         <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--gray-900);">To enable AI Analysis:</p>
                         <ol style="margin: 0; padding-left: 1.5rem; color: var(--gray-700);">
-                            <li>Get a Claude API key from <a href="https://console.anthropic.com/" target="_blank" style="color: var(--primary-blue);">Anthropic Console</a></li>
-                            <li>Add <code style="background: var(--gray-200); padding: 0.125rem 0.25rem; border-radius: 4px;">CLAUDE_API_KEY=your_key_here</code> to your Railway environment variables</li>
+                            <li>Get an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--primary-blue);">OpenAI Platform</a></li>
+                            <li>Add <code style="background: var(--gray-200); padding: 0.125rem 0.25rem; border-radius: 4px;">OPENAI_API_KEY=your_key_here</code> to your Railway environment variables</li>
                             <li>Redeploy the application</li>
                         </ol>
                     </div>
@@ -2657,7 +2657,7 @@ async function getAIAnalysis() {
                 <h3 style="margin: 0 0 1rem 0; color: var(--danger-red);">AI Analysis Error</h3>
                 <p style="margin: 0; color: var(--gray-700);">${escapeHtml(errorMessage)}</p>
                 <p style="margin: 1rem 0 0 0; font-size: 0.875rem; color: var(--gray-500);">
-                    Please check that CLAUDE_API_KEY is configured correctly in your Railway environment variables.
+                    Please check that OPENAI_API_KEY is configured correctly in your Railway environment variables.
                 </p>
             </div>
         `;
@@ -2709,7 +2709,7 @@ async function getAIHelp(topic, context = {}) {
         
         if (!response.ok) {
             const error = await response.json().catch(() => ({error: 'AI help unavailable'}));
-            showToast(`AI help: ${error.error || 'Please configure CLAUDE_API_KEY in .env'}`, 'warning');
+            showToast(`AI help: ${error.error || 'Please configure OPENAI_API_KEY in Railway environment variables'}`, 'warning');
             return;
         }
         
@@ -2721,7 +2721,7 @@ async function getAIHelp(topic, context = {}) {
         }
     } catch (error) {
         console.error('AI help error:', error);
-        showToast('AI help unavailable. Configure CLAUDE_API_KEY in .env', 'warning');
+        showToast('AI help unavailable. Configure OPENAI_API_KEY in Railway environment variables', 'warning');
     }
 }
 
