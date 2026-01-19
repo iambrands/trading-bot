@@ -2945,65 +2945,128 @@ class TradingBotAPI:
     # AI Endpoints
     async def ai_analyze_market(self, request):
         """Get AI analysis of market conditions."""
+        import sys
+        
         try:
             from ai import ClaudeAIAnalyst
             
             # Check if AI is enabled - with better diagnostics
             api_key = self.config.CLAUDE_API_KEY or ''
-            api_key_trimmed = api_key.strip() if api_key else ''
+            api_key_trimmed = api_key.strip().strip('"').strip("'") if api_key else ''
+            
+            # Log diagnostic info
+            print(f"[AI_ANALYZE_MARKET] API key check: exists={bool(api_key)}, length={len(api_key_trimmed) if api_key_trimmed else 0}", file=sys.stderr, flush=True)
+            logger.info(f"AI analyze market request - API key length: {len(api_key_trimmed) if api_key_trimmed else 0}")
             
             if not api_key_trimmed:
                 logger.warning("CLAUDE_API_KEY is not set or is empty")
-                # Log first few chars for debugging (without exposing full key)
-                has_key = 'Yes' if api_key else 'No'
-                key_length = len(api_key) if api_key else 0
-                logger.info(f"CLAUDE_API_KEY status: exists={has_key}, length={key_length}")
+                print(f"[AI_ANALYZE_MARKET] ❌ API key is empty", file=sys.stderr, flush=True)
                 return web.json_response({
                     'error': 'AI analysis not available. CLAUDE_API_KEY is not configured or is empty. Please check your Railway environment variables.',
                     'diagnostic': {
-                        'key_exists': has_key,
-                        'key_length': key_length,
+                        'key_exists': bool(api_key),
+                        'key_length': len(api_key) if api_key else 0,
                         'note': 'Make sure CLAUDE_API_KEY is set in Railway without quotes around the value'
                     }
                 }, status=503)
             
-            data = await request.json()
-            market_data = data.get('market_data', {})
-            trading_signals = data.get('trading_signals', {})
+            # Parse request data
+            try:
+                data = await request.json()
+                market_data = data.get('market_data', {})
+                trading_signals = data.get('trading_signals', {})
+            except Exception as json_error:
+                logger.error(f"Error parsing request JSON: {json_error}")
+                return web.json_response({
+                    'error': 'Invalid request data. Please try again.'
+                }, status=400)
             
-            ai_analyst = ClaudeAIAnalyst(self.config)
+            # Initialize AI analyst
+            try:
+                ai_analyst = ClaudeAIAnalyst(self.config)
+                print(f"[AI_ANALYZE_MARKET] ClaudeAIAnalyst enabled: {ai_analyst.enabled}", file=sys.stderr, flush=True)
+            except Exception as init_error:
+                logger.error(f"Error initializing ClaudeAIAnalyst: {init_error}", exc_info=True)
+                return web.json_response({
+                    'error': 'Failed to initialize AI analyst. Please check server logs.'
+                }, status=500)
             
             if not ai_analyst.enabled:
                 logger.warning(f"ClaudeAIAnalyst reports disabled despite key being present (length: {len(api_key_trimmed)})")
+                print(f"[AI_ANALYZE_MARKET] ❌ AI analyst disabled - key length: {len(api_key_trimmed)}", file=sys.stderr, flush=True)
                 return web.json_response({
                     'error': 'AI analysis not available. CLAUDE_API_KEY appears to be invalid. Please verify the key is correct in Railway environment variables.',
                     'diagnostic': {
                         'key_length': len(api_key_trimmed),
-                        'note': 'The key exists but ClaudeAIAnalyst reports it as disabled. Check for typos or invalid key format.'
+                        'enabled': False,
+                        'note': 'The key exists but ClaudeAIAnalyst reports it as disabled. Check for typos or invalid key format. Valid Claude keys start with "sk-ant-" and are typically 50+ characters.'
                     }
                 }, status=503)
             
-            analysis = await ai_analyst.analyze_market_conditions(market_data, trading_signals)
-            
-            if not analysis:
+            # Get analysis
+            try:
+                print(f"[AI_ANALYZE_MARKET] ✅ Calling analyze_market_conditions...", file=sys.stderr, flush=True)
+                analysis = await ai_analyst.analyze_market_conditions(market_data, trading_signals)
+                
+                if not analysis:
+                    logger.warning("AI analysis returned None/empty")
+                    print(f"[AI_ANALYZE_MARKET] ❌ Analysis returned None", file=sys.stderr, flush=True)
+                    return web.json_response({
+                        'error': 'AI analysis failed. The API call succeeded but returned no analysis. Please check your CLAUDE_API_KEY configuration and try again.',
+                        'diagnostic': {
+                            'api_call_succeeded': True,
+                            'analysis_returned': False,
+                            'note': 'This might indicate an API key permissions issue or API service problem.'
+                        }
+                    }, status=503)
+                
+                print(f"[AI_ANALYZE_MARKET] ✅ Analysis successful (length: {len(analysis)})", file=sys.stderr, flush=True)
                 return web.json_response({
-                    'error': 'AI analysis failed. Please check your CLAUDE_API_KEY configuration.'
-                }, status=503)
-            
-            return web.json_response({
-                'success': True,
-                'analysis': analysis
-            })
+                    'success': True,
+                    'analysis': analysis
+                })
+                
+            except Exception as api_error:
+                logger.error(f"Error calling Claude API: {api_error}", exc_info=True)
+                error_msg = str(api_error).lower()
+                print(f"[AI_ANALYZE_MARKET] ❌ API error: {api_error}", file=sys.stderr, flush=True)
+                
+                if 'api key' in error_msg or 'authentication' in error_msg or '401' in error_msg:
+                    return web.json_response({
+                        'error': 'AI analysis failed. Invalid API key. Please verify your CLAUDE_API_KEY is correct in Railway environment variables.',
+                        'diagnostic': {
+                            'error_type': 'authentication',
+                            'note': 'The API key was rejected by Anthropic. Check that the key is correct and hasn\'t been revoked.'
+                        }
+                    }, status=503)
+                elif 'rate limit' in error_msg or '429' in error_msg:
+                    return web.json_response({
+                        'error': 'AI analysis temporarily unavailable due to rate limiting. Please try again in a few minutes.',
+                        'diagnostic': {
+                            'error_type': 'rate_limit',
+                            'note': 'Too many API requests. Wait a few minutes before retrying.'
+                        }
+                    }, status=503)
+                else:
+                    return web.json_response({
+                        'error': f'AI analysis error: {str(api_error)}',
+                        'diagnostic': {
+                            'error_type': 'api_error',
+                            'note': 'An unexpected error occurred while calling the Claude API.'
+                        }
+                    }, status=500)
             
         except Exception as e:
-            logger.error(f"Error getting AI market analysis: {e}", exc_info=True)
-            error_msg = str(e)
-            if 'api key' in error_msg.lower() or 'authentication' in error_msg.lower():
-                return web.json_response({
-                    'error': 'AI analysis failed. Please verify your CLAUDE_API_KEY is correct.'
-                }, status=503)
+            logger.error(f"Unexpected error in AI analyze market: {e}", exc_info=True)
+            print(f"[AI_ANALYZE_MARKET] ❌ Unexpected error: {e}", file=sys.stderr, flush=True)
+            import traceback
+            traceback.print_exc(file=sys.stderr)
             return web.json_response({
-                'error': f'AI analysis error: {error_msg}'
+                'error': f'Unexpected error: {str(e)}',
+                'diagnostic': {
+                    'error_type': 'unexpected',
+                    'note': 'An unexpected error occurred. Check server logs for details.'
+                }
             }, status=500)
     
     async def ai_explain_strategy(self, request):
