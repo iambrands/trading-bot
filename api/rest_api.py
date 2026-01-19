@@ -3269,6 +3269,8 @@ class TradingBotAPI:
                 logger.error(f"Error calling OpenAI API: {api_error}", exc_info=True)
                 error_msg = str(api_error).lower()
                 print(f"[AI_ANALYZE_MARKET] ❌ API error: {api_error}", file=sys.stderr, flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
                 
                 if 'api key' in error_msg or 'authentication' in error_msg or '401' in error_msg:
                     return web.json_response({
