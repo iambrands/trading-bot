@@ -452,6 +452,157 @@ class TradingBotAPI:
             logger.error(f"Error getting AI status: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
+    async def test_claude_ai(self, request):
+        """Comprehensive diagnostic endpoint to test Claude API connectivity and configuration."""
+        import os
+        import sys
+        
+        logger.info("=" * 60)
+        logger.info("CLAUDE AI DIAGNOSTIC TEST STARTED")
+        logger.info("=" * 60)
+        
+        result = {
+            'timestamp': datetime.now().isoformat(),
+            'test_results': {}
+        }
+        
+        try:
+            # Test 1: Check environment variables
+            logger.info("TEST 1: Checking environment variables...")
+            claude_key = os.getenv('CLAUDE_API_KEY', '')
+            anthropic_key = os.getenv('ANTHROPIC_API_KEY', '')
+            
+            # Clean keys
+            claude_key_trimmed = claude_key.strip().strip('"').strip("'") if claude_key else ''
+            anthropic_key_trimmed = anthropic_key.strip().strip('"').strip("'") if anthropic_key else ''
+            
+            result['test_results']['environment'] = {
+                'CLAUDE_API_KEY_exists': bool(claude_key_trimmed),
+                'CLAUDE_API_KEY_length': len(claude_key_trimmed) if claude_key_trimmed else 0,
+                'CLAUDE_API_KEY_prefix': (claude_key_trimmed[:10] + '...') if claude_key_trimmed else None,
+                'ANTHROPIC_API_KEY_exists': bool(anthropic_key_trimmed),
+                'api_key_to_use': 'CLAUDE_API_KEY' if claude_key_trimmed else ('ANTHROPIC_API_KEY' if anthropic_key_trimmed else 'NONE'),
+                'config_CLAUDE_API_KEY': bool(self.config.CLAUDE_API_KEY),
+                'config_key_length': len(self.config.CLAUDE_API_KEY) if self.config.CLAUDE_API_KEY else 0
+            }
+            logger.info(f"Environment check: {result['test_results']['environment']}")
+            
+            if not claude_key_trimmed and not anthropic_key_trimmed:
+                result['error'] = 'No API key found in environment variables'
+                result['fix'] = 'Add CLAUDE_API_KEY to Railway environment variables'
+                logger.error("❌ No API key found")
+                return web.json_response(result, status=500)
+            
+            # Test 2: Import ClaudeAIAnalyst module
+            logger.info("TEST 2: Importing ClaudeAIAnalyst module...")
+            try:
+                from ai import ClaudeAIAnalyst
+                result['test_results']['import'] = {'success': True}
+                logger.info("✅ ClaudeAIAnalyst imported successfully")
+            except ImportError as e:
+                result['test_results']['import'] = {
+                    'success': False,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }
+                logger.error(f"❌ Failed to import ClaudeAIAnalyst: {e}", exc_info=True)
+                return web.json_response(result, status=500)
+            
+            # Test 3: Initialize ClaudeAIAnalyst instance
+            logger.info("TEST 3: Initializing ClaudeAIAnalyst instance...")
+            try:
+                ai_analyst = ClaudeAIAnalyst(self.config)
+                result['test_results']['initialization'] = {
+                    'success': True,
+                    'enabled': ai_analyst.enabled,
+                    'model': ai_analyst.model,
+                    'base_url': ai_analyst.base_url
+                }
+                logger.info(f"✅ ClaudeAIAnalyst initialized successfully (enabled: {ai_analyst.enabled})")
+                
+                if not ai_analyst.enabled:
+                    result['warning'] = 'ClaudeAIAnalyst initialized but reports as disabled'
+                    result['fix'] = 'Check API key format - should start with "sk-ant-" and be 50+ characters'
+                    return web.json_response(result, status=503)
+                    
+            except Exception as e:
+                result['test_results']['initialization'] = {
+                    'success': False,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }
+                logger.error(f"❌ Failed to initialize ClaudeAIAnalyst: {e}", exc_info=True)
+                import traceback
+                logger.error(traceback.format_exc())
+                return web.json_response(result, status=500)
+            
+            # Test 4: Make test API call
+            logger.info("TEST 4: Making test API call to Claude...")
+            test_market_data = {
+                'BTC-USD': {
+                    'price': 95000.0,
+                    'ema': 92000.0,
+                    'rsi': 65.0,
+                    'volume_ratio': 1.5
+                }
+            }
+            test_trading_signals = {
+                'BTC-USD': {
+                    'long_signal': {'confidence': 75.0, 'conditions_met': True},
+                    'short_signal': {'confidence': 0.0, 'conditions_met': False}
+                }
+            }
+            
+            try:
+                logger.info(f"Calling analyze_market_conditions with test data...")
+                test_response = await ai_analyst.analyze_market_conditions(test_market_data, test_trading_signals)
+                
+                result['test_results']['api_call'] = {
+                    'success': True,
+                    'response_type': type(test_response).__name__ if test_response else 'NoneType',
+                    'response_is_none': test_response is None,
+                    'response_is_empty': not bool(test_response) if test_response is not None else True,
+                    'response_length': len(test_response) if test_response else 0,
+                    'response_preview': (test_response[:200] + '...') if test_response and len(test_response) > 200 else test_response
+                }
+                
+                logger.info(f"✅ API call completed")
+                logger.info(f"Response type: {type(test_response)}")
+                logger.info(f"Response length: {len(test_response) if test_response else 0}")
+                logger.info(f"Response preview: {test_response[:200] if test_response else 'NONE'}")
+                
+                if not test_response:
+                    result['warning'] = 'API call succeeded but returned empty/None response'
+                    result['next_steps'] = 'Check Railway logs for "[_call_claude]" messages to see Claude API response structure'
+                    result['fix'] = 'The API call is working but response parsing may be failing. Check logs for detailed response structure.'
+                    
+            except Exception as e:
+                result['test_results']['api_call'] = {
+                    'success': False,
+                    'error': str(e),
+                    'error_type': type(e).__name__
+                }
+                logger.error(f"❌ API call failed: {e}", exc_info=True)
+                import traceback
+                logger.error(traceback.format_exc())
+                result['error'] = f'API call failed: {str(e)}'
+                return web.json_response(result, status=500)
+            
+            logger.info("=" * 60)
+            logger.info("CLAUDE AI DIAGNOSTIC TEST COMPLETED")
+            logger.info("=" * 60)
+            
+            return web.json_response(result)
+            
+        except Exception as e:
+            logger.error(f"Diagnostic test failed: {e}", exc_info=True)
+            import traceback
+            return web.json_response({
+                'error': str(e),
+                'error_type': type(e).__name__,
+                'traceback': traceback.format_exc()
+            }, status=500)
+    
     async def get_positions(self, request):
         """Get active positions with current P&L."""
         if not self.bot:
