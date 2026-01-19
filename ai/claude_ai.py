@@ -212,7 +212,20 @@ class ClaudeAIAnalyst:
                     
                     # Parse response
                     logger.info("[_call_claude] Parsing Claude API response...")
-                    response_data = await response.json()
+                    
+                    # First, read raw response text for debugging
+                    raw_response_text = await response.text()
+                    print(f"[_call_claude] RAW RESPONSE TEXT (first 500 chars): {raw_response_text[:500]}", file=sys.stderr, flush=True)
+                    logger.info(f"[_call_claude] Raw response text length: {len(raw_response_text)}")
+                    
+                    try:
+                        response_data = json.loads(raw_response_text)
+                    except json.JSONDecodeError as json_err:
+                        logger.error(f"[_call_claude] ❌ Failed to parse JSON: {json_err}")
+                        logger.error(f"[_call_claude] Raw response: {raw_response_text[:500]}")
+                        print(f"[_call_claude] ❌ JSON parse error: {json_err}", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Raw response: {raw_response_text[:500]}", file=sys.stderr, flush=True)
+                        return None
                     
                     logger.info("=" * 60)
                     logger.info("[_call_claude] RESPONSE RECEIVED")
@@ -224,9 +237,14 @@ class ClaudeAIAnalyst:
                         logger.info(f"[_call_claude] Response keys: {list(response_data.keys())}")
                         # Log full response structure (truncated for size)
                         response_json = json.dumps(response_data, indent=2, default=str)
-                        logger.info(f"[_call_claude] Full response preview (first 1000 chars):\n{response_json[:1000]}...")
+                        logger.info(f"[_call_claude] Full response JSON (first 2000 chars):\n{response_json[:2000]}...")
                         print(f"[_call_claude] Response keys: {list(response_data.keys())}", file=sys.stderr, flush=True)
-                        print(f"[_call_claude] Response preview: {response_json[:500]}...", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Response JSON (first 1000 chars): {response_json[:1000]}", file=sys.stderr, flush=True)
+                    else:
+                        logger.error(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}")
+                        logger.error(f"[_call_claude] Response value: {response_data}")
+                        print(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Response value: {str(response_data)[:500]}", file=sys.stderr, flush=True)
                         
                         # Extract content - handle multiple possible structures
                         content = response_data.get('content')
