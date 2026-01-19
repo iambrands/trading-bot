@@ -49,6 +49,7 @@ class TradingBotAPI:
                 '/api/auth/signin',
                 '/api/status',  # Status endpoint for health checks
                 '/api/runtime',  # Runtime info endpoint
+                '/api/ai/status',  # AI status endpoint (public for diagnostics)
                 '/api/test/',   # All test endpoints (trading-health, force-trade, etc.)
                 '/landing',
                 '/signup',
