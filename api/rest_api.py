@@ -3138,11 +3138,25 @@ class TradingBotAPI:
         """Get AI analysis of market conditions."""
         import sys
         
+        # CRITICAL: Log immediately when endpoint is called
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("[AI_ANALYZE_MARKET] ENDPOINT CALLED", file=sys.stderr, flush=True)
+        print(f"[AI_ANALYZE_MARKET] Timestamp: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
+        logger.info("=" * 60)
+        logger.info("[AI_ANALYZE_MARKET] ENDPOINT CALLED")
+        logger.info(f"[AI_ANALYZE_MARKET] Timestamp: {datetime.now().isoformat()}")
+        logger.info("=" * 60)
+        
         try:
-            from ai import ClaudeAIAnalyst
+            print("[AI_ANALYZE_MARKET] Attempting to import OpenAIAnalyst...", file=sys.stderr, flush=True)
+            logger.info("[AI_ANALYZE_MARKET] Attempting to import OpenAIAnalyst...")
+            from ai import OpenAIAnalyst
+            print("[AI_ANALYZE_MARKET] ✅ OpenAIAnalyst imported successfully", file=sys.stderr, flush=True)
+            logger.info("[AI_ANALYZE_MARKET] ✅ OpenAIAnalyst imported successfully")
             
             # Check if AI is enabled - with better diagnostics
-            api_key = self.config.CLAUDE_API_KEY or ''
+            api_key = self.config.OPENAI_API_KEY or ''
             api_key_trimmed = api_key.strip().strip('"').strip("'") if api_key else ''
             
             # Log diagnostic info
@@ -3150,14 +3164,14 @@ class TradingBotAPI:
             logger.info(f"AI analyze market request - API key length: {len(api_key_trimmed) if api_key_trimmed else 0}")
             
             if not api_key_trimmed:
-                logger.warning("CLAUDE_API_KEY is not set or is empty")
+                logger.warning("OPENAI_API_KEY is not set or is empty")
                 print(f"[AI_ANALYZE_MARKET] ❌ API key is empty", file=sys.stderr, flush=True)
                 return web.json_response({
-                    'error': 'AI analysis not available. CLAUDE_API_KEY is not configured or is empty. Please check your Railway environment variables.',
+                    'error': 'AI analysis not available. OPENAI_API_KEY is not configured or is empty. Please check your Railway environment variables.',
                     'diagnostic': {
                         'key_exists': bool(api_key),
                         'key_length': len(api_key) if api_key else 0,
-                        'note': 'Make sure CLAUDE_API_KEY is set in Railway without quotes around the value'
+                        'note': 'Make sure OPENAI_API_KEY is set in Railway without quotes around the value'
                     }
                 }, status=503)
             
@@ -3174,23 +3188,26 @@ class TradingBotAPI:
             
             # Initialize AI analyst
             try:
-                ai_analyst = ClaudeAIAnalyst(self.config)
-                print(f"[AI_ANALYZE_MARKET] ClaudeAIAnalyst enabled: {ai_analyst.enabled}", file=sys.stderr, flush=True)
+                ai_analyst = OpenAIAnalyst(self.config)
+                print(f"[AI_ANALYZE_MARKET] OpenAIAnalyst enabled: {ai_analyst.enabled}", file=sys.stderr, flush=True)
             except Exception as init_error:
-                logger.error(f"Error initializing ClaudeAIAnalyst: {init_error}", exc_info=True)
+                logger.error(f"Error initializing OpenAIAnalyst: {init_error}", exc_info=True)
+                print(f"[AI_ANALYZE_MARKET] ❌ Error initializing OpenAIAnalyst: {init_error}", file=sys.stderr, flush=True)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
                 return web.json_response({
                     'error': 'Failed to initialize AI analyst. Please check server logs.'
                 }, status=500)
             
             if not ai_analyst.enabled:
-                logger.warning(f"ClaudeAIAnalyst reports disabled despite key being present (length: {len(api_key_trimmed)})")
+                logger.warning(f"OpenAIAnalyst reports disabled despite key being present (length: {len(api_key_trimmed)})")
                 print(f"[AI_ANALYZE_MARKET] ❌ AI analyst disabled - key length: {len(api_key_trimmed)}", file=sys.stderr, flush=True)
                 return web.json_response({
-                    'error': 'AI analysis not available. CLAUDE_API_KEY appears to be invalid. Please verify the key is correct in Railway environment variables.',
+                    'error': 'AI analysis not available. OPENAI_API_KEY appears to be invalid. Please verify the key is correct in Railway environment variables.',
                     'diagnostic': {
                         'key_length': len(api_key_trimmed),
                         'enabled': False,
-                        'note': 'The key exists but ClaudeAIAnalyst reports it as disabled. Check for typos or invalid key format. Valid Claude keys start with "sk-ant-" and are typically 50+ characters.'
+                        'note': 'The key exists but OpenAIAnalyst reports it as disabled. Check for typos or invalid key format. Valid OpenAI keys start with "sk-" and are typically 50+ characters.'
                     }
                 }, status=503)
             
