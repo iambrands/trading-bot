@@ -3010,13 +3010,19 @@ class TradingBotAPI:
                 
                 if not analysis:
                     logger.warning("AI analysis returned None/empty")
-                    print(f"[AI_ANALYZE_MARKET] ❌ Analysis returned None", file=sys.stderr, flush=True)
+                    print(f"[AI_ANALYZE_MARKET] ❌ Analysis returned None or empty", file=sys.stderr, flush=True)
+                    logger.error("=== AI ANALYSIS RETURNED NONE/EMPTY ===")
+                    logger.error(f"Analysis value: {analysis}")
+                    logger.error(f"Analysis type: {type(analysis)}")
+                    logger.error("Check Claude API response parsing in ai/claude_ai.py _call_claude() method")
                     return web.json_response({
-                        'error': 'AI analysis failed. The API call succeeded but returned no analysis. Please check your CLAUDE_API_KEY configuration and try again.',
+                        'error': 'AI analysis failed. The API call succeeded but returned no analysis. This may indicate a response parsing issue. Check Railway logs for detailed Claude API response structure.',
                         'diagnostic': {
                             'api_call_succeeded': True,
                             'analysis_returned': False,
-                            'note': 'This might indicate an API key permissions issue or API service problem.'
+                            'analysis_type': str(type(analysis)),
+                            'analysis_value': str(analysis)[:100] if analysis is not None else 'None',
+                            'note': 'Check Railway logs for "[_call_claude]" messages to see Claude API response structure'
                         }
                     }, status=503)
                 

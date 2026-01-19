@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Dict, Any
 import aiohttp
 import json
+import asyncio
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -134,6 +135,16 @@ class ClaudeAIAnalyst:
     
     async def _call_claude(self, prompt: str) -> str:
         """Make API call to Claude AI."""
+        import sys
+        
+        logger.info("=== CLAUDE AI REQUEST ===")
+        logger.info(f"API Key present: {bool(self.api_key)}")
+        logger.info(f"API Key length: {len(self.api_key) if self.api_key else 0}")
+        logger.info(f"Model: {self.model}")
+        logger.info(f"Base URL: {self.base_url}")
+        logger.info(f"Prompt length: {len(prompt)} characters")
+        print(f"[_call_claude] Starting Claude API call...", file=sys.stderr, flush=True)
+        
         async with aiohttp.ClientSession() as session:
             headers = {
                 'x-api-key': self.api_key,
@@ -152,33 +163,121 @@ class ClaudeAIAnalyst:
                 ]
             }
             
-            async with session.post(
-                f"{self.base_url}/messages",
-                headers=headers,
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    logger.error(f"Claude API error {response.status}: {error_text}")
-                    # Provide more detailed error messages
-                    if response.status == 401:
-                        raise Exception("Invalid API key. Please check your CLAUDE_API_KEY.")
-                    elif response.status == 429:
-                        raise Exception("Rate limit exceeded. Please try again later.")
-                    elif response.status == 500:
-                        raise Exception("Claude API server error. Please try again later.")
+            try:
+                logger.info(f"Sending request to {self.base_url}/messages")
+                print(f"[_call_claude] POST {self.base_url}/messages", file=sys.stderr, flush=True)
+                
+                async with session.post(
+                    f"{self.base_url}/messages",
+                    headers=headers,
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    logger.info(f"Claude API response status: {response.status}")
+                    print(f"[_call_claude] Response status: {response.status}", file=sys.stderr, flush=True)
+                    
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.error(f"Claude API error {response.status}: {error_text}")
+                        print(f"[_call_claude] ❌ Error {response.status}: {error_text[:200]}", file=sys.stderr, flush=True)
+                        # Provide more detailed error messages
+                        if response.status == 401:
+                            raise Exception("Invalid API key. Please check your CLAUDE_API_KEY.")
+                        elif response.status == 429:
+                            raise Exception("Rate limit exceeded. Please try again later.")
+                        elif response.status == 500:
+                            raise Exception("Claude API server error. Please try again later.")
+                        else:
+                            raise Exception(f"Claude API error {response.status}: {error_text[:200]}")
+                    
+                    # Parse response
+                    logger.info("Parsing Claude API response...")
+                    result = await response.json()
+                    
+                    logger.info("=== CLAUDE AI RESPONSE ===")
+                    logger.info(f"Response type: {type(result)}")
+                    logger.info(f"Response keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
+                    
+                    # Log full response structure for debugging (without exposing sensitive data)
+                    if isinstance(result, dict):
+                        logger.info(f"Response has 'content' key: {'content' in result}")
+                        logger.info(f"Response has 'id' key: {'id' in result}")
+                        logger.info(f"Response has 'model' key: {'model' in result}")
+                        
+                        # Check content structure
+                        content = result.get('content', [])
+                        logger.info(f"Content type: {type(content)}")
+                        logger.info(f"Content length: {len(content) if isinstance(content, (list, str)) else 'N/A'}")
+                        
+                        print(f"[_call_claude] Response structure: keys={list(result.keys())}", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Content type: {type(content)}, length: {len(content) if isinstance(content, list) else 'N/A'}", file=sys.stderr, flush=True)
+                        
+                        # Extract text from response - handle different response formats
+                        if isinstance(content, list) and len(content) > 0:
+                            first_item = content[0]
+                            logger.info(f"First content item type: {type(first_item)}")
+                            logger.info(f"First content item keys: {list(first_item.keys()) if isinstance(first_item, dict) else 'Not a dict'}")
+                            
+                            # Handle both old and new API response formats
+                            if isinstance(first_item, dict):
+                                # Try 'text' key first (newer format)
+                                text = first_item.get('text', '')
+                                if text:
+                                    logger.info(f"Extracted text from 'text' key: {len(text)} characters")
+                                    print(f"[_call_claude] ✅ Extracted text: {len(text)} chars", file=sys.stderr, flush=True)
+                                    return text
+                                
+                                # Try 'content' key (alternative format)
+                                nested_content = first_item.get('content', '')
+                                if nested_content:
+                                    logger.info(f"Extracted text from nested 'content' key: {len(nested_content)} characters")
+                                    print(f"[_call_claude] ✅ Extracted text from nested content: {len(nested_content)} chars", file=sys.stderr, flush=True)
+                                    return nested_content
+                                
+                                # Log what keys we have
+                                logger.warning(f"No 'text' or 'content' key found in first item. Available keys: {list(first_item.keys())}")
+                                print(f"[_call_claude] ⚠️ No text found in first item. Keys: {list(first_item.keys())}", file=sys.stderr, flush=True)
+                            elif isinstance(first_item, str):
+                                # Content might be a string directly
+                                logger.info(f"Content is a string: {len(first_item)} characters")
+                                print(f"[_call_claude] ✅ Content is string: {len(first_item)} chars", file=sys.stderr, flush=True)
+                                return first_item
+                        elif isinstance(content, str):
+                            # Content might be a string directly (some API versions)
+                            logger.info(f"Content is a string (not array): {len(content)} characters")
+                            print(f"[_call_claude] ✅ Content is string: {len(content)} chars", file=sys.stderr, flush=True)
+                            return content
+                        else:
+                            logger.error(f"Unexpected content format: {type(content)}")
+                            logger.error(f"Content value: {str(content)[:500]}")
+                            print(f"[_call_claude] ❌ Unexpected content format: {type(content)}", file=sys.stderr, flush=True)
+                            print(f"[_call_claude] ❌ Content: {str(content)[:200]}", file=sys.stderr, flush=True)
+                        
+                        # If we get here, we couldn't extract text
+                        logger.error("Failed to extract text from Claude API response")
+                        logger.error(f"Full response structure: {json.dumps(result, indent=2)[:1000]}")
+                        print(f"[_call_claude] ❌ Failed to extract text from response", file=sys.stderr, flush=True)
+                        return None  # Return None so the endpoint can handle it properly
                     else:
-                        raise Exception(f"Claude API error {response.status}: {error_text[:200]}")
-                
-                result = await response.json()
-                
-                # Extract text from response
-                content = result.get('content', [])
-                if content and len(content) > 0:
-                    return content[0].get('text', '')
-                
-                return "No response from AI"
+                        logger.error(f"Response is not a dict: {type(result)}")
+                        print(f"[_call_claude] ❌ Response not a dict: {type(result)}", file=sys.stderr, flush=True)
+                        return None
+                        
+            except aiohttp.ClientError as e:
+                error_msg = f"HTTP client error: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                print(f"[_call_claude] ❌ ClientError: {e}", file=sys.stderr, flush=True)
+                raise Exception(error_msg)
+            except asyncio.TimeoutError as e:
+                error_msg = "Claude API request timed out after 30 seconds"
+                logger.error(error_msg)
+                print(f"[_call_claude] ❌ Timeout: {error_msg}", file=sys.stderr, flush=True)
+                raise Exception(error_msg)
+            except Exception as e:
+                error_msg = f"Unexpected error calling Claude API: {str(e)}"
+                logger.error(error_msg, exc_info=True)
+                print(f"[_call_claude] ❌ Exception: {e}", file=sys.stderr, flush=True)
+                raise
     
     def _create_market_analysis_prompt(self, market_data: Dict, trading_signals: Dict) -> str:
         """Create prompt for market condition analysis."""
