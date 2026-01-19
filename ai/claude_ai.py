@@ -240,11 +240,6 @@ class ClaudeAIAnalyst:
                         logger.info(f"[_call_claude] Full response JSON (first 2000 chars):\n{response_json[:2000]}...")
                         print(f"[_call_claude] Response keys: {list(response_data.keys())}", file=sys.stderr, flush=True)
                         print(f"[_call_claude] Response JSON (first 1000 chars): {response_json[:1000]}", file=sys.stderr, flush=True)
-                    else:
-                        logger.error(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}")
-                        logger.error(f"[_call_claude] Response value: {response_data}")
-                        print(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}", file=sys.stderr, flush=True)
-                        print(f"[_call_claude] Response value: {str(response_data)[:500]}", file=sys.stderr, flush=True)
                         
                         # Extract content - handle multiple possible structures
                         content = response_data.get('content')
@@ -360,11 +355,11 @@ class ClaudeAIAnalyst:
                             logger.error(f"[_call_claude] Full response for debugging:\n{json.dumps(response_data, indent=2, default=str)[:2000]}")
                             print(f"[_call_claude] ❌ Invalid text value: {repr(text)}", file=sys.stderr, flush=True)
                             return None
-                    
                     else:
-                        logger.error(f"[_call_claude] ❌ Response is not a dict: {type(response_data)}")
-                        logger.error(f"[_call_claude] Response value: {str(response_data)[:500]}")
-                        print(f"[_call_claude] ❌ Response not a dict: {type(response_data)}", file=sys.stderr, flush=True)
+                        logger.error(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}")
+                        logger.error(f"[_call_claude] Response value: {response_data}")
+                        print(f"[_call_claude] ❌ Response is not a dict! Type: {type(response_data)}", file=sys.stderr, flush=True)
+                        print(f"[_call_claude] Response value: {str(response_data)[:500]}", file=sys.stderr, flush=True)
                         return None
                         
             except aiohttp.ClientError as e:
