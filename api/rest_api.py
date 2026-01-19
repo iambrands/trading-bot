@@ -483,6 +483,12 @@ class TradingBotAPI:
         print(f"[DIAGNOSTIC] Timestamp: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
         print("=" * 60, file=sys.stderr, flush=True)
         
+        # Force console output (Railway should capture this)
+        print("=" * 60, file=sys.stderr, flush=True)
+        print("[DIAGNOSTIC] Claude AI test endpoint called", file=sys.stderr, flush=True)
+        print(f"[DIAGNOSTIC] Timestamp: {datetime.now().isoformat()}", file=sys.stderr, flush=True)
+        print("=" * 60, file=sys.stderr, flush=True)
+        
         logger.info("=" * 60)
         logger.info("CLAUDE AI DIAGNOSTIC TEST STARTED")
         logger.info(f"Timestamp: {datetime.now().isoformat()}")
