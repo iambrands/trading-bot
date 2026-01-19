@@ -2623,12 +2623,17 @@ async function getAIAnalysis() {
                     <h3 style="margin: 0 0 1rem 0; color: var(--danger-red);">AI Analysis Not Available</h3>
                     <p style="margin: 0 0 1rem 0; color: var(--gray-700);">${escapeHtml(errorMessage)}</p>
                     <div style="background: var(--gray-100); padding: 1rem; border-radius: 8px; text-align: left; margin-top: 1rem;">
-                        <p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--gray-900);">To enable AI Analysis:</p>
-                        <ol style="margin: 0; padding-left: 1.5rem; color: var(--gray-700);">
-                            <li>Get an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--primary-blue);">OpenAI Platform</a></li>
-                            <li>Add <code style="background: var(--gray-200); padding: 0.125rem 0.25rem; border-radius: 4px;">OPENAI_API_KEY=your_key_here</code> to your Railway environment variables</li>
-                            <li>Redeploy the application</li>
-                        </ol>
+                        ${error.diagnostic && error.diagnostic.error_type === 'quota_exceeded' ? 
+                            `<p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--gray-900);">⚠️ Quota Exceeded:</p>
+                            <p style="margin: 0 0 1rem 0; color: var(--gray-700);">Your OpenAI account has exceeded its quota. You need to add credits to your account.</p>
+                            <p style="margin: 0;"><a href="https://platform.openai.com/account/billing" target="_blank" style="color: var(--primary-blue); text-decoration: underline;">👉 Add Credits to OpenAI Account</a></p>` :
+                            `<p style="margin: 0 0 0.5rem 0; font-weight: 600; color: var(--gray-900);">To enable AI Analysis:</p>
+                            <ol style="margin: 0; padding-left: 1.5rem; color: var(--gray-700);">
+                                <li>Get an OpenAI API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: var(--primary-blue);">OpenAI Platform</a></li>
+                                <li>Add <code style="background: var(--gray-200); padding: 0.125rem 0.25rem; border-radius: 4px;">OPENAI_API_KEY=your_key_here</code> to your Railway environment variables</li>
+                                <li>Redeploy the application</li>
+                            </ol>`
+                        }
                     </div>
                     <p style="margin: 1rem 0 0 0; font-size: 0.875rem; color: var(--gray-500);">
                         💡 AI Analysis is optional - you can still use all other TradePilot features without it.

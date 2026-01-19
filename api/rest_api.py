@@ -3280,14 +3280,25 @@ class TradingBotAPI:
                             'note': 'The API key was rejected by OpenAI. Check that the key is correct and hasn\'t been revoked.'
                         }
                     }, status=503)
-                elif 'rate limit' in error_msg or '429' in error_msg:
-                    return web.json_response({
-                        'error': 'AI analysis temporarily unavailable due to rate limiting. Please try again in a few minutes.',
-                        'diagnostic': {
-                            'error_type': 'rate_limit',
-                            'note': 'Too many API requests. Wait a few minutes before retrying.'
-                        }
-                    }, status=503)
+                elif 'rate limit' in error_msg or '429' in error_msg or 'quota' in error_msg or 'billing' in error_msg:
+                    # Check if it's quota/billing issue or just rate limit
+                    if 'quota' in error_msg or 'billing' in error_msg:
+                        return web.json_response({
+                            'error': 'OpenAI API quota exceeded. Please check your OpenAI billing and add credits to your account.',
+                            'diagnostic': {
+                                'error_type': 'quota_exceeded',
+                                'note': 'Your OpenAI account has exceeded its quota. Visit https://platform.openai.com/account/billing to add credits.',
+                                'fix_url': 'https://platform.openai.com/account/billing'
+                            }
+                        }, status=503)
+                    else:
+                        return web.json_response({
+                            'error': 'AI analysis temporarily unavailable due to rate limiting. Please try again in a few minutes.',
+                            'diagnostic': {
+                                'error_type': 'rate_limit',
+                                'note': 'Too many API requests. Wait a few minutes before retrying.'
+                            }
+                        }, status=503)
                 else:
                     return web.json_response({
                         'error': f'AI analysis error: {str(api_error)}',

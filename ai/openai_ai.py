@@ -199,16 +199,47 @@ class OpenAIAnalyst:
                     if status != 200:
                         error_text = await response.text()
                         logger.error(f"[_call_openai] ❌ API error {status}: {error_text}")
-                        print(f"[_call_openai] ❌ Error {status}: {error_text[:200]}", file=sys.stderr, flush=True)
+                        print(f"[_call_openai] ❌ Error {status}: {error_text[:500]}", file=sys.stderr, flush=True)
+                        
+                        # Parse error response for more details
+                        error_details = None
+                        error_message = None
+                        try:
+                            error_json = json.loads(error_text) if error_text else None
+                            if error_json and 'error' in error_json:
+                                error_details = error_json['error']
+                                if isinstance(error_details, dict) and 'message' in error_details:
+                                    error_message = error_details['message']
+                                elif isinstance(error_details, str):
+                                    error_message = error_details
+                        except:
+                            pass
+                        
                         # Provide more detailed error messages
                         if status == 401:
-                            raise Exception("Invalid API key. Please check your OPENAI_API_KEY.")
+                            raise Exception("Invalid API key. Please check your OPENAI_API_KEY in Railway environment variables.")
                         elif status == 429:
-                            raise Exception("Rate limit exceeded. Please try again later.")
+                            # Check if it's quota exceeded or rate limit
+                            error_lower = error_text.lower()
+                            if error_message:
+                                error_msg_lower = error_message.lower()
+                            else:
+                                error_msg_lower = error_lower
+                            
+                            if 'quota' in error_msg_lower or 'billing' in error_msg_lower or 'exceeded your current quota' in error_msg_lower:
+                                raise Exception("OpenAI API quota exceeded. Please check your OpenAI billing and add credits to your account. Visit: https://platform.openai.com/account/billing")
+                            else:
+                                raise Exception("OpenAI API rate limit exceeded. Please try again in a few minutes.")
                         elif status == 500:
                             raise Exception("OpenAI API server error. Please try again later.")
                         else:
-                            raise Exception(f"OpenAI API error {status}: {error_text[:200]}")
+                            # Include error details if available
+                            if error_message:
+                                raise Exception(f"OpenAI API error {status}: {error_message}")
+                            elif error_details and isinstance(error_details, dict) and 'message' in error_details:
+                                raise Exception(f"OpenAI API error {status}: {error_details['message']}")
+                            else:
+                                raise Exception(f"OpenAI API error {status}: {error_text[:200]}")
                     
                     # Parse response
                     logger.info("[_call_openai] Parsing OpenAI API response...")
