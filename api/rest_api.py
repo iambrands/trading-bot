@@ -347,6 +347,7 @@ class TradingBotAPI:
         # Strategy definitions (Designer)
         self.app.router.add_get('/api/strategy-definitions', self.list_strategy_definitions)
         self.app.router.add_post('/api/strategy-definitions', self.create_strategy_definition)
+        self.app.router.add_post('/api/strategy-definitions/seed', self.seed_strategy_definitions)
         self.app.router.add_get('/api/strategy-definitions/{id}', self.get_strategy_definition)
         self.app.router.add_put('/api/strategy-definitions/{id}', self.update_strategy_definition)
         self.app.router.add_delete('/api/strategy-definitions/{id}', self.delete_strategy_definition)
@@ -2832,6 +2833,61 @@ class TradingBotAPI:
             return web.json_response({'id': def_id, 'name': name})
         except Exception as e:
             logger.error(f"Error creating strategy definition: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def seed_strategy_definitions(self, request):
+        """Create 3 demo strategy definitions for the current user."""
+        try:
+            user_id = request.get('user_id')
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            demos = [
+                {
+                    "name": "EMA + RSI (conservative)",
+                    "definition": {
+                        "version": 1,
+                        "indicators": [
+                            {"id": "ema", "params": {"period": 50}},
+                            {"id": "rsi", "params": {"period": 14}},
+                        ],
+                        "long_entry": {"required": ["price_above_ema", "rsi_in_range"], "optional": [], "min_optional": 0},
+                        "short_entry": {"required": ["price_below_ema", "rsi_in_range"], "optional": [], "min_optional": 0},
+                        "exit": {"take_profit_pct": 1.5, "stop_loss_pct": 0.5},
+                    },
+                },
+                {
+                    "name": "EMA + RSI + Volume",
+                    "definition": {
+                        "version": 1,
+                        "indicators": [
+                            {"id": "ema", "params": {"period": 50}},
+                            {"id": "rsi", "params": {"period": 14}},
+                            {"id": "volume_ratio", "params": {"period": 20}},
+                        ],
+                        "long_entry": {"required": ["price_above_ema", "rsi_in_range"], "optional": ["volume_above_avg"], "min_optional": 1},
+                        "short_entry": {"required": ["price_below_ema", "rsi_in_range"], "optional": ["volume_above_avg"], "min_optional": 1},
+                        "exit": {"take_profit_pct": 1.5, "stop_loss_pct": 0.5},
+                    },
+                },
+                {
+                    "name": "RSI only (aggressive)",
+                    "definition": {
+                        "version": 1,
+                        "indicators": [{"id": "rsi", "params": {"period": 14}}],
+                        "long_entry": {"required": ["rsi_in_range"], "optional": [], "min_optional": 0},
+                        "short_entry": {"required": ["rsi_in_range"], "optional": [], "min_optional": 0},
+                        "exit": {"take_profit_pct": 2.0, "stop_loss_pct": 0.75},
+                    },
+                },
+            ]
+            created = []
+            for d in demos:
+                def_id = await self.db_manager.save_strategy_definition(user_id, d["name"], d["definition"])
+                if def_id:
+                    created.append({"id": def_id, "name": d["name"]})
+            return web.json_response({"created": created, "count": len(created)})
+        except Exception as e:
+            logger.error(f"Error seeding strategy definitions: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
 
     async def get_strategy_definition(self, request):

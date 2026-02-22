@@ -2151,6 +2151,24 @@ async function updateStrategyDesignerPage() {
     }
 }
 
+async function designerSeed() {
+    try {
+        const res = await fetch(`${API_BASE}/strategy-definitions/seed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        const count = data?.count ?? 0;
+        showToast(count ? `Created ${count} demo strategies` : 'No strategies created', count ? 'success' : 'info');
+        await updateStrategyDesignerPage();
+        if (document.getElementById('backtestCustomDefinition')) populateBacktestCustomDefinitions();
+    } catch (e) {
+        showToast('Failed to create demos: ' + (e.message || 'error'), 'error');
+    }
+}
+
 function designerNew() {
     designerEditingId = null;
     document.getElementById('designerName').value = '';

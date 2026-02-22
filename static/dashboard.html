@@ -483,7 +483,8 @@
             <!-- Algorithm Intelligence: Score & Compare -->
             <div class="card">
                 <h2 style="margin: 0 0 1rem 0;">Algorithm Intelligence</h2>
-                <p style="margin: 0 0 1rem 0; color: var(--gray-600); font-size: 0.9375rem;">Score and compare backtests. Select runs below, set criteria, then click Score & Compare.</p>
+                <p style="margin: 0 0 0.5rem 0; color: var(--gray-600); font-size: 0.9375rem;">Score and compare backtests. Select runs below, set criteria, then click Score & Compare.</p>
+                <p style="margin: 0 0 1rem 0; color: var(--gray-500); font-size: 0.8125rem;"><strong>Score (0–100):</strong> Combines ROI (40%), win rate (30%), profit factor (20%), and lower drawdown (10%). Higher is better; use it to rank which runs performed best overall.</p>
                 <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
                     <div><label for="compareMinRoi" style="font-size: 0.8125rem;">Min ROI %</label><input type="number" id="compareMinRoi" class="form-input" placeholder="0" step="0.1" style="width: 80px; padding: 0.4rem;"></div>
                     <div><label for="compareMinWinRate" style="font-size: 0.8125rem;">Min Win Rate %</label><input type="number" id="compareMinWinRate" class="form-input" placeholder="0" min="0" max="100" style="width: 80px; padding: 0.4rem;"></div>
@@ -539,9 +540,12 @@
             <div class="card">
                 <h2>Strategy Designer</h2>
                 <p style="color: var(--gray-600); margin-bottom: 1rem;">Build strategies from indicators and required/optional entry rules. Save and run in Backtest with Strategy = Custom.</p>
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
                     <h3 style="margin: 0;">Saved strategies</h3>
-                    <button type="button" class="btn btn-primary" id="designerNewBtn" onclick="designerNew()">New</button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" id="designerSeedBtn" onclick="designerSeed()">Create 3 demo strategies</button>
+                        <button type="button" class="btn btn-primary" id="designerNewBtn" onclick="designerNew()">New</button>
+                    </div>
                 </div>
                 <div id="designerList" class="table-wrapper" style="max-height: 300px; overflow-y: auto;"></div>
                 <div id="designerEditor" style="display: none; margin-top: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
