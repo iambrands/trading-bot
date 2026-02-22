@@ -1927,13 +1927,14 @@ function renderBacktestList() {
     
     // Build table
     let html = '<div class="table-wrapper" style="max-height: 600px; overflow-y: auto;"><table><thead><tr>';
-    html += '<th>Name</th><th>Pair</th><th>Period</th><th>Gross</th><th>Fees</th><th>Net</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
+    html += '<th>Name</th><th>Pair</th><th>Period</th><th>Gross</th><th>Fees</th><th>Net</th><th>Fee model</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     
     paginatedData.forEach(bt => {
         const netPnl = parseFloat(bt.total_pnl || 0);
         const totalFees = parseFloat(bt.total_fees ?? bt.results?.total_fees ?? 0);
         const grossPnl = parseFloat(bt.gross_pnl ?? (netPnl + totalFees));
+        const feeModel = bt.fee_model || bt.results?.fee_model || (bt.results?.exchange === 'binance' ? 'Binance (0.2% rt)' : 'Coinbase (1.2% rt)');
         const roi = parseFloat(bt.roi_pct || 0);
         const winRate = parseFloat(bt.win_rate || 0);
         const trades = parseInt(bt.total_trades || 0);
@@ -1950,6 +1951,7 @@ function renderBacktestList() {
         html += `<td class="${grossPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(grossPnl)}</td>`;
         html += `<td style="color: var(--gray-600);">${formatCurrency(totalFees)}</td>`;
         html += `<td class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(netPnl)}</td>`;
+        html += `<td style="font-size: 0.8125rem; color: var(--gray-600);" title="Fees use this exchange rate">${escapeHtml(feeModel)}</td>`;
         html += `<td class="${roi >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatPercent(roi)}</td>`;
         html += `<td>${winRate.toFixed(2)}%</td>`;
         html += `<td>${trades}</td>`;
@@ -2250,8 +2252,10 @@ function displayBacktestResults(results) {
     html += `<div class="metric"><span class="metric-label">Total Trades</span><span class="metric-value">${results.total_trades || 0}</span></div>`;
     html += '</div>';
     
+    const feeModel = results.fee_model || results.results?.fee_model || (results.results?.exchange === 'binance' ? 'Binance (0.2% rt)' : 'Coinbase (1.2% rt)');
     html += '<div class="pnl-breakdown" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-100); border-radius: 8px; border: 1px solid var(--gray-200);">';
     html += '<h4 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; color: var(--gray-700);">P&L breakdown (all fees)</h4>';
+    html += `<p style="margin: 0 0 0.5rem 0; font-size: 0.8125rem; color: var(--gray-500);">Fee model: ${escapeHtml(feeModel)}</p>`;
     html += '<div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.9375rem;">';
     html += `<div><span style="color: var(--gray-600);">Gross P&L (before fees):</span> <span class="${grossPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(grossPnl)}</span></div>`;
     html += `<div><span style="color: var(--gray-600);">Total fees:</span> <span style="color: var(--gray-700); font-weight: 600;">−${formatCurrency(totalFees)}</span></div>`;

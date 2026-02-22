@@ -3324,13 +3324,15 @@ class TradingBotAPI:
                         elif isinstance(v, (int, float)):
                             trade[k] = sanitize_value(v)
             
-            # Expose fee breakdown at top level for list and detail views
+            # Expose fee breakdown and fee model at top level for list and detail views
             r = formatted['results']
             total_fees = r.get('total_fees')
             if total_fees is None and 'trades' in r:
                 total_fees = sum(float(t.get('fees', 0) or 0) for t in r['trades'])
             formatted['total_fees'] = float(total_fees or 0)
             formatted['gross_pnl'] = float(formatted.get('total_pnl') or 0) + formatted['total_fees']
+            formatted['fee_model'] = r.get('fee_model') or ('Binance (0.2% rt)' if r.get('exchange') == 'binance' else 'Coinbase (1.2% rt)')
+            formatted['exchange'] = r.get('exchange', 'coinbase')
         
         return formatted
     

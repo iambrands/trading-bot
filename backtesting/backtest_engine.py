@@ -308,11 +308,17 @@ class BacktestEngine:
         # Get performance metrics from tracker
         perf_summary = self.performance_tracker.get_performance_summary(final_balance, self.initial_balance)
         
+        # Record which exchange/fee model was used (for display)
+        exchange = getattr(self.config, 'EXCHANGE', 'coinbase')
+        fee_model = 'Binance (0.2% rt)' if exchange == 'binance' else 'Coinbase (1.2% rt)'
+        
         return {
             'initial_balance': self.initial_balance,
             'final_balance': final_balance,
             'total_pnl': total_pnl,
             'total_fees': total_fees,
+            'exchange': exchange,
+            'fee_model': fee_model,
             'roi_pct': roi,
             'total_trades': len(self.trades),
             'winning_trades': len(winning_trades),
