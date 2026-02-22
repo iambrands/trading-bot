@@ -216,8 +216,10 @@ class BacktestEngine:
             else:  # SHORT
                 pnl = (entry_price - exit_price) * size
             
-            # Apply trading fees (0.6% per trade, so 1.2% total for round trip)
-            fee_rate = 0.006
+            # Apply trading fees - use exchange-aware rate (Binance 0.2% rt, Coinbase 1.2% rt)
+            # Strategy TP targets (0.5-0.75%) are designed for Binance; Coinbase fees exceed TP = guaranteed loss
+            exchange = getattr(self.config, 'EXCHANGE', 'coinbase')
+            fee_rate = 0.001 if exchange == 'binance' else getattr(self.config, 'PAPER_FEE_RATE', 0.006)
             fees = (entry_price * size * fee_rate) + (exit_price * size * fee_rate)
             pnl_after_fees = pnl - fees
             

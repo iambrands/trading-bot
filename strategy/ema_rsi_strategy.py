@@ -413,7 +413,7 @@ class EMARSIStrategy(BaseStrategy):
     
     def should_exit(self, position: Dict, current_price: float) -> Tuple[bool, Optional[str]]:
         """Check if position should be exited based on stop loss, take profit, or time."""
-        signal_type = position.get('signal_type', 'LONG')
+        signal_type = position.get('side', position.get('signal_type', 'LONG'))
         entry_price = position.get('entry_price', 0)
         take_profit = position.get('take_profit', 0)
         stop_loss = position.get('stop_loss', 0)

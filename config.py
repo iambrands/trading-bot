@@ -70,15 +70,13 @@ class Config:
     RSI_SHORT_MAX = 55  # Widen from 50 - RSI often 45-55 in pullbacks
     MIN_CONFIDENCE_SCORE = 60  # Lower from 65 - balance quality vs. frequency
     
-    # Exit Parameters - FIXED FOR FEES
-    # CRITICAL: Profit targets must exceed exchange fees to be profitable
-    # Binance fees: 0.2% round trip (0.1% x 2)
-    # Coinbase fees: 1.2% round trip (0.6% x 2)
-    # Using 0.50% minimum ensures profitability on Binance (0.50% - 0.20% = 0.30% net profit)
-    TAKE_PROFIT_MIN = 0.50  # 0.50% minimum take profit (FIXED - was 0.15% which was below fees!)
-    TAKE_PROFIT_MAX = 0.75  # 0.75% maximum take profit (FIXED - was 0.40%)
-    STOP_LOSS_MIN = 0.25  # 0.25% minimum stop loss
-    STOP_LOSS_MAX = 0.50  # 0.50% maximum stop loss
+    # Exit Parameters - OPTIMIZED FOR COINBASE (works for Binance too)
+    # Coinbase fees: 1.2% round trip - TP must exceed this for net profit
+    # Binance fees: 0.2% round trip - same TP yields even better net
+    TAKE_PROFIT_MIN = 1.50  # 1.5% min (Coinbase: ~0.3% net | Binance: ~1.3% net)
+    TAKE_PROFIT_MAX = 2.00  # 2.0% max (Coinbase: ~0.8% net | Binance: ~1.8% net)
+    STOP_LOSS_MIN = 0.50   # 0.5% min
+    STOP_LOSS_MAX = 0.75   # 0.75% max
     
     # Fee Configuration
     VALIDATE_FEES_BEFORE_TRADE = True  # Validate profitability after fees

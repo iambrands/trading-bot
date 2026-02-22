@@ -1927,11 +1927,13 @@ function renderBacktestList() {
     
     // Build table
     let html = '<div class="table-wrapper" style="max-height: 600px; overflow-y: auto;"><table><thead><tr>';
-    html += '<th>Name</th><th>Pair</th><th>Period</th><th>P&L</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
+    html += '<th>Name</th><th>Pair</th><th>Period</th><th>P&L (breakdown)</th><th>Fees</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     
     paginatedData.forEach(bt => {
-        const pnl = parseFloat(bt.total_pnl || 0);
+        const netPnl = parseFloat(bt.total_pnl || 0);
+        const totalFees = parseFloat(bt.total_fees ?? bt.results?.total_fees ?? 0);
+        const grossPnl = parseFloat(bt.gross_pnl ?? (netPnl + totalFees));
         const roi = parseFloat(bt.roi_pct || 0);
         const winRate = parseFloat(bt.win_rate || 0);
         const trades = parseInt(bt.total_trades || 0);
@@ -1945,7 +1947,12 @@ function renderBacktestList() {
         html += `<td><strong>${escapeHtml(bt.name || 'Unnamed')}</strong></td>`;
         html += `<td><span class="badge" style="padding: 0.25rem 0.5rem; background: var(--blue-100); color: var(--blue-700); border-radius: 4px; font-size: 0.875rem;">${escapeHtml(bt.pair || 'N/A')}</span></td>`;
         html += `<td>${days} days</td>`;
-        html += `<td class="${pnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(pnl)}</td>`;
+        html += `<td style="font-size: 0.8125rem; white-space: nowrap;">`;
+        html += `<div class="${grossPnl >= 0 ? 'positive' : 'negative'}">Gross: ${formatCurrency(grossPnl)}</div>`;
+        html += `<div style="color: var(--gray-600);">Fees: ${formatCurrency(totalFees)}</div>`;
+        html += `<div class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">Net: ${formatCurrency(netPnl)}</div>`;
+        html += `</td>`;
+        html += `<td style="color: var(--gray-600);">${formatCurrency(totalFees)}</td>`;
         html += `<td class="${roi >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatPercent(roi)}</td>`;
         html += `<td>${winRate.toFixed(2)}%</td>`;
         html += `<td>${trades}</td>`;
@@ -2232,17 +2239,27 @@ function displayBacktestResults(results) {
     
     if (!card || !content) return;
     
-    const pnl = parseFloat(results.total_pnl || 0);
+    const netPnl = parseFloat(results.total_pnl || 0);
+    const totalFees = parseFloat(results.total_fees ?? results.results?.total_fees ?? 0);
+    const grossPnl = results.gross_pnl != null ? parseFloat(results.gross_pnl) : (netPnl + totalFees);
     const roi = parseFloat(results.roi_pct || 0);
     const winRate = parseFloat(results.win_rate || 0);
     
     let html = '<div class="backtest-results">';
     html += '<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;">';
-    html += `<div class="metric"><span class="metric-label">Total P&L</span><span class="metric-value ${pnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(pnl)}</span></div>`;
+    html += `<div class="metric"><span class="metric-label">Total P&L (Net)</span><span class="metric-value ${netPnl >= 0 ? 'positive' : 'negative'}">${formatCurrency(netPnl)}</span></div>`;
     html += `<div class="metric"><span class="metric-label">ROI</span><span class="metric-value ${roi >= 0 ? 'positive' : 'negative'}">${formatPercent(roi)}</span></div>`;
     html += `<div class="metric"><span class="metric-label">Win Rate</span><span class="metric-value">${winRate.toFixed(2)}%</span></div>`;
     html += `<div class="metric"><span class="metric-label">Total Trades</span><span class="metric-value">${results.total_trades || 0}</span></div>`;
     html += '</div>';
+    
+    html += '<div class="pnl-breakdown" style="margin-bottom: 1.5rem; padding: 1rem; background: var(--gray-100); border-radius: 8px; border: 1px solid var(--gray-200);">';
+    html += '<h4 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; color: var(--gray-700);">P&L breakdown (all fees)</h4>';
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 1.5rem; font-size: 0.9375rem;">';
+    html += `<div><span style="color: var(--gray-600);">Gross P&L (before fees):</span> <span class="${grossPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(grossPnl)}</span></div>`;
+    html += `<div><span style="color: var(--gray-600);">Total fees:</span> <span style="color: var(--gray-700); font-weight: 600;">−${formatCurrency(totalFees)}</span></div>`;
+    html += `<div><span style="color: var(--gray-600);">Net P&L (after fees):</span> <span class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(netPnl)}</span></div>`;
+    html += '</div></div>';
     
     html += '<div class="grid" style="grid-template-columns: repeat(4, 1fr); gap: 1rem;">';
     html += `<div class="metric"><span class="metric-label">Profit Factor</span><span class="metric-value">${(parseFloat(results.profit_factor || 0)).toFixed(2)}</span></div>`;

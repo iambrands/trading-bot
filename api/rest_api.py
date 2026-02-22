@@ -727,11 +727,14 @@ class TradingBotAPI:
         
         try:
             positions = []
-            market_data = await self.bot.exchange.get_market_data(self.bot.config.TRADING_PAIRS)
+            pairs_to_fetch = list(set(self.bot.config.TRADING_PAIRS) | {p['pair'] for p in self.bot.positions})
+            market_data = await self.bot.exchange.get_market_data(pairs_to_fetch)
             
             for position in self.bot.positions:
                 pair = position['pair']
                 current_price = market_data.get(pair, {}).get('price', position['entry_price'])
+                if pair not in market_data or not market_data.get(pair, {}).get('price'):
+                    logger.warning(f"Position {pair}: No market price, using entry_price (P&L will show $0)")
                 
                 # Calculate current P&L
                 if position['side'] == 'LONG':
@@ -3320,6 +3323,14 @@ class TradingBotAPI:
                             trade[k] = float(v)
                         elif isinstance(v, (int, float)):
                             trade[k] = sanitize_value(v)
+            
+            # Expose fee breakdown at top level for list and detail views
+            r = formatted['results']
+            total_fees = r.get('total_fees')
+            if total_fees is None and 'trades' in r:
+                total_fees = sum(float(t.get('fees', 0) or 0) for t in r['trades'])
+            formatted['total_fees'] = float(total_fees or 0)
+            formatted['gross_pnl'] = float(formatted.get('total_pnl') or 0) + formatted['total_fees']
         
         return formatted
     
