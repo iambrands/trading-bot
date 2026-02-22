@@ -289,3 +289,142 @@ None identified. All routes are registered and reachable.
 | database/db_manager.py | get_trades_with_date_range: add limit param, cap 1000 |
 | database/db_manager.py | get_advanced_orders: add LIMIT 500 |
 | database/db_manager.py | Add idx_advanced_orders_created_at index |
+
+---
+
+## Phase 3: API Audit
+
+### 3.1 Input Validation & Error Handling — COMPLETE
+
+| Issue | Fix |
+|-------|-----|
+| int/float coercion on query/body without bounds | Added `_safe_int()` and `_safe_float()` helpers; applied to all user inputs |
+| Backtest days/initial_balance unbounded | days: 1–90, initial_balance: 100–10M |
+| List endpoints limit unbounded | limit clamped (1–500 or 1–365 per endpoint) |
+| Path params (trade_id, backtest_id) | Invalid IDs return 400 with clear error |
+| Config settings coercion | All config values use _safe_* with sane bounds |
+| Grid/DCA creation params | lower_price, upper_price, grid_count, order_size validated |
+| Tax report year | year clamped 2000–2100 |
+| Request body size | client_max_size=1MB on web.Application |
+
+### 3.2 API Documentation
+
+- OpenAPI 3.0 spec added: `docs/openapi.yaml`
+- Documents key endpoints: auth, status, trades, backtest, settings
+- Can be imported into Swagger UI / Postman for interactive docs
+
+### Fix Log — Phase 3
+
+| File | Change |
+|------|--------|
+| api/rest_api.py | _safe_int, _safe_float helpers; applied to 25+ params |
+| api/rest_api.py | client_max_size=1MB |
+| docs/openapi.yaml | Created (OpenAPI 3.0 spec) |
+
+---
+
+## Phase 4: Frontend Audit
+
+### 4.1 XSS Mitigation — COMPLETE
+
+| Issue | Fix |
+|-------|-----|
+| error.message in innerHTML | Wrapped in escapeHtml() for all error displays |
+| showToast(message) | Message escaped before innerHTML |
+| Backtest pair/days in loading UI | escapeHtml() applied |
+| Backtest run error display | error.message escaped before replace newlines with &lt;br&gt; |
+
+### 4.2 Existing Good Practices
+
+- escapeHtml() used for positions, trades, backtests, journal, glossary, portfolio
+- textContent used for non-HTML content (status, labels)
+- Auth token in localStorage; verify before redirect (avoids expired-token loop)
+
+### 4.3 Follow-up Recommendations
+
+| Item | Risk | Action |
+|------|------|--------|
+| journal.js removeTag('${escapeHtml(tag)}') in onclick | Low – tag escaped for HTML but could break JS string if tag contains `\` | Prefer data-tag + event delegation |
+| formatAIAnalysis() – AI content | Low – AI output could theoretically contain HTML | Sanitize or escape AI analysis HTML |
+| CSP header | None set | Consider Content-Security-Policy for defense in depth |
+
+### Fix Log — Phase 4
+
+| File | Change |
+|------|--------|
+| static/dashboard.js | escapeHtml on all error.message, toast message, pair/days |
+
+---
+
+## Phase 5: E2E Tests
+
+### 5.1 API E2E Suite — COMPLETE
+
+| Test | Description |
+|------|-------------|
+| test_landing_page | /landing returns 200 |
+| test_signin_page | /signin returns 200 |
+| test_signup_page | /signup returns 200 |
+| test_auth_verify_no_token_returns_401 | /api/auth/verify without token → 401 |
+| test_auth_verify_invalid_token_returns_401 | Invalid token → 401 |
+| test_auth_signin_missing_fields_returns_400 | Signin empty body → 400 or 500 |
+| test_auth_signup_missing_fields_returns_400_or_500 | Signup missing fields → 400 or 500 |
+| test_api_status_public_returns_200 | /api/status (public health) → 200 |
+| test_api_settings_requires_auth | /api/settings without token → 401 |
+| test_api_backtest_list_requires_auth | /api/backtest/list without token → 401 |
+| test_test_trading_health_returns_200 | /api/test/trading-health → 200 |
+| test_auth_signup_signin_verify_flow | Full signup → signin → verify (requires DB) |
+| test_auth_signin_invalid_credentials_returns_401 | Wrong password → 401 (requires DB) |
+
+### 5.2 Execution
+
+- **Run all**: `pytest tests/`
+- **E2E only**: `pytest tests/e2e/`
+- **Auth flow** (signup/signin): Requires `DATABASE_URL`; skipped if unset
+
+### Fix Log — Phase 5
+
+| File | Change |
+|------|--------|
+| tests/e2e/test_api_e2e.py | Created – 13 E2E tests using aiohttp TestClient/TestServer |
+| pytest.ini | Added asyncio_mode = auto |
+| requirements.txt | No new deps (aiohttp has TestClient built-in) |
+
+---
+
+## Phase 7: Load Testing
+
+### 7.1 Locust Load Tests — COMPLETE
+
+**File:** `locustfile.py`
+
+| Endpoint | Weight | Notes |
+|----------|--------|-------|
+| /api/test/trading-health | 3 | Public health check |
+| /api/status | 3 | Public status |
+| /landing | 2 | Landing page |
+| /signin | 1 | Sign-in page |
+| /api/settings | 1 | Protected (401 OK when unauthenticated) |
+
+### 7.2 Execution
+
+```bash
+# Interactive (opens web UI at http://localhost:8089)
+locust -f locustfile.py --host=https://web-production-f8308.up.railway.app
+
+# Headless
+locust -f locustfile.py --host=URL --users 20 --spawn-rate 5 --run-time 60s --headless
+```
+
+### 7.3 Sample Results (5 users, 15s, Railway)
+
+- ~30 requests, 0 failures (401 on /api/settings treated as success)
+- Avg latency: ~400–500 ms
+- Throughput: ~2 req/s
+
+### Fix Log — Phase 7
+
+| File | Change |
+|------|--------|
+| locustfile.py | Created – Locust load tests |
+| requirements.txt | Added locust>=2.20.0 |

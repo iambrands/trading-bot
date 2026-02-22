@@ -27,10 +27,11 @@ function showToast(message, type = 'info') {
         info: ''
     };
     
+    const safeMsg = typeof message === 'string' ? escapeHtml(message) : String(message);
     toast.innerHTML = `
         <span class="toast-icon">${icons[type] || icons.info}</span>
         <div class="toast-content">
-            <div class="toast-message">${message}</div>
+            <div class="toast-message">${safeMsg}</div>
         </div>
     `;
     
@@ -1015,7 +1016,7 @@ async function updateMarketConditions() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error updating market conditions:', error);
-        container.innerHTML = `<div class="error">Error loading market conditions: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error loading market conditions: ${escapeHtml(String(error.message))}</div>`;
     }
 }
 
@@ -1089,7 +1090,7 @@ async function updatePositionsPage() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error updating positions page:', error);
-        container.innerHTML = `<div class="error">Error loading positions: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error loading positions: ${escapeHtml(String(error.message))}</div>`;
     }
 }
 
@@ -1159,7 +1160,7 @@ async function updateTradesPage() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error updating trades:', error);
-        container.innerHTML = `<div class="error">Error loading trades: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error loading trades: ${escapeHtml(String(error.message))}</div>`;
     }
 }
 
@@ -1224,7 +1225,7 @@ async function updatePerformancePage() {
         }
     } catch (error) {
         console.error('Error updating performance:', error);
-        container.innerHTML = `<div class="error">Error loading performance: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error loading performance: ${escapeHtml(String(error.message))}</div>`;
     }
 }
 
@@ -1513,7 +1514,7 @@ async function updateLogsPage() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error updating logs:', error);
-        container.innerHTML = `<div class="error">Error loading logs: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error loading logs: ${escapeHtml(String(error.message))}</div>`;
     }
 }
 
@@ -1669,7 +1670,7 @@ async function updateBacktestPage() {
                 const minutes = Math.floor(elapsed / 60);
                 const seconds = elapsed % 60;
                 
-                content.innerHTML = '<div class="loading" style="padding: 2rem; text-align: center;"><div style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600;">Backtest May Still Be Running</div><div style="margin-bottom: 0.5rem;">Pair: ' + info.pair + '</div><div style="margin-bottom: 0.5rem;">Period: ' + info.days + ' days</div><div style="margin-bottom: 0.5rem; color: var(--gray-500);">Started: ' + started.toLocaleTimeString() + '</div><div style="margin-bottom: 0.5rem; color: var(--gray-500);">Elapsed: ' + minutes + 'm ' + seconds + 's</div><small style="color: var(--gray-500);">Checking for completed results... The backtest list below may show new results.</small></div>';
+                content.innerHTML = '<div class="loading" style="padding: 2rem; text-align: center;"><div style="font-size: 1.1rem; margin-bottom: 0.5rem; font-weight: 600;">Backtest May Still Be Running</div><div style="margin-bottom: 0.5rem;">Pair: ' + escapeHtml(String(info.pair)) + '</div><div style="margin-bottom: 0.5rem;">Period: ' + escapeHtml(String(info.days)) + ' days</div><div style="margin-bottom: 0.5rem; color: var(--gray-500);">Started: ' + started.toLocaleTimeString() + '</div><div style="margin-bottom: 0.5rem; color: var(--gray-500);">Elapsed: ' + minutes + 'm ' + seconds + 's</div><small style="color: var(--gray-500);">Checking for completed results... The backtest list below may show new results.</small></div>';
             }
             
             // Check if backtest completed by looking at the list
@@ -1773,7 +1774,7 @@ async function loadBacktestList() {
             console.warn('Could not load cached backtest list:', e);
         }
         
-        container.innerHTML = `<div class="error">Error loading backtests: ${error.message}. <button onclick="loadBacktestList()" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Retry</button></div>`;
+        container.innerHTML = `<div class="error">Error loading backtests: ${escapeHtml(String(error.message))}. <button onclick="loadBacktestList()" class="btn btn-primary btn-sm" style="margin-top: 0.5rem;">Retry</button></div>`;
         document.getElementById('backtestPagination')?.setAttribute('style', 'display: none !important');
     }
 }
@@ -1947,7 +1948,7 @@ async function runBacktestInternal(pair, days, balance, name) {
     const content = document.getElementById('backtestResultsContent');
     if (resultsCard && content) {
         resultsCard.style.display = 'block';
-        content.innerHTML = '<div class="loading" style="padding: 2rem; text-align: center;"><div style="font-size: 1.1rem; margin-bottom: 0.5rem;">Running backtest for ' + pair + ' over ' + days + ' days...</div><small>This may take a few moments. You can navigate away and return later.</small></div>';
+        content.innerHTML = '<div class="loading" style="padding: 2rem; text-align: center;"><div style="font-size: 1.1rem; margin-bottom: 0.5rem;">Running backtest for ' + escapeHtml(String(pair)) + ' over ' + escapeHtml(String(days)) + ' days...</div><small>This may take a few moments. You can navigate away and return later.</small></div>';
         resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     
@@ -2076,8 +2077,8 @@ async function runBacktestInternal(pair, days, balance, name) {
             
             // Only show error if we're still on the backtest page
             if (currentPage === 'backtest') {
-                // Format error message (replace \n with <br> for HTML display)
-                const errorHtml = error.message.replace(/\n/g, '<br>');
+                // Format error message (escape first, then replace \n with <br> for HTML display)
+                const errorHtml = escapeHtml(String(error.message)).replace(/\n/g, '<br>');
                 showToast(`Backtest failed: ${error.message.split('\n')[0]}`, 'error');
                 
                 // Show error in results card with full details
@@ -3453,7 +3454,7 @@ function renderPriceChart(candles, indicators) {
         }
     } catch (error) {
         console.error('Error creating chart:', error);
-        container.innerHTML = `<div class="error">Error creating chart: ${error.message}<br><small>Please check browser console for details.</small></div>`;
+        container.innerHTML = `<div class="error">Error creating chart: ${escapeHtml(String(error.message))}<br><small>Please check browser console for details.</small></div>`;
         return;
     }
     
@@ -3473,7 +3474,7 @@ function renderPriceChart(candles, indicators) {
         });
     } catch (error) {
         console.error('Error adding candlestick series:', error);
-        container.innerHTML = `<div class="error">Error adding candlestick series: ${error.message}</div>`;
+        container.innerHTML = `<div class="error">Error adding candlestick series: ${escapeHtml(String(error.message))}</div>`;
         return;
     }
     
@@ -3851,7 +3852,7 @@ async function updateOrdersPage() {
         console.error('Error updating orders page:', error);
         const container = document.getElementById('ordersList');
         if (container) {
-            container.innerHTML = '<div class="error">Failed to load orders: ' + error.message + '</div>';
+            container.innerHTML = '<div class="error">Failed to load orders: ' + escapeHtml(String(error.message)) + '</div>';
         }
     }
 }
@@ -3892,7 +3893,7 @@ async function listAdvancedOrders() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error listing orders:', error);
-        container.innerHTML = '<div class="error">Failed to load orders: ' + error.message + '</div>';
+        container.innerHTML = '<div class="error">Failed to load orders: ' + escapeHtml(String(error.message)) + '</div>';
     }
 }
 

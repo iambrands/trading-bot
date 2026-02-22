@@ -17,6 +17,32 @@ from database.db_manager import DatabaseManager
 logger = logging.getLogger(__name__)
 
 
+def _safe_int(value, default: int, min_val: Optional[int] = None, max_val: Optional[int] = None) -> int:
+    """Parse int safely, return default on error, clamp to range if specified."""
+    try:
+        v = int(value) if value not in (None, '') else default
+    except (ValueError, TypeError):
+        return default
+    if min_val is not None and v < min_val:
+        return min_val
+    if max_val is not None and v > max_val:
+        return max_val
+    return v
+
+
+def _safe_float(value, default: float, min_val: Optional[float] = None, max_val: Optional[float] = None) -> float:
+    """Parse float safely, return default on error, clamp to range if specified."""
+    try:
+        v = float(value) if value not in (None, '') else default
+    except (ValueError, TypeError):
+        return default
+    if min_val is not None and v < min_val:
+        return min_val
+    if max_val is not None and v > max_val:
+        return max_val
+    return v
+
+
 class TradingBotAPI:
     """REST API server for trading bot."""
     
@@ -25,7 +51,7 @@ class TradingBotAPI:
         self.bot = bot_instance
         self.db_manager = db_manager
         self.auth_manager = AuthManager(self.config)
-        self.app = web.Application()
+        self.app = web.Application(client_max_size=1 * 1024 * 1024)  # 1MB body limit
         self._setup_middleware()  # Setup middleware first
         self._setup_routes()  # Setup all routes
         self._setup_cors()  # Setup CORS middleware (doesn't wrap routes)
@@ -699,7 +725,7 @@ class TradingBotAPI:
             return web.json_response({'error': 'Bot not initialized'}, status=500)
         
         try:
-            limit = int(request.query.get('limit', 50))
+            limit = _safe_int(request.query.get('limit'), 50, min_val=1, max_val=500)
             trades = await self.bot.db.get_recent_trades(limit)
             
             # Format trades for JSON response
@@ -1030,11 +1056,14 @@ class TradingBotAPI:
             from datetime import datetime, timedelta
             user_id = request.get('user_id')
             method = request.query.get('method', 'FIFO')  # FIFO or LIFO
-            year = request.query.get('year', str(datetime.utcnow().year))
+            year = _safe_int(
+                request.query.get('year', datetime.utcnow().year),
+                datetime.utcnow().year, min_val=2000, max_val=2100
+            )
             
             # Get all closed trades for the year
-            start_date = datetime(int(year), 1, 1)
-            end_date = datetime(int(year), 12, 31, 23, 59, 59)
+            start_date = datetime(year, 1, 1)
+            end_date = datetime(year, 12, 31, 23, 59, 59)
             trades = await self.db_manager.get_trades_with_date_range(
                 start_date=start_date,
                 end_date=end_date,
@@ -1499,75 +1528,75 @@ class TradingBotAPI:
             config = self.bot.config
             
             if 'ema_period' in settings:
-                config.EMA_PERIOD = int(settings['ema_period'])
+                config.EMA_PERIOD = _safe_int(settings['ema_period'], config.EMA_PERIOD, min_val=5, max_val=200)
                 self.bot.strategy.ema_period = config.EMA_PERIOD
             
             if 'rsi_period' in settings:
-                config.RSI_PERIOD = int(settings['rsi_period'])
+                config.RSI_PERIOD = _safe_int(settings['rsi_period'], config.RSI_PERIOD, min_val=5, max_val=50)
                 self.bot.strategy.rsi_period = config.RSI_PERIOD
             
             if 'volume_period' in settings:
-                config.VOLUME_PERIOD = int(settings['volume_period'])
+                config.VOLUME_PERIOD = _safe_int(settings['volume_period'], config.VOLUME_PERIOD, min_val=5, max_val=100)
                 self.bot.strategy.volume_period = config.VOLUME_PERIOD
             
             if 'volume_multiplier' in settings:
-                config.VOLUME_MULTIPLIER = float(settings['volume_multiplier'])
+                config.VOLUME_MULTIPLIER = _safe_float(settings['volume_multiplier'], config.VOLUME_MULTIPLIER, min_val=0.1, max_val=10.0)
                 self.bot.strategy.volume_multiplier = config.VOLUME_MULTIPLIER
             
             if 'min_confidence' in settings:
-                config.MIN_CONFIDENCE_SCORE = float(settings['min_confidence'])
+                config.MIN_CONFIDENCE_SCORE = _safe_float(settings['min_confidence'], config.MIN_CONFIDENCE_SCORE, min_val=0, max_val=100)
                 self.bot.strategy.min_confidence = config.MIN_CONFIDENCE_SCORE
             
             if 'loop_interval' in settings:
-                config.LOOP_INTERVAL_SECONDS = int(settings['loop_interval'])
+                config.LOOP_INTERVAL_SECONDS = _safe_int(settings['loop_interval'], config.LOOP_INTERVAL_SECONDS, min_val=10, max_val=3600)
             
             if 'rsi_long_min' in settings:
-                config.RSI_LONG_MIN = float(settings['rsi_long_min'])
+                config.RSI_LONG_MIN = _safe_float(settings['rsi_long_min'], config.RSI_LONG_MIN, min_val=0, max_val=100)
                 self.bot.strategy.rsi_long_min = config.RSI_LONG_MIN
             
             if 'rsi_long_max' in settings:
-                config.RSI_LONG_MAX = float(settings['rsi_long_max'])
+                config.RSI_LONG_MAX = _safe_float(settings['rsi_long_max'], config.RSI_LONG_MAX, min_val=0, max_val=100)
                 self.bot.strategy.rsi_long_max = config.RSI_LONG_MAX
             
             if 'rsi_short_min' in settings:
-                config.RSI_SHORT_MIN = float(settings['rsi_short_min'])
+                config.RSI_SHORT_MIN = _safe_float(settings['rsi_short_min'], config.RSI_SHORT_MIN, min_val=0, max_val=100)
                 self.bot.strategy.rsi_short_min = config.RSI_SHORT_MIN
             
             if 'rsi_short_max' in settings:
-                config.RSI_SHORT_MAX = float(settings['rsi_short_max'])
+                config.RSI_SHORT_MAX = _safe_float(settings['rsi_short_max'], config.RSI_SHORT_MAX, min_val=0, max_val=100)
                 self.bot.strategy.rsi_short_max = config.RSI_SHORT_MAX
             
             if 'risk_per_trade' in settings:
-                config.RISK_PER_TRADE_PCT = float(settings['risk_per_trade'])
+                config.RISK_PER_TRADE_PCT = _safe_float(settings['risk_per_trade'], config.RISK_PER_TRADE_PCT, min_val=0, max_val=100)
                 self.bot.risk_manager.risk_per_trade_pct = config.RISK_PER_TRADE_PCT
             
             if 'max_positions' in settings:
-                config.MAX_POSITIONS = int(settings['max_positions'])
+                config.MAX_POSITIONS = _safe_int(settings['max_positions'], config.MAX_POSITIONS, min_val=1, max_val=50)
                 self.bot.risk_manager.max_positions = config.MAX_POSITIONS
             
             if 'daily_loss_limit' in settings:
-                config.DAILY_LOSS_LIMIT = float(settings['daily_loss_limit'])
+                config.DAILY_LOSS_LIMIT = _safe_float(settings['daily_loss_limit'], config.DAILY_LOSS_LIMIT, min_val=0, max_val=100)
                 self.bot.risk_manager.daily_loss_limit = config.DAILY_LOSS_LIMIT
             
             if 'max_position_size' in settings:
-                config.MAX_POSITION_SIZE_PCT = float(settings['max_position_size'])
+                config.MAX_POSITION_SIZE_PCT = _safe_float(settings['max_position_size'], config.MAX_POSITION_SIZE_PCT, min_val=0, max_val=100)
                 self.bot.risk_manager.max_position_size_pct = config.MAX_POSITION_SIZE_PCT
             
             if 'position_timeout' in settings:
-                config.POSITION_TIMEOUT_MINUTES = int(settings['position_timeout'])
+                config.POSITION_TIMEOUT_MINUTES = _safe_int(settings['position_timeout'], config.POSITION_TIMEOUT_MINUTES, min_val=1, max_val=10080)
                 self.bot.risk_manager.position_timeout_minutes = config.POSITION_TIMEOUT_MINUTES
             
             if 'take_profit_min' in settings:
-                config.TAKE_PROFIT_MIN = float(settings['take_profit_min'])
+                config.TAKE_PROFIT_MIN = _safe_float(settings['take_profit_min'], config.TAKE_PROFIT_MIN, min_val=0, max_val=100)
             
             if 'take_profit_max' in settings:
-                config.TAKE_PROFIT_MAX = float(settings['take_profit_max'])
+                config.TAKE_PROFIT_MAX = _safe_float(settings['take_profit_max'], config.TAKE_PROFIT_MAX, min_val=0, max_val=100)
             
             if 'stop_loss_min' in settings:
-                config.STOP_LOSS_MIN = float(settings['stop_loss_min'])
+                config.STOP_LOSS_MIN = _safe_float(settings['stop_loss_min'], config.STOP_LOSS_MIN, min_val=0, max_val=100)
             
             if 'stop_loss_max' in settings:
-                config.STOP_LOSS_MAX = float(settings['stop_loss_max'])
+                config.STOP_LOSS_MAX = _safe_float(settings['stop_loss_max'], config.STOP_LOSS_MAX, min_val=0, max_val=100)
             
             trading_pairs_changed = False
             if 'trading_pairs' in settings:
@@ -1646,7 +1675,7 @@ class TradingBotAPI:
                 current_balance = 100000.0
         
         try:
-            limit = int(request.query.get('limit', 100))
+            limit = _safe_int(request.query.get('limit'), 100, min_val=1, max_val=500)
             
             # Get equity curve from performance tracker
             equity_data = list(self.bot.performance_tracker.equity_curve)
@@ -1703,7 +1732,7 @@ class TradingBotAPI:
             return web.json_response({'error': 'Bot not initialized'}, status=500)
         
         try:
-            limit = int(request.query.get('limit', 30))
+            limit = _safe_int(request.query.get('limit'), 30, min_val=1, max_val=365)
             history = list(self.bot.performance_tracker.daily_pnl_history)
             
             return web.json_response({
@@ -1723,7 +1752,7 @@ class TradingBotAPI:
     async def get_logs(self, request):
         """Get system logs from in-memory buffer or log file."""
         try:
-            limit = int(request.query.get('limit', 500))
+            limit = _safe_int(request.query.get('limit'), 500, min_val=1, max_val=2000)
             level_filter = request.query.get('level', 'ALL')
             
             logs = []
@@ -2275,10 +2304,10 @@ class TradingBotAPI:
             import asyncio
             import concurrent.futures
             
-            # Get parameters
+            # Get parameters (validate and bound to prevent abuse)
             pair = data.get('pair', 'BTC-USD')
-            days = int(data.get('days', 30))
-            initial_balance = float(data.get('initial_balance', 100000.0))
+            days = _safe_int(data.get('days'), 30, min_val=1, max_val=90)
+            initial_balance = _safe_float(data.get('initial_balance'), 100000.0, min_val=100.0, max_val=10_000_000.0)
             name = data.get('name', f'Backtest {pair} {days}d')
             user_id = request.get('user_id')
             
@@ -2550,7 +2579,7 @@ class TradingBotAPI:
                 logger.error("Database manager not initialized for list_backtests")
                 return web.json_response({'error': 'Database not initialized'}, status=500)
             
-            limit = int(request.query.get('limit', 20))
+            limit = _safe_int(request.query.get('limit'), 20, min_val=1, max_val=100)
             
             # Log before and after query
             logger.info(f"🔍 Querying database for backtests: user_id={user_id}, limit={limit}")
@@ -2650,7 +2679,10 @@ class TradingBotAPI:
             # Get parameters from JSON body or query string (query params take precedence)
             symbol = request.query.get('symbol') or data.get('symbol', 'BTC-USD')
             side = (request.query.get('side') or data.get('side', 'BUY')).upper()
-            amount_usdt = float(request.query.get('amount_usdt') or data.get('amount_usdt', 10.0))
+            amount_usdt = _safe_float(
+                request.query.get('amount_usdt') or data.get('amount_usdt', 10.0),
+                10.0, min_val=0.01, max_val=100_000.0
+            )
             paper_trading_str = request.query.get('paper_trading') or str(data.get('paper_trading', 'true'))
             paper_trading = paper_trading_str.lower() == 'true'  # Safety: default to paper
             
@@ -3013,7 +3045,9 @@ class TradingBotAPI:
             return web.json_response({'error': 'Database not initialized'}, status=500)
         
         try:
-            backtest_id = int(request.match_info['id'])
+            backtest_id = _safe_int(request.match_info.get('id'), -1, min_val=1)
+            if backtest_id < 1:
+                return web.json_response({'error': 'Invalid backtest ID'}, status=400)
             user_id = request.get('user_id')
             
             backtest = await self.db_manager.get_backtest_by_id(backtest_id, user_id)
@@ -3478,7 +3512,7 @@ class TradingBotAPI:
         try:
             pair = request.query.get('pair', 'BTC-USD')
             timeframe = request.query.get('timeframe', '1h')
-            limit = int(request.query.get('limit', '100'))
+            limit = _safe_int(request.query.get('limit'), 100, min_val=10, max_val=500)
             
             # Map timeframe to granularity
             timeframe_map = {
@@ -3713,10 +3747,10 @@ class TradingBotAPI:
             
             result = await self.bot.grid_manager.create_grid(
                 pair=data.get('pair'),
-                lower_price=float(data.get('lower_price', 0)),
-                upper_price=float(data.get('upper_price', 0)),
-                grid_count=int(data.get('grid_count', 10)),
-                order_size=float(data.get('order_size', 0)),
+                lower_price=_safe_float(data.get('lower_price'), 0),
+                upper_price=_safe_float(data.get('upper_price'), 0),
+                grid_count=_safe_int(data.get('grid_count'), 10, min_val=2, max_val=100),
+                order_size=_safe_float(data.get('order_size'), 0, min_val=0),
                 side=data.get('side', 'BOTH')
             )
             
@@ -3855,11 +3889,11 @@ class TradingBotAPI:
             result = await self.bot.dca_manager.create_dca(
                 pair=data.get('pair'),
                 side=data.get('side'),
-                amount=float(data.get('amount', 0)),
+                amount=_safe_float(data.get('amount'), 0, min_val=0),
                 interval=data.get('interval', 'daily'),
-                total_amount=float(data.get('total_amount', 0)) if data.get('total_amount') else None,
-                start_price=float(data.get('start_price', 0)) if data.get('start_price') else None,
-                end_price=float(data.get('end_price', 0)) if data.get('end_price') else None
+                total_amount=_safe_float(data.get('total_amount'), 0) if data.get('total_amount') is not None else None,
+                start_price=_safe_float(data.get('start_price'), 0) if data.get('start_price') is not None else None,
+                end_price=_safe_float(data.get('end_price'), 0) if data.get('end_price') is not None else None
             )
             
             if not result.get('success'):
@@ -4054,7 +4088,9 @@ class TradingBotAPI:
             if not user_id:
                 return web.json_response({'error': 'Not authenticated'}, status=401)
             
-            trade_id = int(request.match_info['trade_id'])
+            trade_id = _safe_int(request.match_info.get('trade_id'), -1, min_val=1)
+            if trade_id < 1:
+                return web.json_response({'error': 'Invalid trade ID'}, status=400)
             
             if not self.db_manager:
                 return web.json_response({'error': 'Database not initialized'}, status=500)
@@ -4089,7 +4125,9 @@ class TradingBotAPI:
             if not user_id:
                 return web.json_response({'error': 'Not authenticated'}, status=401)
             
-            trade_id = int(request.match_info['trade_id'])
+            trade_id = _safe_int(request.match_info.get('trade_id'), -1, min_val=1)
+            if trade_id < 1:
+                return web.json_response({'error': 'Invalid trade ID'}, status=400)
             data = await request.json()
             
             notes = data.get('notes')
