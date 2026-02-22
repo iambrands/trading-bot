@@ -2477,6 +2477,12 @@ class TradingBotAPI:
             
             logger.info(f"🔄 Fetched {len(candles)} candles. Starting backtest processing...")
             
+            # Use current EXCHANGE from environment so Railway EXCHANGE=binance is applied
+            # (config is loaded once at startup; env can be set after deploy)
+            import os
+            self.config.EXCHANGE = os.getenv('EXCHANGE', getattr(self.config, 'EXCHANGE', 'coinbase')).lower()
+            logger.info(f"📌 Backtest fee model: EXCHANGE={self.config.EXCHANGE} ({'Binance 0.2% rt' if self.config.EXCHANGE == 'binance' else 'Coinbase 1.2% rt'})")
+            
             # Run backtest in executor to avoid blocking the event loop
             # This is critical for long backtests that process thousands of candles
             def run_backtest_sync():
