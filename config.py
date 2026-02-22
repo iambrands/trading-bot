@@ -59,12 +59,13 @@ class Config:
     EMA_PERIOD = 50  # EMA(50)
     RSI_PERIOD = 14  # RSI(14)
     VOLUME_PERIOD = 20  # 20-period volume average
-    VOLUME_MULTIPLIER = 1.2  # 1.2x average volume for confirmation (relaxed from 1.5x)
-    RSI_LONG_MIN = 50  # Minimum RSI for long entry (relaxed from 55)
-    RSI_LONG_MAX = 75  # Maximum RSI for long entry (relaxed from 70)
-    RSI_SHORT_MIN = 25  # Minimum RSI for short entry (relaxed from 30)
-    RSI_SHORT_MAX = 50  # Maximum RSI for short entry (relaxed from 45)
-    MIN_CONFIDENCE_SCORE = 65  # Minimum confidence to trade (%) (relaxed from 70)
+    # RELAXED: Previous settings (vol 1.2x, RSI 50-75/25-50) generated 0 trades in 30+ days
+    VOLUME_MULTIPLIER = 0.9  # 0.9x - allow below-avg volume (crypto often has low vol candles)
+    RSI_LONG_MIN = 45   # Widen from 50 - capture more uptrend entries
+    RSI_LONG_MAX = 80   # Widen from 75 - RSI often 75-80 in strong trends
+    RSI_SHORT_MIN = 20  # Widen from 25 - capture more downtrend entries
+    RSI_SHORT_MAX = 55  # Widen from 50 - RSI often 45-55 in pullbacks
+    MIN_CONFIDENCE_SCORE = 60  # Lower from 65 - balance quality vs. frequency
     
     # Exit Parameters - FIXED FOR FEES
     # CRITICAL: Profit targets must exceed exchange fees to be profitable

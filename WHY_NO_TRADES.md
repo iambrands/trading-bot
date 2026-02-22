@@ -24,16 +24,16 @@ This shows:
 ### For a LONG (Buy) Trade:
 
 1. ✅ **Price > EMA(50)** - Price must be above moving average
-2. ✅ **RSI between 55-70** - Not too weak, not overbought
-3. ✅ **Volume > 1.5x average** - Volume spike needed
-4. ✅ **Confidence ≥ 70%** - Must meet minimum threshold
+2. ✅ **RSI between 45-80** - Widen range for stronger trends
+3. ✅ **Volume ≥ 0.9x average** - Relaxed to allow more setups
+4. ✅ **Confidence ≥ 60%** - Minimum threshold (relaxed)
 
 ### For a SHORT (Sell) Trade:
 
 1. ✅ **Price < EMA(50)** - Price must be below moving average
-2. ✅ **RSI between 30-45** - Not too strong, not oversold
-3. ✅ **Volume > 1.5x average** - Volume spike needed
-4. ✅ **Confidence ≥ 70%** - Must meet minimum threshold
+2. ✅ **RSI between 20-55** - Widen range for pullbacks
+3. ✅ **Volume ≥ 0.9x average** - Relaxed
+4. ✅ **Confidence ≥ 60%** - Minimum threshold
 
 ## 🚫 Common Blockers
 
@@ -45,16 +45,16 @@ This shows:
 **Check**: Look at `candles_count` in market-conditions endpoint
 
 ### 2. **RSI Not in Range**
-- Long needs RSI 55-70 (currently might be 45 or 75)
-- Short needs RSI 30-45 (currently might be 50 or 25)
+- Long needs RSI 45-80 (widened to capture strong trends)
+- Short needs RSI 20-55 (widened for pullbacks)
 
 **Solution**: Market needs to be in right momentum state
 
 ### 3. **Volume Too Low**
-- Needs volume spike (1.5x average)
-- Low volume = low confidence signal
+- Needs volume ≥ 0.9x average (relaxed from 1.5x)
+- Low volume reduces confidence score
 
-**Check**: Look at `volume_ratio` - needs to be ≥ 1.5
+**Check**: Look at `volume_ratio` - needs to be ≥ 0.9
 
 ### 4. **Confidence Too Low**
 - Even if conditions met, confidence might be < 70%
@@ -98,24 +98,26 @@ This shows:
 If you want to see more trades (with lower quality), edit `config.py`:
 
 ```python
-# Make it easier to trigger trades
-MIN_CONFIDENCE_SCORE = 60  # Lower from 70
-VOLUME_MULTIPLIER = 1.2    # Lower from 1.5
-RSI_LONG_MIN = 50          # Widen from 55
-RSI_LONG_MAX = 75          # Widen from 70
+# Current relaxed defaults (Feb 2026 - was 0 trades in 30+ days)
+MIN_CONFIDENCE_SCORE = 60
+VOLUME_MULTIPLIER = 0.9
+RSI_LONG_MIN = 45
+RSI_LONG_MAX = 80
+RSI_SHORT_MIN = 20
+RSI_SHORT_MAX = 55
 ```
 
 ⚠️ **Warning**: Lower thresholds = more trades but lower quality signals
 
-## 📈 Current Strategy Values
+## 📈 Current Strategy Values (Relaxed Feb 2026)
 
 - **EMA Period**: 50
 - **RSI Period**: 14
 - **Volume Period**: 20
-- **Volume Multiplier**: 1.5x
-- **RSI Long Range**: 55-70
-- **RSI Short Range**: 30-45
-- **Min Confidence**: 70%
+- **Volume Multiplier**: 0.9x
+- **RSI Long Range**: 45-80
+- **RSI Short Range**: 20-55
+- **Min Confidence**: 60%
 - **Max Positions**: 2
 
 ## 🎯 Expected Behavior
