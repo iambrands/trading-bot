@@ -159,13 +159,26 @@ async function handleSignin() {
 }
 
 // Check if user is authenticated on page load
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     const token = localStorage.getItem('auth_token');
     const currentPath = window.location.pathname;
     
-    // If user has token and is on auth pages, redirect to dashboard
+    // Only redirect from auth pages if we have a VALID token (avoid redirect loop with expired tokens)
     if (token && (currentPath === '/signin' || currentPath === '/signup')) {
-        window.location.href = '/';
+        try {
+            const verifyResponse = await fetch(`${API_BASE}/auth/verify`, {
+                headers: { 'Authorization': `Bearer ${token}` },
+                credentials: 'include'
+            });
+            if (verifyResponse.ok) {
+                window.location.href = '/';
+                return;
+            }
+        } catch (e) {
+            // Network error - stay on signin so user can try logging in
+        }
+        // Token invalid or expired - clear it so user can sign in fresh
+        localStorage.removeItem('auth_token');
     }
 });
 
