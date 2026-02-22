@@ -414,6 +414,31 @@
                             <label for="backtestName">Backtest Name (Optional)</label>
                             <input type="text" id="backtestName" class="form-input" placeholder="e.g., BTC 30-day test">
                         </div>
+                        <!-- Strategy overrides: test different EMA, RSI, TP/SL without changing global Settings -->
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <button type="button" class="btn btn-secondary" id="backtestStrategyOverridesToggle" style="margin-bottom: 0.5rem; font-size: 0.9375rem;"
+                                onclick="document.getElementById('backtestStrategyOverrides').style.display = document.getElementById('backtestStrategyOverrides').style.display === 'none' ? 'block' : 'none'; this.textContent = document.getElementById('backtestStrategyOverrides').style.display === 'none' ? '▼ Strategy overrides (optional)' : '▶ Strategy overrides (optional)';">
+                                ▶ Strategy overrides (optional)
+                            </button>
+                            <div id="backtestStrategyOverrides" style="display: none; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
+                                <p style="margin: 0 0 0.75rem 0; font-size: 0.875rem; color: var(--gray-600);">Override strategy parameters for this run only. Leave blank to use current Settings.</p>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem;">
+                                    <div><label for="backtestEmaPeriod" style="font-size: 0.8125rem;">EMA period</label><input type="number" id="backtestEmaPeriod" class="form-input" placeholder="e.g. 50" min="5" max="200" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestRsiPeriod" style="font-size: 0.8125rem;">RSI period</label><input type="number" id="backtestRsiPeriod" class="form-input" placeholder="e.g. 14" min="5" max="50" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestVolumeMultiplier" style="font-size: 0.8125rem;">Volume mult.</label><input type="number" id="backtestVolumeMultiplier" class="form-input" placeholder="e.g. 0.9" min="0.1" max="3" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestMinConfidence" style="font-size: 0.8125rem;">Min confidence %</label><input type="number" id="backtestMinConfidence" class="form-input" placeholder="e.g. 60" min="30" max="95" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestRsiLongMin" style="font-size: 0.8125rem;">RSI long min</label><input type="number" id="backtestRsiLongMin" class="form-input" placeholder="45" min="30" max="70" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestRsiLongMax" style="font-size: 0.8125rem;">RSI long max</label><input type="number" id="backtestRsiLongMax" class="form-input" placeholder="80" min="60" max="95" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestRsiShortMin" style="font-size: 0.8125rem;">RSI short min</label><input type="number" id="backtestRsiShortMin" class="form-input" placeholder="20" min="5" max="40" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestRsiShortMax" style="font-size: 0.8125rem;">RSI short max</label><input type="number" id="backtestRsiShortMax" class="form-input" placeholder="55" min="40" max="70" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestTakeProfitMin" style="font-size: 0.8125rem;">TP min %</label><input type="number" id="backtestTakeProfitMin" class="form-input" placeholder="1.5" min="0.1" max="20" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestTakeProfitMax" style="font-size: 0.8125rem;">TP max %</label><input type="number" id="backtestTakeProfitMax" class="form-input" placeholder="2" min="0.1" max="20" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestStopLossMin" style="font-size: 0.8125rem;">SL min %</label><input type="number" id="backtestStopLossMin" class="form-input" placeholder="0.5" min="0.1" max="10" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestStopLossMax" style="font-size: 0.8125rem;">SL max %</label><input type="number" id="backtestStopLossMax" class="form-input" placeholder="0.75" min="0.1" max="10" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestMaxPositions" style="font-size: 0.8125rem;">Max positions</label><input type="number" id="backtestMaxPositions" class="form-input" placeholder="2" min="1" max="20" style="padding: 0.4rem;"></div>
+                                </div>
+                            </div>
+                        </div>
                         <button type="submit" class="btn btn-start" id="runBacktestBtn">
                             <span id="backtestBtnText">Run Custom Backtest</span>
                             <span id="backtestLoading" style="display: none;">Running...</span>

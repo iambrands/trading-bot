@@ -2415,6 +2415,59 @@ class TradingBotAPI:
             initial_balance = _safe_float(data.get('initial_balance'), 100000.0, min_val=100.0, max_val=10_000_000.0)
             name = data.get('name', f'Backtest {pair} {days}d')
             user_id = request.get('user_id')
+            strategy_config = data.get('strategy_config') or {}
+            
+            # Build config for this backtest: use overrides if provided, else global config
+            # Map request keys (snake_case) -> config attrs (UPPER_CASE) for strategy/engine
+            _STRATEGY_OVERRIDE_MAP = {
+                'ema_period': 'EMA_PERIOD',
+                'rsi_period': 'RSI_PERIOD',
+                'volume_period': 'VOLUME_PERIOD',
+                'volume_multiplier': 'VOLUME_MULTIPLIER',
+                'min_confidence_score': 'MIN_CONFIDENCE_SCORE',
+                'rsi_long_min': 'RSI_LONG_MIN',
+                'rsi_long_max': 'RSI_LONG_MAX',
+                'rsi_short_min': 'RSI_SHORT_MIN',
+                'rsi_short_max': 'RSI_SHORT_MAX',
+                'take_profit_min': 'TAKE_PROFIT_MIN',
+                'take_profit_max': 'TAKE_PROFIT_MAX',
+                'stop_loss_min': 'STOP_LOSS_MIN',
+                'stop_loss_max': 'STOP_LOSS_MAX',
+                'max_positions': 'MAX_POSITIONS',
+            }
+            overrides = {}
+            for req_key, cfg_key in _STRATEGY_OVERRIDE_MAP.items():
+                if req_key not in strategy_config or strategy_config[req_key] is None or strategy_config[req_key] == '':
+                    continue
+                try:
+                    v = strategy_config[req_key]
+                    if cfg_key in ('EMA_PERIOD', 'RSI_PERIOD', 'VOLUME_PERIOD', 'MAX_POSITIONS'):
+                        overrides[cfg_key] = _safe_int(v, getattr(self.config, cfg_key, 50), min_val=5, max_val=200 if 'PERIOD' in cfg_key else 50)
+                    elif 'multiplier' in req_key:
+                        overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 0.9), min_val=0.1, max_val=3.0)
+                    elif 'confidence' in req_key:
+                        overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 60), min_val=30, max_val=95)
+                    elif 'rsi_' in req_key:
+                        overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 50), min_val=0, max_val=100)
+                    elif 'take_profit' in req_key or 'stop_loss' in req_key:
+                        overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 1.0), min_val=0.1, max_val=20.0)
+                    else:
+                        overrides[cfg_key] = v
+                except (TypeError, ValueError):
+                    pass
+            if overrides:
+                class _BacktestConfigOverlay:
+                    def __init__(self, base, overrides):
+                        self._base = base
+                        self._overrides = overrides
+                    def __getattr__(self, name):
+                        if name in self._overrides:
+                            return self._overrides[name]
+                        return getattr(self._base, name)
+                backtest_config = _BacktestConfigOverlay(self.config, overrides)
+                logger.info(f"📌 Backtest strategy overrides: {list(overrides.keys())}")
+            else:
+                backtest_config = self.config
             
             # Log user_id for debugging
             logger.info(f"🔵 Starting backtest: user_id={user_id}, pair={pair}, days={days}, name={name}, balance=${initial_balance}")
@@ -2488,7 +2541,7 @@ class TradingBotAPI:
             def run_backtest_sync():
                 """Run backtest synchronously in thread pool."""
                 try:
-                    engine = BacktestEngine(self.config, initial_balance=initial_balance)
+                    engine = BacktestEngine(backtest_config, initial_balance=initial_balance)
                     results = engine.run_backtest(candles, pair=pair)
                     return results
                 except Exception as e:

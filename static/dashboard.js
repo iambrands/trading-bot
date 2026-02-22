@@ -2081,6 +2081,31 @@ async function runBacktestInternal(pair, days, balance, name) {
                 initial_balance: balance,
                 name
             };
+            // Optional strategy overrides (only send if at least one is set)
+            const strategyOverrides = {};
+            const overrideIds = [
+                'backtestEmaPeriod', 'backtestRsiPeriod', 'backtestVolumeMultiplier', 'backtestMinConfidence',
+                'backtestRsiLongMin', 'backtestRsiLongMax', 'backtestRsiShortMin', 'backtestRsiShortMax',
+                'backtestTakeProfitMin', 'backtestTakeProfitMax', 'backtestStopLossMin', 'backtestStopLossMax',
+                'backtestMaxPositions'
+            ];
+            const overrideKeys = [
+                'ema_period', 'rsi_period', 'volume_multiplier', 'min_confidence_score',
+                'rsi_long_min', 'rsi_long_max', 'rsi_short_min', 'rsi_short_max',
+                'take_profit_min', 'take_profit_max', 'stop_loss_min', 'stop_loss_max',
+                'max_positions'
+            ];
+            overrideIds.forEach((id, i) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const v = (el.value || '').trim();
+                if (v === '') return;
+                const num = parseFloat(v);
+                if (!isNaN(num)) strategyOverrides[overrideKeys[i]] = num;
+            });
+            if (Object.keys(strategyOverrides).length > 0) {
+                requestBody.strategy_config = strategyOverrides;
+            }
             console.log('🚀 Sending backtest request to:', `${API_BASE}/backtest/run`, requestBody);
             console.log('🚀 Auth token exists:', !!localStorage.getItem('auth_token'));
             
