@@ -11,6 +11,9 @@
     <title>TradePilot Dashboard</title>
     <link rel="manifest" href="/static/manifest.json">
     <link rel="apple-touch-icon" href="/static/icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
     <script>
         // AGGRESSIVE CACHE CLEARING - Run immediately before anything else
@@ -86,103 +89,78 @@
                 <span class="logo">TP</span>
                 <span class="brand-name">TradePilot</span>
             </div>
+            <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Collapse sidebar" title="Collapse sidebar">
+                <span class="collapse-icon">‹</span>
+            </button>
         </div>
         
         <nav class="sidebar-nav">
             <ul class="nav-menu">
-                <li>
+                <!-- Dashboard -->
+                <li class="nav-item-top">
                     <a href="/" class="nav-link active" data-page="overview">
-                        <span class="nav-icon"></span>
+                        <span class="nav-icon">◉</span>
                         <span class="nav-text">Overview</span>
                     </a>
                 </li>
-                <li>
-                    <a href="/market-conditions" class="nav-link" data-page="market">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Market Conditions</span>
-                    </a>
+                <!-- Trading -->
+                <li class="nav-group" data-group="trading">
+                    <button type="button" class="nav-group-header" aria-expanded="true">
+                        <span class="nav-icon">📈</span>
+                        <span class="nav-text">Trading</span>
+                        <span class="nav-chevron">▾</span>
+                    </button>
+                    <ul class="nav-group-items">
+                        <li><a href="/market-conditions" class="nav-link" data-page="market">Market Conditions</a></li>
+                        <li><a href="/positions" class="nav-link" data-page="positions">Positions</a></li>
+                        <li><a href="/trades" class="nav-link" data-page="trades">Trade History</a></li>
+                        <li><a href="/orders" class="nav-link" data-page="orders">Advanced Orders</a></li>
+                        <li><a href="/grid" class="nav-link" data-page="grid">Grid Trading</a></li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="/positions" class="nav-link" data-page="positions">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Positions</span>
-                    </a>
+                <!-- Analytics -->
+                <li class="nav-group" data-group="analytics">
+                    <button type="button" class="nav-group-header" aria-expanded="true">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Analytics</span>
+                        <span class="nav-chevron">▾</span>
+                    </button>
+                    <ul class="nav-group-items">
+                        <li><a href="/performance" class="nav-link" data-page="performance">Performance</a></li>
+                        <li><a href="/portfolio" class="nav-link" data-page="portfolio">Portfolio</a></li>
+                        <li><a href="/charts" class="nav-link" data-page="charts">Charts</a></li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="/trades" class="nav-link" data-page="trades">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Trade History</span>
-                    </a>
+                <!-- Tools -->
+                <li class="nav-group" data-group="tools">
+                    <button type="button" class="nav-group-header" aria-expanded="true">
+                        <span class="nav-icon">🛠</span>
+                        <span class="nav-text">Tools</span>
+                        <span class="nav-chevron">▾</span>
+                    </button>
+                    <ul class="nav-group-items">
+                        <li><a href="/backtest" class="nav-link" data-page="backtest">Backtest</a></li>
+                        <li><a href="/logs" class="nav-link" data-page="logs">Live Monitor</a></li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="/performance" class="nav-link" data-page="performance">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Performance</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/portfolio" class="nav-link" data-page="portfolio">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Portfolio</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/charts" class="nav-link" data-page="charts">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Charts</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/orders" class="nav-link" data-page="orders">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Advanced Orders</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/grid" class="nav-link" data-page="grid">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Grid Trading</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/backtest" class="nav-link" data-page="backtest">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Backtest</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/logs" class="nav-link" data-page="logs">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Live Monitor</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/journal" class="nav-link" data-page="journal">
-                        <span class="nav-icon">📝</span>
-                        <span class="nav-text">Trade Journal</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/glossary" class="nav-link" data-page="glossary">
+                <!-- Resources -->
+                <li class="nav-group" data-group="resources">
+                    <button type="button" class="nav-group-header" aria-expanded="true">
                         <span class="nav-icon">📚</span>
-                        <span class="nav-text">Glossary</span>
-                    </a>
+                        <span class="nav-text">Resources</span>
+                        <span class="nav-chevron">▾</span>
+                    </button>
+                    <ul class="nav-group-items">
+                        <li><a href="/journal" class="nav-link" data-page="journal">Trade Journal</a></li>
+                        <li><a href="/glossary" class="nav-link" data-page="glossary">Glossary</a></li>
+                        <li><a href="/learn/strategy" class="nav-link" data-page="strategy-guide">Strategy Guide</a></li>
+                        <li><a href="/help" class="nav-link" data-page="help">Help & FAQs</a></li>
+                    </ul>
                 </li>
-                <li>
-                    <a href="/learn/strategy" class="nav-link" data-page="strategy-guide">
-                        <span class="nav-icon">📖</span>
-                        <span class="nav-text">Strategy Guide</span>
-                    </a>
-                </li>
-                <li>
-                    <a href="/help" class="nav-link" data-page="help">
-                        <span class="nav-icon"></span>
-                        <span class="nav-text">Help & FAQs</span>
-                    </a>
-                </li>
-                <li>
+                <!-- Settings -->
+                <li class="nav-item-top">
                     <a href="/settings" class="nav-link" data-page="settings">
-                        <span class="nav-icon"></span>
+                        <span class="nav-icon">⚙</span>
                         <span class="nav-text">Settings</span>
                     </a>
                 </li>
@@ -240,6 +218,16 @@
         <div class="container">
         <!-- Overview Page -->
         <div id="page-overview" class="page active">
+
+            <!-- Market Ticker -->
+            <div class="market-ticker-bar" id="marketTickerBar">
+                <div class="ticker-scroll">
+                    <span class="ticker-label">Live</span>
+                    <div id="tickerItems" class="ticker-items">
+                        <span class="ticker-loading">Loading prices...</span>
+                    </div>
+                </div>
+            </div>
 
             <div class="control-panel">
                 <h2>Control Panel</h2>
@@ -302,9 +290,17 @@
             </div>
             </div>
 
-            <div class="card">
-                <h2>Active Positions</h2>
-                <div id="positions" class="loading">Loading...</div>
+            <div class="dashboard-grid-2col">
+                <div class="card">
+                    <h2>Active Positions</h2>
+                    <div id="positions" class="loading">Loading...</div>
+                </div>
+                <div class="card crypto-news-card">
+                    <h2>📰 Crypto News</h2>
+                    <div id="cryptoNews" class="crypto-news-list">
+                        <span class="loading">Loading news...</span>
+                    </div>
+                </div>
             </div>
         </div>
 

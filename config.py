@@ -55,6 +55,9 @@ class Config:
     MAX_POSITION_SIZE_USDT = 500.0  # Hard cap: $500 max per trade (prevents oversized positions)
     POSITION_TIMEOUT_MINUTES = 10  # 10 minutes max hold time
     
+    # Strategy Marketplace
+    ACTIVE_STRATEGY_ID = os.getenv('ACTIVE_STRATEGY_ID', 'ema_rsi')  # ema_rsi, rsi_only, bollinger
+
     # Strategy Parameters
     EMA_PERIOD = 50  # EMA(50)
     RSI_PERIOD = 14  # RSI(14)
@@ -152,6 +155,10 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', '')
     JWT_ALGORITHM = 'HS256'
     JWT_EXPIRY_HOURS = 24
+
+    # TradingView Webhook
+    TRADINGVIEW_WEBHOOK_SECRET = os.getenv('TRADINGVIEW_WEBHOOK_SECRET', '').strip().strip('"').strip("'")
+    TRADINGVIEW_ORDER_SIZE_USD = float(os.getenv('TRADINGVIEW_ORDER_SIZE_USD', '50'))
 
 
 class DevelopmentConfig(Config):

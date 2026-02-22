@@ -8,11 +8,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize selected pairs display first (even if empty)
     updateSelectedPairsDisplay();
     
+    await loadStrategies();
     await loadSettings();
     await loadTemplates();
     await loadAvailableCoins();
     await loadSystemInfo();
     loadUserInfo();
+    updateTradingViewWebhookUrl();
     
     // Form submission
     document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -127,6 +129,25 @@ function loadUserInfo() {
     }
 }
 
+// TradingView webhook URL
+function updateTradingViewWebhookUrl() {
+    const el = document.getElementById('tradingviewWebhookUrl');
+    if (!el) return;
+    const base = window.location.origin || '';
+    el.value = `${base}/api/webhooks/tradingview?secret=YOUR_SECRET`;
+}
+
+function copyTradingViewWebhookUrl() {
+    const el = document.getElementById('tradingviewWebhookUrl');
+    if (!el || !el.value) return;
+    navigator.clipboard.writeText(el.value).then(() => {
+        showAlert('Webhook URL copied to clipboard', 'success');
+    }).catch(() => {
+        showAlert('Failed to copy. Select and copy manually.', 'error');
+    });
+}
+window.copyTradingViewWebhookUrl = copyTradingViewWebhookUrl;
+
 // Export settings to JSON file
 function exportSettings() {
     try {
@@ -202,6 +223,26 @@ function importSettings() {
         }
     };
     input.click();
+}
+
+async function loadStrategies() {
+    const sel = document.getElementById('active_strategy_id');
+    if (!sel) return;
+    try {
+        const response = await fetch(`${API_BASE}/strategies`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const strategies = data.strategies || [];
+        sel.innerHTML = '';
+        strategies.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.name}${s.id === 'ema_rsi' ? ' (default)' : ''}`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn('Could not load strategies:', e);
+    }
 }
 
 async function loadSettings() {

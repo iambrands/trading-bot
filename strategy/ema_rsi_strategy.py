@@ -3,19 +3,38 @@
 import logging
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
-import numpy as np
 import pandas as pd
 from config import get_config
+
+from .base import BaseStrategy, register_strategy
 
 logger = logging.getLogger(__name__)
 
 
-class EMARSIStrategy:
+@register_strategy
+class EMARSIStrategy(BaseStrategy):
     """Trading strategy using EMA, RSI, and volume confirmation."""
-    
+
+    id = "ema_rsi"
+    name = "EMA + RSI + Volume"
+    description = "Scalping strategy: price vs EMA, RSI in range, volume confirmation."
+
+    params_schema = {
+        "ema_period": {"type": "int", "default": 50, "min": 5, "max": 200},
+        "rsi_period": {"type": "int", "default": 14, "min": 5, "max": 50},
+        "volume_period": {"type": "int", "default": 20, "min": 5, "max": 100},
+        "volume_multiplier": {"type": "float", "default": 0.9, "min": 0.1, "max": 3.0},
+        "min_confidence_score": {"type": "int", "default": 60, "min": 30, "max": 95},
+        "rsi_long_min": {"type": "int", "default": 45, "min": 30, "max": 70},
+        "rsi_long_max": {"type": "int", "default": 80, "min": 60, "max": 95},
+        "rsi_short_min": {"type": "int", "default": 20, "min": 5, "max": 40},
+        "rsi_short_max": {"type": "int", "default": 55, "min": 40, "max": 70},
+    }
+
     def __init__(self, config=None):
+        super().__init__(config)
         self.config = config or get_config()
-        
+
         # Strategy parameters
         self.ema_period = self.config.EMA_PERIOD
         self.rsi_period = self.config.RSI_PERIOD

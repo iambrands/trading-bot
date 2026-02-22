@@ -83,16 +83,21 @@ class TradingBotAPI:
         # Rate limiting for auth endpoints
         @web.middleware
         async def rate_limit_middleware(request, handler):
-            if request.path in ('/api/auth/signin', '/api/auth/signup'):
+            rate_limit_paths = ('/api/auth/signin', '/api/auth/signup')
+            is_webhook = request.path.startswith('/api/webhooks/')
+            if request.path in rate_limit_paths or is_webhook:
                 ip = request.headers.get('X-Forwarded-For', request.remote or 'unknown')
                 if ',' in ip:
                     ip = ip.split(',')[0].strip()
                 now = time.time()
-                if ip not in self._auth_rate_limit:
-                    self._auth_rate_limit[ip] = []
-                window = self._auth_rate_limit[ip]
-                window[:] = [t for t in window if now - t < self._auth_rate_limit_window]
-                if len(window) >= self._auth_rate_limit_max:
+                key = f"webhook:{ip}" if is_webhook else ip
+                max_req = 60 if is_webhook else self._auth_rate_limit_max
+                window_sec = 60 if is_webhook else self._auth_rate_limit_window
+                if key not in self._auth_rate_limit:
+                    self._auth_rate_limit[key] = []
+                window = self._auth_rate_limit[key]
+                window[:] = [t for t in window if now - t < window_sec]
+                if len(window) >= max_req:
                     return web.json_response(
                         {'error': 'Too many attempts. Please try again later.'},
                         status=429
@@ -120,6 +125,7 @@ class TradingBotAPI:
                 '/api/runtime',  # Runtime info endpoint
                 '/api/ai/status',  # AI status endpoint (public for diagnostics)
                 '/api/test/',   # All test endpoints (trading-health, force-trade, etc.)
+                '/api/webhooks/',  # TradingView webhooks (validated by secret)
                 '/landing',
                 '/signup',
                 '/signin',
@@ -281,10 +287,12 @@ class TradingBotAPI:
         self.app.router.add_get('/api/risk', self.get_risk)
         self.app.router.add_get('/api/market-conditions', self.get_market_conditions)
         self.app.router.add_get('/api/prices', self.get_current_prices)
+        self.app.router.add_get('/api/crypto-news', self.get_crypto_news)
         
         # Settings endpoints
         self.app.router.add_get('/api/settings', self.get_settings)
         self.app.router.add_post('/api/settings', self.save_settings)
+        self.app.router.add_get('/api/strategies', self.get_strategies)
         self.app.router.add_get('/api/settings/templates', self.get_templates)
         self.app.router.add_post('/api/settings/templates', self.save_template)
         self.app.router.add_get('/api/settings/templates/list', self.list_templates)
@@ -347,6 +355,9 @@ class TradingBotAPI:
         # Test trade endpoint (for validating trading pipeline)
         self.app.router.add_post('/api/test/force-trade', self.force_test_trade)
         self.app.router.add_get('/api/test/trading-health', self.trading_health)
+        
+        # Webhooks (TradingView)
+        self.app.router.add_post('/api/webhooks/tradingview', self.tradingview_webhook)
         
         # AI endpoints
         self.app.router.add_post('/api/ai/analyze-market', self.ai_analyze_market)
@@ -1486,6 +1497,33 @@ class TradingBotAPI:
         except Exception as e:
             logger.error(f"Error getting current prices: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
+
+    async def get_crypto_news(self, request):
+        """Fetch crypto news from CryptoCompare (free API, no key required)."""
+        try:
+            import aiohttp
+            limit = _safe_int(request.query.get('limit'), 10, min_val=1, max_val=20)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                    f'https://min-api.cryptocompare.com/data/v2/news/?lang=EN&sortOrder=latest&limit={limit}',
+                    timeout=aiohttp.ClientTimeout(total=8)
+                ) as resp:
+                    if resp.status != 200:
+                        return web.json_response({'news': [], 'error': 'News service unavailable'})
+                    data = await resp.json()
+            items = []
+            for item in data.get('Data', [])[:limit]:
+                items.append({
+                    'title': item.get('title', ''),
+                    'url': item.get('url', '#'),
+                    'source': item.get('source', ''),
+                    'published': item.get('published_on', 0),
+                    'image': item.get('imageurl') or item.get('source_info', {}).get('img', ''),
+                })
+            return web.json_response({'news': items})
+        except Exception as e:
+            logger.warning(f"Error fetching crypto news: {e}")
+            return web.json_response({'news': [], 'error': str(e)})
     
     async def get_settings(self, request):
         """Get current bot settings."""
@@ -1519,13 +1557,24 @@ class TradingBotAPI:
                 'stop_loss_max': config.STOP_LOSS_MAX,
                 'trading_pairs': trading_pairs,
                 'paper_trading': config.PAPER_TRADING,
-                'use_real_market_data': config.USE_REAL_MARKET_DATA
+                'use_real_market_data': config.USE_REAL_MARKET_DATA,
+                'active_strategy_id': getattr(config, 'ACTIVE_STRATEGY_ID', 'ema_rsi')
             }
             return web.json_response(settings)
         except Exception as e:
             logger.error(f"Error getting settings: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
-    
+
+    async def get_strategies(self, request):
+        """List all available trading strategies (Strategy Marketplace)."""
+        try:
+            from strategy import list_strategies
+            strategies = list_strategies()
+            return web.json_response({'strategies': strategies})
+        except Exception as e:
+            logger.error(f"Error listing strategies: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
     async def save_settings(self, request):
         """Save bot settings (requires restart to apply)."""
         if not self.bot:
@@ -1554,48 +1603,70 @@ class TradingBotAPI:
             
             if errors:
                 return web.json_response({'error': '; '.join(errors)}, status=400)
-            
+
             # Update config object (runtime changes)
             config = self.bot.config
-            
+
+            # Strategy Marketplace: switch active strategy
+            if 'active_strategy_id' in settings:
+                sid = str(settings['active_strategy_id']).strip()
+                from strategy import get_strategy, list_strategies
+                valid_ids = [s['id'] for s in list_strategies()]
+                if sid in valid_ids:
+                    config.ACTIVE_STRATEGY_ID = sid
+                    self.bot.strategy = get_strategy(sid, config)
+                    logger.info(f"Strategy switched to: {sid}")
+                else:
+                    return web.json_response({'error': f'Unknown strategy: {sid}'}, status=400)
+
+            strat = self.bot.strategy
             if 'ema_period' in settings:
                 config.EMA_PERIOD = _safe_int(settings['ema_period'], config.EMA_PERIOD, min_val=5, max_val=200)
-                self.bot.strategy.ema_period = config.EMA_PERIOD
-            
+                if hasattr(strat, 'ema_period'):
+                    strat.ema_period = config.EMA_PERIOD
+
             if 'rsi_period' in settings:
                 config.RSI_PERIOD = _safe_int(settings['rsi_period'], config.RSI_PERIOD, min_val=5, max_val=50)
-                self.bot.strategy.rsi_period = config.RSI_PERIOD
-            
+                if hasattr(strat, 'rsi_period'):
+                    strat.rsi_period = config.RSI_PERIOD
+
             if 'volume_period' in settings:
                 config.VOLUME_PERIOD = _safe_int(settings['volume_period'], config.VOLUME_PERIOD, min_val=5, max_val=100)
-                self.bot.strategy.volume_period = config.VOLUME_PERIOD
-            
+                if hasattr(strat, 'volume_period'):
+                    strat.volume_period = config.VOLUME_PERIOD
+
             if 'volume_multiplier' in settings:
                 config.VOLUME_MULTIPLIER = _safe_float(settings['volume_multiplier'], config.VOLUME_MULTIPLIER, min_val=0.1, max_val=10.0)
-                self.bot.strategy.volume_multiplier = config.VOLUME_MULTIPLIER
-            
+                if hasattr(strat, 'volume_multiplier'):
+                    strat.volume_multiplier = config.VOLUME_MULTIPLIER
+
             if 'min_confidence' in settings:
                 config.MIN_CONFIDENCE_SCORE = _safe_float(settings['min_confidence'], config.MIN_CONFIDENCE_SCORE, min_val=0, max_val=100)
-                self.bot.strategy.min_confidence = config.MIN_CONFIDENCE_SCORE
+                if hasattr(strat, 'min_confidence'):
+                    strat.min_confidence = config.MIN_CONFIDENCE_SCORE
             
             if 'loop_interval' in settings:
                 config.LOOP_INTERVAL_SECONDS = _safe_int(settings['loop_interval'], config.LOOP_INTERVAL_SECONDS, min_val=10, max_val=3600)
             
             if 'rsi_long_min' in settings:
                 config.RSI_LONG_MIN = _safe_float(settings['rsi_long_min'], config.RSI_LONG_MIN, min_val=0, max_val=100)
-                self.bot.strategy.rsi_long_min = config.RSI_LONG_MIN
-            
+                if hasattr(strat, 'rsi_long_min'):
+                    strat.rsi_long_min = config.RSI_LONG_MIN
+
             if 'rsi_long_max' in settings:
                 config.RSI_LONG_MAX = _safe_float(settings['rsi_long_max'], config.RSI_LONG_MAX, min_val=0, max_val=100)
-                self.bot.strategy.rsi_long_max = config.RSI_LONG_MAX
-            
+                if hasattr(strat, 'rsi_long_max'):
+                    strat.rsi_long_max = config.RSI_LONG_MAX
+
             if 'rsi_short_min' in settings:
                 config.RSI_SHORT_MIN = _safe_float(settings['rsi_short_min'], config.RSI_SHORT_MIN, min_val=0, max_val=100)
-                self.bot.strategy.rsi_short_min = config.RSI_SHORT_MIN
-            
+                if hasattr(strat, 'rsi_short_min'):
+                    strat.rsi_short_min = config.RSI_SHORT_MIN
+
             if 'rsi_short_max' in settings:
                 config.RSI_SHORT_MAX = _safe_float(settings['rsi_short_max'], config.RSI_SHORT_MAX, min_val=0, max_val=100)
-                self.bot.strategy.rsi_short_max = config.RSI_SHORT_MAX
+                if hasattr(strat, 'rsi_short_max'):
+                    strat.rsi_short_max = config.RSI_SHORT_MAX
             
             if 'risk_per_trade' in settings:
                 config.RISK_PER_TRADE_PCT = _safe_float(settings['risk_per_trade'], config.RISK_PER_TRADE_PCT, min_val=0, max_val=100)
@@ -2852,6 +2923,87 @@ class TradingBotAPI:
                 'success': False,
                 'error_type': type(e).__name__
             }, status=500)
+    
+    async def tradingview_webhook(self, request):
+        """
+        Receive TradingView alert webhooks and execute trades.
+        
+        TradingView sends POST with JSON body. Example:
+        {"symbol":"BTCUSD","action":"buy","close":67500}
+        or {"symbol":"BTC-USD","action":"sell","quote_size":50}
+        
+        Security: Requires TRADINGVIEW_WEBHOOK_SECRET in env.
+        Pass via ?secret=xxx or X-Webhook-Secret header.
+        """
+        # Validate secret (required in production; optional in dev if not set)
+        expected = self.config.TRADINGVIEW_WEBHOOK_SECRET
+        secret = request.query.get('secret') or request.headers.get('X-Webhook-Secret', '')
+        if expected:
+            if secret != expected:
+                logger.warning("TradingView webhook rejected: invalid or missing secret")
+                return web.json_response({'error': 'Invalid webhook secret'}, status=401)
+        elif getattr(self.config, 'ENVIRONMENT', '') == 'production':
+            return web.json_response({'error': 'TRADINGVIEW_WEBHOOK_SECRET not configured'}, status=503)
+        
+        if not self.bot:
+            return web.json_response({'error': 'Trading bot not running'}, status=503)
+        
+        try:
+            body = await request.json()
+        except Exception:
+            return web.json_response({'error': 'Invalid JSON body'}, status=400)
+        
+        # Parse payload - TradingView allows custom message format
+        symbol_raw = body.get('symbol') or body.get('ticker') or body.get('pair') or ''
+        action = (body.get('action') or body.get('side') or body.get('order') or 'buy').lower()
+        quote_size = _safe_float(body.get('quote_size') or body.get('amount_usd') or body.get('amount'), 0)
+        if quote_size <= 0:
+            quote_size = self.config.TRADINGVIEW_ORDER_SIZE_USD
+        
+        # Normalize symbol: BTCUSD, BTC/USD, BTCUSDT -> BTC-USD (Coinbase)
+        symbol = str(symbol_raw).upper().replace('/', '').replace(' ', '')
+        if 'USD' in symbol and '-' not in symbol:
+            base = symbol.replace('USD', '').replace('USDT', '')
+            symbol = f"{base}-USD"
+        elif symbol and '-' not in symbol and len(symbol) >= 6:
+            symbol = f"{symbol[:3]}-{symbol[3:]}" if len(symbol) == 6 else symbol
+        
+        if not symbol or len(symbol) < 5:
+            return web.json_response({'error': 'Invalid symbol'}, status=400)
+        
+        side = 'BUY' if action in ('buy', 'long', '1') else 'SELL'
+        
+        # Validate symbol is in allowed pairs
+        allowed = getattr(self.config, 'TRADING_PAIRS', ['BTC-USD', 'ETH-USD'])
+        if symbol not in allowed:
+            return web.json_response({'error': f'Symbol {symbol} not in allowed pairs'}, status=400)
+        
+        quote_size = min(quote_size, 1000.0)
+        
+        try:
+            if side == 'BUY':
+                order_result = await self.bot.exchange.place_order(
+                    pair=symbol, side='BUY', size=0, quote_size=quote_size
+                )
+            else:
+                market_data = await self.bot.exchange.get_market_data([symbol])
+                if symbol not in market_data:
+                    return web.json_response({'error': f'Could not get price for {symbol}'}, status=400)
+                price = market_data[symbol]['price']
+                size = quote_size / price if price else 0
+                order_result = await self.bot.exchange.place_order(
+                    pair=symbol, side='SELL', size=size, quote_size=None
+                )
+            
+            logger.info(f"TradingView webhook executed: {side} {symbol} ${quote_size}")
+            return web.json_response({
+                'success': True,
+                'message': f'{side} {symbol} executed',
+                'order': order_result
+            })
+        except Exception as e:
+            logger.error(f"TradingView webhook failed: {e}", exc_info=True)
+            return web.json_response({'error': str(e), 'success': False}, status=500)
     
     async def trading_health(self, request):
         """

@@ -292,8 +292,20 @@
             <div id="alert" class="alert"></div>
 
             <form id="settingsForm">
-                <!-- Strategy Settings -->
+                <!-- Strategy Marketplace -->
                 <div class="settings-section">
+                    <h2>Strategy</h2>
+                    <div class="form-group">
+                        <label for="active_strategy_id">Active Strategy</label>
+                        <select id="active_strategy_id" name="active_strategy_id">
+                            <option value="ema_rsi">EMA + RSI + Volume (default)</option>
+                        </select>
+                        <div class="form-help">Choose the strategy used for signal generation. Restart may be required.</div>
+                    </div>
+                </div>
+
+                <!-- Strategy Settings (EMA+RSI specific) -->
+                <div class="settings-section" id="strategyParamsSection">
                     <h2>Strategy Parameters</h2>
                     <div class="form-row">
                         <div class="form-group">
@@ -494,6 +506,30 @@
                             <p style="margin: 0.5rem 0;"><strong>Account Created:</strong> <span id="accountCreated">Loading...</span></p>
                         </div>
                         <div class="form-help">Your account information (change password feature coming soon)</div>
+                    </div>
+                </div>
+
+                <!-- TradingView Webhook -->
+                <div class="settings-section">
+                    <h2>TradingView Webhook</h2>
+                    <p style="color: var(--gray-600); margin-bottom: 1rem;">Execute trades from TradingView alerts automatically.</p>
+                    <div class="form-group">
+                        <label>Webhook URL</label>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <input type="text" id="tradingviewWebhookUrl" readonly
+                                style="flex: 1; padding: 0.75rem; border: 2px solid var(--gray-200); border-radius: 8px; background: var(--gray-50); font-family: monospace; font-size: 0.875rem;">
+                            <button type="button" class="btn btn-primary" onclick="copyTradingViewWebhookUrl()" title="Copy URL">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <div class="form-help">
+                            Add <code>TRADINGVIEW_WEBHOOK_SECRET</code> to Railway (or .env), then paste this URL into your TradingView alert webhook. Replace <code>YOUR_SECRET</code> with your secret.
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <a href="/help#tradingview" class="btn btn-secondary" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                            📖 View Setup Guide
+                        </a>
                     </div>
                 </div>
 

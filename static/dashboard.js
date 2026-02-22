@@ -208,6 +208,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlay.addEventListener('click', closeMobileMenu);
     }
     
+    // Sidebar collapse toggle
+    const sidebar = document.getElementById('sidebar');
+    const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+    const collapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    if (sidebar && collapsed) {
+        sidebar.classList.add('collapsed');
+        document.body.classList.add('sidebar-collapsed');
+    }
+    if (sidebarCollapseBtn && sidebar) {
+        sidebarCollapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        });
+    }
+
+    // Nav group expand/collapse
+    document.querySelectorAll('.nav-group-header').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const group = btn.closest('.nav-group');
+            if (!group) return;
+            const isCollapsed = group.classList.contains('collapsed');
+            group.classList.toggle('collapsed');
+            btn.setAttribute('aria-expanded', isCollapsed);
+            const groupId = group.dataset.group;
+            if (groupId) {
+                const state = JSON.parse(localStorage.getItem('navGroupsCollapsed') || '{}');
+                state[groupId] = !isCollapsed;
+                localStorage.setItem('navGroupsCollapsed', JSON.stringify(state));
+            }
+        });
+    });
+    const navState = JSON.parse(localStorage.getItem('navGroupsCollapsed') || '{}');
+    document.querySelectorAll('.nav-group').forEach(group => {
+        const id = group.dataset.group;
+        if (id && navState[id] === false) group.classList.add('collapsed');
+    });
+
     // Setup navigation
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -331,10 +370,14 @@ function navigateToPage(page) {
         breadcrumbCurrentEl.textContent = pageTitles[page];
     }
     
-    // Update nav
+    // Update nav - set active link and expand parent group
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
-        if (link.dataset.page === page) link.classList.add('active');
+        if (link.dataset.page === page) {
+            link.classList.add('active');
+            const group = link.closest('.nav-group');
+            if (group) group.classList.remove('collapsed');
+        }
     });
 
     // Show page
@@ -635,9 +678,61 @@ async function updateCurrentPage() {
     }
 }
 
+async function updateMarketTicker() {
+    const el = document.getElementById('tickerItems');
+    if (!el) return;
+    try {
+        const data = await fetchAPI('/prices');
+        if (!data || !data.prices) {
+            el.innerHTML = '<span class="ticker-unavailable">Prices unavailable</span>';
+            return;
+        }
+        const prices = data.prices;
+        const pairs = Object.keys(prices).sort();
+        if (pairs.length === 0) {
+            el.innerHTML = '<span class="ticker-unavailable">No price data</span>';
+            return;
+        }
+        el.innerHTML = pairs.map(pair => {
+            const p = prices[pair];
+            const price = parseFloat(p?.price || 0);
+            const fmt = price >= 1 ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : price.toFixed(6);
+            return `<span class="ticker-item"><span class="ticker-pair">${escapeHtml(pair)}</span> <span class="ticker-price">$${fmt}</span></span>`;
+        }).join('');
+    } catch (e) {
+        el.innerHTML = '<span class="ticker-unavailable">Prices unavailable</span>';
+    }
+}
+
+async function updateCryptoNews() {
+    const el = document.getElementById('cryptoNews');
+    if (!el) return;
+    try {
+        const data = await fetchAPI('/crypto-news?limit=8');
+        const items = data?.news || [];
+        if (items.length === 0) {
+            el.innerHTML = '<p class="empty-state">No news available</p>';
+            return;
+        }
+        el.innerHTML = items.map(n => {
+            const timeAgo = n.published ? (() => {
+                const s = Math.floor((Date.now() / 1000 - n.published) / 60);
+                if (s < 60) return s + 'm ago';
+                if (s < 1440) return Math.floor(s / 60) + 'h ago';
+                return Math.floor(s / 1440) + 'd ago';
+            })() : '';
+            return `<a href="${escapeHtml(n.url || '#')}" target="_blank" rel="noopener" class="news-item"><span class="news-title">${escapeHtml(n.title || '')}</span><span class="news-meta">${escapeHtml(n.source || '')} · ${timeAgo}</span></a>`;
+        }).join('');
+    } catch (e) {
+        el.innerHTML = '<p class="empty-state">News unavailable</p>';
+    }
+}
+
 // Overview Page
 async function updateOverview() {
     try {
+        updateMarketTicker();
+        updateCryptoNews();
         const [statusData, performanceData, riskData, positionsData] = await Promise.allSettled([
             updateStatus(),
             updatePerformance(),

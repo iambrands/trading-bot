@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from config import get_config
 from exchange import CoinbaseClient
-from strategy import EMARSIStrategy
+from strategy import get_strategy
 from risk import RiskManager
 from database import DatabaseManager
 from monitoring import PerformanceTracker
@@ -40,7 +40,8 @@ class TradingBot:
         
         # Core components
         self.exchange = CoinbaseClient(self.config)
-        self.strategy = EMARSIStrategy(self.config)
+        strat_id = getattr(self.config, 'ACTIVE_STRATEGY_ID', 'ema_rsi')
+        self.strategy = get_strategy(strat_id, self.config) or get_strategy('ema_rsi', self.config)
         self.risk_manager = RiskManager(self.config)
         self.db = DatabaseManager(self.config)
         self.performance_tracker = PerformanceTracker(self.config)

@@ -364,6 +364,11 @@
                     <h3>API Integration</h3>
                     <p>Connect Coinbase and configure API keys</p>
                 </a>
+                <a href="#tradingview" class="help-card">
+                    <div class="help-card-icon">📡</div>
+                    <h3>TradingView Webhooks</h3>
+                    <p>Execute trades from TradingView alerts</p>
+                </a>
                 <a href="#settings" class="help-card">
                     <div class="help-card-icon">⚙️</div>
                     <h3>Settings & Configuration</h3>
@@ -714,6 +719,45 @@
                         </ul>
                         <p><strong>Recommended:</strong> Start with "View" only permissions for paper trading. Only enable "Trade" when you're ready for live trading.</p>
                     </div>
+                </div>
+            </div>
+
+            <!-- TradingView Webhooks -->
+            <div class="help-category" id="tradingview">
+                <h2>📡 TradingView Webhooks</h2>
+                
+                <div class="help-section">
+                    <h3>Overview</h3>
+                    <p>Execute trades automatically from TradingView alerts. When an alert triggers, TradingView sends a webhook to TradePilot, which places the order on Coinbase.</p>
+                </div>
+                
+                <div class="help-section">
+                    <h3>1. Configure Environment</h3>
+                    <p>Add to Railway (or <code>.env</code>):</p>
+                    <ul>
+                        <li><strong>TRADINGVIEW_WEBHOOK_SECRET</strong> – Generate with <code>openssl rand -hex 24</code>. Required in production.</li>
+                        <li><strong>TRADINGVIEW_ORDER_SIZE_USD</strong> – Default order size in USD when alert doesn't include amount (default: 50).</li>
+                    </ul>
+                </div>
+                
+                <div class="help-section">
+                    <h3>2. Webhook URL</h3>
+                    <p>Your webhook URL is shown in <strong>Settings → TradingView Webhook</strong>. Copy it and replace <code>YOUR_SECRET</code> with your <code>TRADINGVIEW_WEBHOOK_SECRET</code>.</p>
+                    <p>Or pass the secret via header: <code>X-Webhook-Secret: YOUR_SECRET</code>.</p>
+                </div>
+                
+                <div class="help-section">
+                    <h3>3. TradingView Alert Message</h3>
+                    <p>In TradingView, create an alert and set the <strong>Webhook URL</strong> to your URL. Use this message format (JSON):</p>
+                    <pre style="background: var(--gray-100); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.875rem;">{"symbol": "{{ticker}}", "action": "{{strategy.order.action}}", "close": {{close}}}</pre>
+                    <p><strong>Fields:</strong> <code>symbol</code> (e.g. BTCUSD, BTC-USD), <code>action</code> (buy, sell, long, short), optional <code>quote_size</code> (USD amount).</p>
+                </div>
+                
+                <div class="help-section">
+                    <h3>4. Test</h3>
+                    <p>Send a test POST to verify your setup:</p>
+                    <pre style="background: var(--gray-100); padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.875rem;">curl -X POST "YOUR_WEBHOOK_URL" -H "Content-Type: application/json" -d '{"symbol":"BTC-USD","action":"buy","quote_size":50}'</pre>
+                    <p>Expected: <code>{"success": true, "message": "BUY BTC-USD executed", ...}</code></p>
                 </div>
             </div>
 
