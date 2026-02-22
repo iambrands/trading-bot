@@ -61,7 +61,7 @@ def test_calculate_indicators(strategy, sample_candles):
     assert 'price' in indicators
     assert 'ema' in indicators
     assert 'rsi' in indicators
-    assert 'volume' in indicators
+    assert 'volume_ratio' in indicators  # Strategy returns volume_ratio (current/avg)
     assert indicators['price'] > 0
 
 
