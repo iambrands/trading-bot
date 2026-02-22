@@ -3,7 +3,7 @@
 **Project**: TradePilot (Crypto Scalping Trading Bot)  
 **Tech Stack**: Python/aiohttp, HTML/JS/CSS (vanilla), PostgreSQL, Railway  
 **Audit Date**: February 2026  
-**Status**: Phases 0–7 Complete — Production Ready
+**Status**: Phases 0–8 Complete — Production Ready
 
 ---
 
@@ -442,9 +442,34 @@ locust -f locustfile.py --host=URL --users 20 --spawn-rate 5 --run-time 60s --he
 | 4 | Frontend (XSS mitigation) | ✅ |
 | 5 | E2E tests | ✅ |
 | 7 | Load testing (Locust) | ✅ |
+| 8 | Infrastructure (rate limit, CSP, checklist) | ✅ |
 
-### Optional Next Steps
+---
 
-- **Phase 8 – Infrastructure**: Railway env review, backup strategy, monitoring/alerting
-- **Rate limiting**: Add rate limits to `/api/auth/signin` (noted in Phase 1)
-- **CSP header**: Content-Security-Policy for defense in depth (noted in Phase 4)
+## Phase 8: Infrastructure — COMPLETE
+
+### 8.1 Rate Limiting
+
+| Endpoint | Limit |
+|----------|-------|
+| /api/auth/signin | 10 req/min per IP |
+| /api/auth/signup | 10 req/min per IP |
+
+### 8.2 Content-Security-Policy
+
+- `script-src`: self, unsafe-inline, cdn.jsdelivr.net, unpkg.com (Chart.js, LightweightCharts)
+- `style-src`: self, unsafe-inline
+- `img-src`: self, data:, https:
+- `connect-src`: self
+
+### 8.3 Infrastructure Checklist
+
+- **docs/INFRASTRUCTURE_CHECKLIST.md**: Env vars, backup strategy, monitoring, deployment notes
+
+### Fix Log — Phase 8
+
+| File | Change |
+|------|--------|
+| api/rest_api.py | Rate limit middleware for auth; CSP header |
+| docs/INFRASTRUCTURE_CHECKLIST.md | Created |
+| tests/e2e/test_api_e2e.py | test_auth_rate_limit_returns_429 |

@@ -148,6 +148,20 @@ async def test_test_trading_health_returns_200():
         assert resp.status == 200
 
 
+# ---- Rate limiting ----
+
+@pytest.mark.asyncio
+async def test_auth_rate_limit_returns_429():
+    """Sign-in exceeds rate limit -> 429."""
+    app = _make_app()
+    async with TestClient(TestServer(app)) as client:
+        for _ in range(12):
+            resp = await client.post('/api/auth/signin', json={'email': 'a@b.com', 'password': 'x'})
+        assert resp.status == 429
+        data = await resp.json()
+        assert 'error' in data
+
+
 # ---- Auth flow (requires DATABASE_URL) ----
 
 @requires_db

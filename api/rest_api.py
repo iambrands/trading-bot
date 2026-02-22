@@ -4,6 +4,7 @@ import logging
 import csv
 import io
 import json
+import time
 from datetime import datetime
 from typing import Optional, Dict
 from collections import defaultdict
@@ -59,6 +60,11 @@ class TradingBotAPI:
     
     def _setup_middleware(self):
         """Setup security headers and authentication middleware."""
+        # Rate limit state for auth endpoints (in-memory, per process)
+        self._auth_rate_limit: Dict[str, list] = {}
+        self._auth_rate_limit_max = 10
+        self._auth_rate_limit_window = 60
+
         # Security headers middleware - runs first, adds headers to all responses
         @web.middleware
         async def security_headers_middleware(request, handler):
@@ -67,9 +73,34 @@ class TradingBotAPI:
             response.headers['X-Frame-Options'] = 'SAMEORIGIN'
             response.headers['X-XSS-Protection'] = '1; mode=block'
             response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+            # Content-Security-Policy (allows Chart.js, LightweightCharts from CDN)
+            csp = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'"
+            response.headers['Content-Security-Policy'] = csp
             return response
 
         self.app.middlewares.append(security_headers_middleware)
+
+        # Rate limiting for auth endpoints
+        @web.middleware
+        async def rate_limit_middleware(request, handler):
+            if request.path in ('/api/auth/signin', '/api/auth/signup'):
+                ip = request.headers.get('X-Forwarded-For', request.remote or 'unknown')
+                if ',' in ip:
+                    ip = ip.split(',')[0].strip()
+                now = time.time()
+                if ip not in self._auth_rate_limit:
+                    self._auth_rate_limit[ip] = []
+                window = self._auth_rate_limit[ip]
+                window[:] = [t for t in window if now - t < self._auth_rate_limit_window]
+                if len(window) >= self._auth_rate_limit_max:
+                    return web.json_response(
+                        {'error': 'Too many attempts. Please try again later.'},
+                        status=429
+                    )
+                window.append(now)
+            return await handler(request)
+
+        self.app.middlewares.append(rate_limit_middleware)
 
         @web.middleware
         async def auth_middleware(request, handler):
