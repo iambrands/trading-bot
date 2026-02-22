@@ -75,6 +75,17 @@ class BaseStrategy(ABC):
             k: v.get("default", 0) for k, v in self.params_schema.items()
         }
 
+    def get_min_candles(self) -> int:
+        """Return minimum number of candles needed before strategy can run. Used by backtest engine."""
+        period_keys = ("ema_period", "rsi_period", "volume_period", "period")
+        max_period = 0
+        for k, v in self.params_schema.items():
+            if k in period_keys or "period" in k.lower():
+                p = v.get("default", 0)
+                if isinstance(p, (int, float)):
+                    max_period = max(max_period, int(p))
+        return max(max_period + 1, 50) if max_period else 50
+
     def to_info(self) -> Dict[str, Any]:
         """Serialize for API: id, name, description, params_schema."""
         return {
@@ -98,12 +109,12 @@ def register_strategy(cls: type) -> type:
     return cls
 
 
-def get_strategy(id: str, config=None) -> Optional[BaseStrategy]:
-    """Create strategy instance by id."""
+def get_strategy(id: str, config=None, **kwargs) -> Optional[BaseStrategy]:
+    """Create strategy instance by id. Extra kwargs passed to strategy constructor (e.g. definition for custom)."""
     cls = _registry.get(id)
     if cls is None:
         return None
-    return cls(config)
+    return cls(config=config, **kwargs)
 
 
 def list_strategies() -> List[Dict[str, Any]]:

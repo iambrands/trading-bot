@@ -77,6 +77,9 @@ class Config:
     TAKE_PROFIT_MAX = 2.00  # 2.0% max (Coinbase: ~0.8% net | Binance: ~1.8% net)
     STOP_LOSS_MIN = 0.50   # 0.5% min
     STOP_LOSS_MAX = 0.75   # 0.75% max
+    TRAILING_STOP_ENABLED = False
+    TRAILING_STOP_PCT = 0.5  # Exit when price reverses this % from best price
+    TRAILING_STOP_ACTIVATION_PCT = 0.3  # Start trailing after price moved this % in favor (optional)
     
     # Fee Configuration
     VALIDATE_FEES_BEFORE_TRADE = True  # Validate profitability after fees

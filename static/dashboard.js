@@ -92,6 +92,7 @@ const pageTitles = {
     'orders': 'Advanced Orders',
     'grid': 'Grid Trading & DCA',
     'backtest': 'Strategy Backtesting',
+    'strategy-designer': 'Strategy Designer',
     'logs': 'Live Monitor',
     'settings': 'Settings'
 };
@@ -247,6 +248,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (id && navState[id] === false) group.classList.add('collapsed');
     });
 
+    // Backtest: show/hide custom definition when strategy changes
+    const backtestStrategyEl = document.getElementById('backtestStrategy');
+    if (backtestStrategyEl) backtestStrategyEl.addEventListener('change', toggleBacktestCustomDefinition);
+
     // Setup navigation
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
@@ -276,6 +281,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     else if (path === '/charts') navigateToPage('charts');
     else if (path === '/orders') navigateToPage('orders');
     else if (path === '/grid') navigateToPage('grid');
+    else if (path === '/backtest') navigateToPage('backtest');
+    else if (path === '/strategy-designer') navigateToPage('strategy-designer');
     else if (path === '/logs') navigateToPage('logs');
     else if (path === '/journal') navigateToPage('journal');
     else if (path === '/glossary') navigateToPage('glossary');
@@ -397,6 +404,7 @@ function navigateToPage(page) {
         'orders': '/orders',
         'grid': '/grid',
         'backtest': '/backtest',
+        'strategy-designer': '/strategy-designer',
         'logs': '/logs',
         'help': '/help',
         'settings': '/settings'
@@ -648,6 +656,9 @@ async function updateCurrentPage() {
             break;
         case 'backtest':
             await updateBacktestPage();
+            break;
+        case 'strategy-designer':
+            await updateStrategyDesignerPage();
             break;
         case 'settings':
             // Settings is a standalone page, redirect to it
@@ -1724,6 +1735,37 @@ async function populateBacktestPairDropdowns() {
             console.warn('⚠️ backtestFilterPair dropdown element not found');
         }
         
+        // Populate backtestStrategy dropdown from GET /api/strategies
+        const strategySelect = document.getElementById('backtestStrategy');
+        if (strategySelect) {
+            try {
+                const stratData = await fetchAPI('/strategies');
+                const strategies = stratData?.strategies || [];
+                if (strategies.length > 0) {
+                    const currentStrategy = strategySelect.value;
+                    strategySelect.innerHTML = '';
+                    strategies.forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s.id;
+                        opt.textContent = s.name || s.id;
+                        strategySelect.appendChild(opt);
+                    });
+                    const customOpt = document.createElement('option');
+                    customOpt.value = 'custom';
+                    customOpt.textContent = 'Custom (Designer)';
+                    strategySelect.appendChild(customOpt);
+                    if (currentStrategy && (currentStrategy === 'custom' || strategies.some(s => s.id === currentStrategy))) {
+                        strategySelect.value = currentStrategy;
+                    } else if (strategies.length > 0) {
+                        strategySelect.value = strategies[0].id;
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not load strategies for backtest dropdown:', e);
+            }
+        }
+        
+        toggleBacktestCustomDefinition();
         console.log(`✅ Successfully populated backtest dropdowns with ${pairsArray.length} pairs:`, pairsArray);
     } catch (error) {
         console.error('❌ Error populating backtest pair dropdowns:', error);
@@ -1927,7 +1969,8 @@ function renderBacktestList() {
     
     // Build table
     let html = '<div class="table-wrapper" style="max-height: 600px; overflow-y: auto;"><table><thead><tr>';
-    html += '<th>Name</th><th>Pair</th><th>Period</th><th>Gross</th><th>Fees</th><th>Net</th><th>Fee model</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
+    html += '<th style="width: 2rem;"><input type="checkbox" id="backtestSelectAll" title="Select all" onclick="toggleBacktestSelectAll(this)"></th>';
+    html += '<th>Name</th><th>Pair</th><th>Period</th><th>Gross</th><th>Fees</th><th>Net</th><th>Fee model</th><th>Score</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     
     paginatedData.forEach(bt => {
@@ -1944,7 +1987,9 @@ function renderBacktestList() {
         const endDate = bt.end_date ? new Date(bt.end_date) : null;
         const days = startDate && endDate ? Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) : 'N/A';
         
+        const score = bt.score != null ? parseFloat(bt.score).toFixed(1) : '—';
         html += '<tr>';
+        html += `<td><input type="checkbox" class="backtest-compare-check" data-id="${bt.id}" title="Add to compare"></td>`;
         html += `<td><strong>${escapeHtml(bt.name || 'Unnamed')}</strong></td>`;
         html += `<td><span class="badge" style="padding: 0.25rem 0.5rem; background: var(--blue-100); color: var(--blue-700); border-radius: 4px; font-size: 0.875rem;">${escapeHtml(bt.pair || 'N/A')}</span></td>`;
         html += `<td>${days} days</td>`;
@@ -1952,6 +1997,7 @@ function renderBacktestList() {
         html += `<td style="color: var(--gray-600);">${formatCurrency(totalFees)}</td>`;
         html += `<td class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(netPnl)}</td>`;
         html += `<td style="font-size: 0.8125rem; color: var(--gray-600);" title="Fees use this exchange rate">${escapeHtml(feeModel)}</td>`;
+        html += `<td style="font-weight: 600;">${score}</td>`;
         html += `<td class="${roi >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatPercent(roi)}</td>`;
         html += `<td>${winRate.toFixed(2)}%</td>`;
         html += `<td>${trades}</td>`;
@@ -1990,6 +2036,197 @@ function changeBacktestPage(direction) {
         if (container) {
             container.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+    }
+}
+
+function toggleBacktestSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.backtest-compare-check');
+    checkboxes.forEach(cb => { cb.checked = !!checkbox.checked; });
+}
+
+function toggleBacktestCustomDefinition() {
+    const sel = document.getElementById('backtestStrategy');
+    const wrap = document.getElementById('backtestCustomDefinitionWrap');
+    if (!sel || !wrap) return;
+    const isCustom = sel.value === 'custom';
+    wrap.style.display = isCustom ? 'block' : 'none';
+    if (isCustom) populateBacktestCustomDefinitions();
+}
+
+async function populateBacktestCustomDefinitions() {
+    const selectEl = document.getElementById('backtestCustomDefinition');
+    if (!selectEl) return;
+    try {
+        const data = await fetchAPI('/strategy-definitions');
+        const list = data?.strategy_definitions || [];
+        const current = selectEl.value;
+        selectEl.innerHTML = '<option value="">Select a saved strategy...</option>';
+        list.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = d.name || 'Unnamed';
+            selectEl.appendChild(opt);
+        });
+        if (current && list.some(d => String(d.id) === String(current))) selectEl.value = current;
+    } catch (e) {
+        console.warn('Could not load strategy definitions:', e);
+    }
+}
+
+async function runCompareBacktests() {
+    const ids = Array.from(document.querySelectorAll('.backtest-compare-check:checked')).map(cb => parseInt(cb.getAttribute('data-id'), 10)).filter(n => !isNaN(n));
+    const minRoi = document.getElementById('compareMinRoi')?.value?.trim();
+    const minWinRate = document.getElementById('compareMinWinRate')?.value?.trim();
+    const minPf = document.getElementById('compareMinProfitFactor')?.value?.trim();
+    const validationDays = document.getElementById('compareValidationDays')?.value?.trim();
+    const criteria = {};
+    if (minRoi !== '') criteria.min_roi_pct = parseFloat(minRoi);
+    if (minWinRate !== '') criteria.min_win_rate = parseFloat(minWinRate);
+    if (minPf !== '') criteria.min_profit_factor = parseFloat(minPf);
+    if (validationDays !== '') criteria.validation_period_days = parseInt(validationDays, 10);
+    const body = { criteria };
+    if (ids.length > 0) body.backtest_ids = ids;
+    try {
+        const data = await fetch(`${API_BASE}/backtest/compare`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+            credentials: 'include',
+            body: JSON.stringify(body)
+        }).then(r => r.json());
+        if (!data || !Array.isArray(data.backtests)) {
+            showToast('Compare failed or no data', 'error');
+            return;
+        }
+        const container = document.getElementById('compareResultsContainer');
+        const summaryEl = document.getElementById('compareResultsSummary');
+        const tableEl = document.getElementById('compareResultsTable');
+        if (!container || !summaryEl || !tableEl) return;
+        summaryEl.textContent = `${data.passed || 0} of ${data.total_compared || 0} passed criteria. Sorted by score (best first).`;
+        let tableHtml = '<table><thead><tr><th>Rank</th><th>Score</th><th>Name</th><th>Pair</th><th>Period</th><th>ROI</th><th>Win Rate</th><th>PF</th><th>Drawdown</th><th>Actions</th></tr></thead><tbody>';
+        (data.backtests || []).forEach((bt, idx) => {
+            const roi = parseFloat(bt.roi_pct || 0);
+            const wr = parseFloat(bt.win_rate || 0);
+            const pf = parseFloat(bt.profit_factor || 0);
+            const dd = parseFloat(bt.max_drawdown || 0);
+            const startDate = bt.start_date ? new Date(bt.start_date) : null;
+            const endDate = bt.end_date ? new Date(bt.end_date) : null;
+            const days = startDate && endDate ? Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) : 'N/A';
+            const score = bt.score != null ? parseFloat(bt.score).toFixed(1) : '—';
+            tableHtml += `<tr><td>${idx + 1}</td><td><strong>${score}</strong></td><td>${escapeHtml(bt.name || 'Unnamed')}</td><td>${escapeHtml(bt.pair || 'N/A')}</td><td>${days} days</td>`;
+            tableHtml += `<td class="${roi >= 0 ? 'positive' : 'negative'}">${formatPercent(roi)}</td><td>${wr.toFixed(2)}%</td><td>${(pf === Infinity || isNaN(pf) ? '—' : pf.toFixed(2))}</td><td>${dd.toFixed(2)}%</td>`;
+            tableHtml += `<td><button class="btn btn-primary btn-sm" onclick="viewBacktest(${bt.id})">View</button></td></tr>`;
+        });
+        tableHtml += '</tbody></table>';
+        tableEl.innerHTML = tableHtml;
+        container.style.display = 'block';
+        showToast('Compare complete', 'success');
+    } catch (e) {
+        console.error(e);
+        showToast('Compare failed: ' + (e.message || 'error'), 'error');
+    }
+}
+
+let designerEditingId = null;
+const DEFAULT_DEFINITION = { version: 1, indicators: [{ id: 'ema', params: { period: 50 } }, { id: 'rsi', params: { period: 14 } }, { id: 'volume_ratio', params: { period: 20 } }], long_entry: { required: ['price_above_ema', 'rsi_in_range'], optional: ['volume_above_avg'], min_optional: 1 }, short_entry: { required: ['price_below_ema', 'rsi_in_range'], optional: ['volume_above_avg'], min_optional: 1 }, exit: { take_profit_pct: 1.5, stop_loss_pct: 0.5 } };
+
+async function updateStrategyDesignerPage() {
+    const listEl = document.getElementById('designerList');
+    if (!listEl) return;
+    try {
+        const data = await fetchAPI('/strategy-definitions');
+        const list = data?.strategy_definitions || [];
+        if (list.length === 0) {
+            listEl.innerHTML = '<p style="color: var(--gray-500);">No saved strategies. Click New to create one.</p>';
+            return;
+        }
+        let html = '<table><thead><tr><th>Name</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+        list.forEach(d => {
+            const created = d.created_at ? new Date(d.created_at).toLocaleDateString() : '—';
+            html += `<tr><td>${escapeHtml(d.name || 'Unnamed')}</td><td>${created}</td><td><button class="btn btn-primary btn-sm" onclick="designerEdit(${d.id})">Edit</button> <button class="btn btn-secondary btn-sm" onclick="designerDelete(${d.id})">Delete</button></td></tr>`;
+        });
+        html += '</tbody></table>';
+        listEl.innerHTML = html;
+    } catch (e) {
+        listEl.innerHTML = '<p class="error">Failed to load strategies.</p>';
+    }
+}
+
+function designerNew() {
+    designerEditingId = null;
+    document.getElementById('designerName').value = '';
+    document.getElementById('designerJson').value = JSON.stringify(DEFAULT_DEFINITION, null, 2);
+    document.getElementById('designerEditor').style.display = 'block';
+}
+
+function designerEdit(id) {
+    designerEditingId = id;
+    fetchAPI(`/strategy-definitions/${id}`).then(d => {
+        if (!d) return;
+        document.getElementById('designerName').value = d.name || '';
+        document.getElementById('designerJson').value = JSON.stringify(d.definition || {}, null, 2);
+        document.getElementById('designerEditor').style.display = 'block';
+    }).catch(() => showToast('Failed to load strategy', 'error'));
+}
+
+function designerCancel() {
+    designerEditingId = null;
+    document.getElementById('designerEditor').style.display = 'none';
+}
+
+async function designerSave() {
+    const name = document.getElementById('designerName').value?.trim() || 'Unnamed';
+    let definition;
+    try {
+        definition = JSON.parse(document.getElementById('designerJson').value || '{}');
+    } catch (e) {
+        showToast('Invalid JSON', 'error');
+        return;
+    }
+    try {
+        if (designerEditingId != null) {
+            const r = await fetch(`${API_BASE}/strategy-definitions/${designerEditingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                credentials: 'include',
+                body: JSON.stringify({ name, definition })
+            });
+            if (!r.ok) throw new Error(await r.text());
+            showToast('Strategy updated', 'success');
+        } else {
+            const res = await fetch(`${API_BASE}/strategy-definitions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                credentials: 'include',
+                body: JSON.stringify({ name, definition })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+            if (data && data.id) showToast('Strategy created', 'success');
+            else throw new Error(data?.error || 'Failed');
+        }
+        designerEditingId = null;
+        document.getElementById('designerEditor').style.display = 'none';
+        await updateStrategyDesignerPage();
+        populateBacktestCustomDefinitions();
+    } catch (e) {
+        showToast('Save failed: ' + (e.message || 'error'), 'error');
+    }
+}
+
+async function designerDelete(id) {
+    if (!confirm('Delete this strategy?')) return;
+    try {
+        const r = await fetch(`${API_BASE}/strategy-definitions/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+            credentials: 'include'
+        });
+        if (!r.ok) throw new Error(await r.text());
+        showToast('Deleted', 'success');
+        await updateStrategyDesignerPage();
+        if (document.getElementById('backtestCustomDefinition')) populateBacktestCustomDefinitions();
+    } catch (e) {
+        showToast('Delete failed', 'error');
     }
 }
 
@@ -2075,25 +2312,33 @@ async function runBacktestInternal(pair, days, balance, name) {
     // Run backtest in background - don't block on navigation
     runningBacktestPromise = (async () => {
         try {
+            const strategyId = (document.getElementById('backtestStrategy')?.value || 'ema_rsi').trim();
+            const startDateVal = document.getElementById('backtestStartDate')?.value?.trim();
+            const endDateVal = document.getElementById('backtestEndDate')?.value?.trim();
             const requestBody = {
                 pair,
                 days,
                 initial_balance: balance,
-                name
+                name,
+                strategy_id: strategyId
             };
+            if (startDateVal && endDateVal) {
+                requestBody.start_date = startDateVal;
+                requestBody.end_date = endDateVal;
+            }
             // Optional strategy overrides (only send if at least one is set)
             const strategyOverrides = {};
             const overrideIds = [
                 'backtestEmaPeriod', 'backtestRsiPeriod', 'backtestVolumeMultiplier', 'backtestMinConfidence',
                 'backtestRsiLongMin', 'backtestRsiLongMax', 'backtestRsiShortMin', 'backtestRsiShortMax',
                 'backtestTakeProfitMin', 'backtestTakeProfitMax', 'backtestStopLossMin', 'backtestStopLossMax',
-                'backtestMaxPositions'
+                'backtestMaxPositions', 'backtestTrailingStopPct', 'backtestTrailingStopActivationPct'
             ];
             const overrideKeys = [
                 'ema_period', 'rsi_period', 'volume_multiplier', 'min_confidence_score',
                 'rsi_long_min', 'rsi_long_max', 'rsi_short_min', 'rsi_short_max',
                 'take_profit_min', 'take_profit_max', 'stop_loss_min', 'stop_loss_max',
-                'max_positions'
+                'max_positions', 'trailing_stop_pct', 'trailing_stop_activation_pct'
             ];
             overrideIds.forEach((id, i) => {
                 const el = document.getElementById(id);
@@ -2103,8 +2348,18 @@ async function runBacktestInternal(pair, days, balance, name) {
                 const num = parseFloat(v);
                 if (!isNaN(num)) strategyOverrides[overrideKeys[i]] = num;
             });
+            const trailingEl = document.getElementById('backtestTrailingStopEnabled');
+            if (trailingEl && trailingEl.checked) {
+                strategyOverrides.trailing_stop_enabled = true;
+                if (strategyOverrides.trailing_stop_pct == null) strategyOverrides.trailing_stop_pct = 0.5;
+                if (strategyOverrides.trailing_stop_activation_pct == null) strategyOverrides.trailing_stop_activation_pct = 0.3;
+            }
             if (Object.keys(strategyOverrides).length > 0) {
                 requestBody.strategy_config = strategyOverrides;
+            }
+            if (strategyId === 'custom') {
+                const defId = document.getElementById('backtestCustomDefinition')?.value?.trim();
+                if (defId) requestBody.strategy_definition_id = parseInt(defId, 10);
             }
             console.log('🚀 Sending backtest request to:', `${API_BASE}/backtest/run`, requestBody);
             console.log('🚀 Auth token exists:', !!localStorage.getItem('auth_token'));

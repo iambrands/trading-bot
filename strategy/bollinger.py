@@ -23,7 +23,7 @@ class BollingerStrategy(BaseStrategy):
         "std_dev": {"type": "float", "default": 2.0, "min": 1.0, "max": 3.0},
     }
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, **kwargs):
         super().__init__(config)
         self.config = config or get_config()
         self.period = 20

@@ -140,6 +140,7 @@
                     </button>
                     <ul class="nav-group-items">
                         <li><a href="/backtest" class="nav-link" data-page="backtest">Backtest</a></li>
+                        <li><a href="/strategy-designer" class="nav-link" data-page="strategy-designer">Strategy Designer</a></li>
                         <li><a href="/logs" class="nav-link" data-page="logs">Live Monitor</a></li>
                     </ul>
                 </li>
@@ -402,9 +403,32 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="backtestStrategy">Strategy</label>
+                            <select id="backtestStrategy" class="form-input" onchange="toggleBacktestCustomDefinition()">
+                                <option value="ema_rsi">EMA + RSI + Volume</option>
+                                <option value="rsi_only">RSI Only</option>
+                                <option value="bollinger">Bollinger Bands</option>
+                                <option value="custom">Custom (Designer)</option>
+                            </select>
+                            <div id="backtestCustomDefinitionWrap" style="display: none; margin-top: 0.5rem;">
+                                <label for="backtestCustomDefinition" style="font-size: 0.8125rem;">Custom strategy</label>
+                                <select id="backtestCustomDefinition" class="form-input">
+                                    <option value="">Select a saved strategy...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
                             <label for="backtestDays">Historical Period (Days)</label>
                             <input type="number" id="backtestDays" class="form-input" value="7" min="1" max="90" required>
-                            <small>1-90 days of historical data</small>
+                            <small>1-90 days of historical data (ignored if Start/End date set)</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Optional date range</label>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                                <div><label for="backtestStartDate" style="font-size: 0.8125rem;">Start date</label><input type="date" id="backtestStartDate" class="form-input" style="padding: 0.4rem;"></div>
+                                <div><label for="backtestEndDate" style="font-size: 0.8125rem;">End date</label><input type="date" id="backtestEndDate" class="form-input" style="padding: 0.4rem;"></div>
+                            </div>
+                            <small>If both set, overrides "Historical Period (Days)" (max 365 days)</small>
                         </div>
                         <div class="form-group">
                             <label for="backtestBalance">Initial Balance ($)</label>
@@ -436,6 +460,9 @@
                                     <div><label for="backtestStopLossMin" style="font-size: 0.8125rem;">SL min %</label><input type="number" id="backtestStopLossMin" class="form-input" placeholder="0.5" min="0.1" max="10" step="0.1" style="padding: 0.4rem;"></div>
                                     <div><label for="backtestStopLossMax" style="font-size: 0.8125rem;">SL max %</label><input type="number" id="backtestStopLossMax" class="form-input" placeholder="0.75" min="0.1" max="10" step="0.1" style="padding: 0.4rem;"></div>
                                     <div><label for="backtestMaxPositions" style="font-size: 0.8125rem;">Max positions</label><input type="number" id="backtestMaxPositions" class="form-input" placeholder="2" min="1" max="20" style="padding: 0.4rem;"></div>
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;"><input type="checkbox" id="backtestTrailingStopEnabled" style="width: auto;"><label for="backtestTrailingStopEnabled" style="font-size: 0.8125rem; margin: 0;">Trailing stop</label></div>
+                                    <div><label for="backtestTrailingStopPct" style="font-size: 0.8125rem;">Trail %</label><input type="number" id="backtestTrailingStopPct" class="form-input" placeholder="0.5" min="0.1" max="10" step="0.1" style="padding: 0.4rem;"></div>
+                                    <div><label for="backtestTrailingStopActivationPct" style="font-size: 0.8125rem;">Activation %</label><input type="number" id="backtestTrailingStopActivationPct" class="form-input" placeholder="0.3" min="0" max="10" step="0.1" style="padding: 0.4rem;"></div>
                                 </div>
                             </div>
                         </div>
@@ -450,6 +477,23 @@
                 <div class="card" id="backtestResultsCard" style="display: none;">
                     <h2>Latest Results</h2>
                     <div id="backtestResultsContent"></div>
+                </div>
+            </div>
+
+            <!-- Algorithm Intelligence: Score & Compare -->
+            <div class="card">
+                <h2 style="margin: 0 0 1rem 0;">Algorithm Intelligence</h2>
+                <p style="margin: 0 0 1rem 0; color: var(--gray-600); font-size: 0.9375rem;">Score and compare backtests. Select runs below, set criteria, then click Score & Compare.</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-end; margin-bottom: 1rem;">
+                    <div><label for="compareMinRoi" style="font-size: 0.8125rem;">Min ROI %</label><input type="number" id="compareMinRoi" class="form-input" placeholder="0" step="0.1" style="width: 80px; padding: 0.4rem;"></div>
+                    <div><label for="compareMinWinRate" style="font-size: 0.8125rem;">Min Win Rate %</label><input type="number" id="compareMinWinRate" class="form-input" placeholder="0" min="0" max="100" style="width: 80px; padding: 0.4rem;"></div>
+                    <div><label for="compareMinProfitFactor" style="font-size: 0.8125rem;">Min Profit Factor</label><input type="number" id="compareMinProfitFactor" class="form-input" placeholder="0" min="0" step="0.1" style="width: 80px; padding: 0.4rem;"></div>
+                    <div><label for="compareValidationDays" style="font-size: 0.8125rem;">Validation period (days)</label><input type="number" id="compareValidationDays" class="form-input" placeholder="Any" min="1" max="365" style="width: 80px; padding: 0.4rem;"></div>
+                    <button type="button" class="btn btn-primary" id="compareBacktestsBtn" onclick="runCompareBacktests()">Score & Compare</button>
+                </div>
+                <div id="compareResultsContainer" style="display: none;">
+                    <p id="compareResultsSummary" style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: var(--gray-600);"></p>
+                    <div id="compareResultsTable" class="table-wrapper" style="max-height: 400px; overflow-y: auto;"></div>
                 </div>
             </div>
 
@@ -485,6 +529,35 @@
                         <button id="backtestPrevPage" onclick="changeBacktestPage(-1)" class="btn btn-secondary btn-sm" disabled>← Previous</button>
                         <span style="padding: 0.5rem 1rem; color: var(--gray-700);">Page <span id="backtestCurrentPage">1</span></span>
                         <button id="backtestNextPage" onclick="changeBacktestPage(1)" class="btn btn-secondary btn-sm">Next →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Strategy Designer Page -->
+        <div id="page-strategy-designer" class="page">
+            <div class="card">
+                <h2>Strategy Designer</h2>
+                <p style="color: var(--gray-600); margin-bottom: 1rem;">Build strategies from indicators and required/optional entry rules. Save and run in Backtest with Strategy = Custom.</p>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0;">Saved strategies</h3>
+                    <button type="button" class="btn btn-primary" id="designerNewBtn" onclick="designerNew()">New</button>
+                </div>
+                <div id="designerList" class="table-wrapper" style="max-height: 300px; overflow-y: auto;"></div>
+                <div id="designerEditor" style="display: none; margin-top: 1.5rem; padding: 1rem; background: var(--gray-50); border-radius: 8px; border: 1px solid var(--gray-200);">
+                    <h4 style="margin: 0 0 0.75rem 0;">Edit strategy</h4>
+                    <div class="form-group">
+                        <label for="designerName">Name</label>
+                        <input type="text" id="designerName" class="form-input" placeholder="e.g. My EMA+RSI v2">
+                    </div>
+                    <div class="form-group">
+                        <label for="designerJson">Definition (JSON)</label>
+                        <textarea id="designerJson" class="form-input" rows="12" style="font-family: monospace; font-size: 0.8125rem;" placeholder='{"version":1,"indicators":[{"id":"ema","params":{"period":50}},{"id":"rsi","params":{"period":14}}],"long_entry":{"required":["price_above_ema","rsi_in_range"],"optional":["volume_above_avg"],"min_optional":1},"short_entry":{"required":["price_below_ema","rsi_in_range"],"optional":["volume_above_avg"],"min_optional":1},"exit":{"take_profit_pct":1.5,"stop_loss_pct":0.5}}'></textarea>
+                        <small style="color: var(--gray-500);">Indicators: ema, rsi, volume_ratio. Entry conditions: price_above_ema, price_below_ema, rsi_in_range, volume_above_avg. Set long_entry/short_entry required and optional arrays, min_optional.</small>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-primary" onclick="designerSave()">Save</button>
+                        <button type="button" class="btn btn-secondary" onclick="designerCancel()">Cancel</button>
                     </div>
                 </div>
             </div>

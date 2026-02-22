@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from config import get_config
-from strategy import EMARSIStrategy
+from strategy import get_strategy
 from risk import RiskManager
 from monitoring import PerformanceTracker
 
@@ -14,13 +14,22 @@ logger = logging.getLogger(__name__)
 class BacktestEngine:
     """Simulates trading strategy on historical data."""
     
-    def __init__(self, config=None, initial_balance: float = 100000.0):
+    def __init__(self, config=None, initial_balance: float = 100000.0, strategy_id: str = "ema_rsi", strategy_definition: Optional[Dict] = None):
         self.config = config or get_config()
         self.initial_balance = initial_balance
         self.current_balance = initial_balance
+        self.strategy_id = strategy_id or "ema_rsi"
         
-        # Initialize components
-        self.strategy = EMARSIStrategy(self.config)
+        # Initialize components: use registry so backtest can run any strategy
+        if self.strategy_id == "custom" and strategy_definition:
+            strategy = get_strategy("custom", self.config, definition=strategy_definition)
+        else:
+            strategy = get_strategy(self.strategy_id, self.config)
+        if strategy is None:
+            from strategy import EMARSIStrategy
+            strategy = EMARSIStrategy(self.config)
+            logger.warning(f"Strategy '{self.strategy_id}' not found, using EMA+RSI")
+        self.strategy = strategy
         self.risk_manager = RiskManager(self.config)
         self.performance_tracker = PerformanceTracker(self.config)
         
@@ -55,8 +64,8 @@ class BacktestEngine:
         self.equity_curve = []
         self.risk_manager.daily_pnl = 0.0
         
-        # Process each candle
-        min_candles = max(self.config.EMA_PERIOD, self.config.RSI_PERIOD, self.config.VOLUME_PERIOD) + 1
+        # Process each candle: strategy defines minimum required
+        min_candles = self.strategy.get_min_candles()
         
         for i in range(min_candles, len(candles)):
             current_candle = candles[i]
@@ -151,7 +160,9 @@ class BacktestEngine:
                 'stop_loss': signal.get('stop_loss'),
                 'take_profit': signal.get('take_profit'),
                 'entry_time': entry_time,
-                'confidence_score': signal.get('confidence', 0)
+                'confidence_score': signal.get('confidence', 0),
+                'trailing_best_price': entry_price,
+                'trailing_activated': False,
             }
             
             self.positions.append(position)
@@ -162,8 +173,43 @@ class BacktestEngine:
     
     def _manage_positions(self, current_price: float, current_time: datetime):
         """Check exit conditions for open positions."""
+        trailing_enabled = getattr(self.config, 'TRAILING_STOP_ENABLED', False)
+        trailing_pct = getattr(self.config, 'TRAILING_STOP_PCT', 0.5) / 100.0
+        activation_pct = getattr(self.config, 'TRAILING_STOP_ACTIVATION_PCT', 0.0) / 100.0
+        entry_price = 0.0
         for position in self.positions[:]:
             try:
+                entry_price = position.get('entry_price') or 0
+                # Trailing stop: update best price and check exit
+                if trailing_enabled and trailing_pct > 0 and entry_price > 0:
+                    side = position.get('side', 'LONG')
+                    best = position.get('trailing_best_price') or entry_price
+                    activated = position.get('trailing_activated', False) or (activation_pct == 0)
+                    if side == 'LONG':
+                        if not activated and activation_pct > 0:
+                            if current_price >= entry_price * (1 + activation_pct):
+                                position['trailing_activated'] = True
+                                position['trailing_best_price'] = current_price
+                                activated = True
+                        if activated:
+                            position['trailing_best_price'] = max(best, current_price)
+                            best = position['trailing_best_price']
+                            if current_price <= best * (1 - trailing_pct):
+                                self._close_position(position, current_price, current_time, 'TRAILING_STOP')
+                                continue
+                    else:
+                        if not activated and activation_pct > 0:
+                            if current_price <= entry_price * (1 - activation_pct):
+                                position['trailing_activated'] = True
+                                position['trailing_best_price'] = current_price
+                                activated = True
+                        if activated:
+                            position['trailing_best_price'] = min(best, current_price)
+                            best = position['trailing_best_price']
+                            if current_price >= best * (1 + trailing_pct):
+                                self._close_position(position, current_price, current_time, 'TRAILING_STOP')
+                                continue
+                
                 # Check stop loss
                 if position.get('stop_loss'):
                     if position['side'] == 'LONG' and current_price <= position['stop_loss']:

@@ -344,9 +344,16 @@ class TradingBotAPI:
         self.app.router.add_get('/api/journal/analytics', self.get_journal_analytics)
         self.app.router.add_get('/api/trades/{trade_id}', self.get_trade_details)
         
+        # Strategy definitions (Designer)
+        self.app.router.add_get('/api/strategy-definitions', self.list_strategy_definitions)
+        self.app.router.add_post('/api/strategy-definitions', self.create_strategy_definition)
+        self.app.router.add_get('/api/strategy-definitions/{id}', self.get_strategy_definition)
+        self.app.router.add_put('/api/strategy-definitions/{id}', self.update_strategy_definition)
+        self.app.router.add_delete('/api/strategy-definitions/{id}', self.delete_strategy_definition)
         # Backtesting endpoints
         self.app.router.add_post('/api/backtest/run', self.run_backtest)
         self.app.router.add_get('/api/backtest/list', self.list_backtests)
+        self.app.router.add_post('/api/backtest/compare', self.compare_backtests)
         self.app.router.add_get('/api/backtest/results/{id}', self.get_backtest_results)
         self.app.router.add_get('/api/backtest/debug-count', self.debug_backtest_count)  # Diagnostic endpoint
         self.app.router.add_get('/api/backtest/test-route', self.test_backtest_route)  # Simple test endpoint
@@ -2415,7 +2422,23 @@ class TradingBotAPI:
             initial_balance = _safe_float(data.get('initial_balance'), 100000.0, min_val=100.0, max_val=10_000_000.0)
             name = data.get('name', f'Backtest {pair} {days}d')
             user_id = request.get('user_id')
+            strategy_id = (data.get('strategy_id') or 'ema_rsi').strip().lower()
             strategy_config = data.get('strategy_config') or {}
+            
+            # Validate strategy_id; for 'custom' require strategy_definition_id and load definition
+            from strategy import list_strategies
+            valid_ids = [s['id'] for s in list_strategies()]
+            strategy_definition = None
+            if strategy_id == 'custom':
+                def_id = data.get('strategy_definition_id')
+                if def_id and self.db_manager and self.db_manager.initialized:
+                    strategy_definition = await self.db_manager.get_strategy_definition_by_id(int(def_id), user_id)
+                if not strategy_definition:
+                    strategy_id = 'ema_rsi'
+                    logger.warning("Custom strategy selected but no valid strategy_definition_id or definition not found; using ema_rsi")
+            elif strategy_id not in valid_ids:
+                strategy_id = 'ema_rsi'
+                logger.warning(f"Unknown strategy_id, using ema_rsi. Valid: {valid_ids}")
             
             # Build config for this backtest: use overrides if provided, else global config
             # Map request keys (snake_case) -> config attrs (UPPER_CASE) for strategy/engine
@@ -2434,6 +2457,9 @@ class TradingBotAPI:
                 'stop_loss_min': 'STOP_LOSS_MIN',
                 'stop_loss_max': 'STOP_LOSS_MAX',
                 'max_positions': 'MAX_POSITIONS',
+                'trailing_stop_enabled': 'TRAILING_STOP_ENABLED',
+                'trailing_stop_pct': 'TRAILING_STOP_PCT',
+                'trailing_stop_activation_pct': 'TRAILING_STOP_ACTIVATION_PCT',
             }
             overrides = {}
             for req_key, cfg_key in _STRATEGY_OVERRIDE_MAP.items():
@@ -2451,6 +2477,10 @@ class TradingBotAPI:
                         overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 50), min_val=0, max_val=100)
                     elif 'take_profit' in req_key or 'stop_loss' in req_key:
                         overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 1.0), min_val=0.1, max_val=20.0)
+                    elif req_key == 'trailing_stop_enabled':
+                        overrides[cfg_key] = bool(v) if isinstance(v, bool) else str(v).lower() in ('1', 'true', 'yes')
+                    elif 'trailing_stop' in req_key:
+                        overrides[cfg_key] = _safe_float(v, getattr(self.config, cfg_key, 0.5), min_val=0.1, max_val=10.0)
                     else:
                         overrides[cfg_key] = v
                 except (TypeError, ValueError):
@@ -2471,6 +2501,33 @@ class TradingBotAPI:
             
             # Log user_id for debugging
             logger.info(f"🔵 Starting backtest: user_id={user_id}, pair={pair}, days={days}, name={name}, balance=${initial_balance}")
+            
+            # Optional explicit date range (ISO 8601); if both set, use them instead of days
+            start_date = datetime.utcnow() - timedelta(days=days)
+            end_date = datetime.utcnow()
+            if data.get('start_date') and data.get('end_date'):
+                try:
+                    def _parse_date(s):
+                        if isinstance(s, datetime):
+                            return s.replace(tzinfo=None) if s.tzinfo else s
+                        s = str(s).strip()[:10]
+                        if len(s) < 10:
+                            return None
+                        return datetime.strptime(s, '%Y-%m-%d')
+                    start_date = _parse_date(data['start_date'])
+                    end_date = _parse_date(data['end_date'])
+                    if start_date is None or end_date is None:
+                        raise ValueError("Invalid date format")
+                    if start_date >= end_date:
+                        return web.json_response({'error': 'start_date must be before end_date'}, status=400)
+                    delta = end_date - start_date
+                    if delta.days > 365:
+                        return web.json_response({'error': 'Date range cannot exceed 365 days'}, status=400)
+                    days = delta.days or 1
+                except Exception as date_err:
+                    logger.warning(f"Invalid start_date/end_date: {date_err}")
+                    start_date = datetime.utcnow() - timedelta(days=days)
+                    end_date = datetime.utcnow()
             
             # Determine granularity based on days (optimize for performance)
             # For longer backtests, use larger candles to reduce processing time
@@ -2541,7 +2598,12 @@ class TradingBotAPI:
             def run_backtest_sync():
                 """Run backtest synchronously in thread pool."""
                 try:
-                    engine = BacktestEngine(backtest_config, initial_balance=initial_balance)
+                    engine = BacktestEngine(
+                        backtest_config,
+                        initial_balance=initial_balance,
+                        strategy_id=strategy_id,
+                        strategy_definition=strategy_definition,
+                    )
                     results = engine.run_backtest(candles, pair=pair)
                     return results
                 except Exception as e:
@@ -2611,6 +2673,17 @@ class TradingBotAPI:
             backtest_data['avg_loss'] = results.get('avg_loss', 0)
             backtest_data['sharpe_ratio'] = results.get('performance', {}).get('sharpe_ratio', 0) if isinstance(results.get('performance'), dict) else 0
             backtest_data['gross_profit'] = sum(t.get('pnl', 0) for t in results.get('trades', []) if t.get('pnl', 0) > 0)
+            # Algorithm Intelligence: score 0-100 (weighted: ROI 40%, win rate 30%, profit factor 20%, drawdown 10%)
+            roi_pct = float(results.get('roi_pct') or 0)
+            win_rate = float(results.get('win_rate') or 0)
+            pf = float(results.get('profit_factor') or 0)
+            if pf == float('inf') or pf != pf:
+                pf = 3.0
+            max_dd = float(results.get('max_drawdown') or 0)
+            roi_norm = max(0, min(100, 50 + roi_pct * 5))
+            pf_norm = max(0, min(100, (pf / 3.0) * 100)) if pf >= 0 else 0
+            dd_norm = max(0, min(100, 100 + (max_dd or 0)))
+            backtest_data['score'] = 0.4 * roi_norm + 0.3 * win_rate + 0.2 * pf_norm + 0.1 * dd_norm
             
             # CRITICAL: Sanitize Infinity/NaN values in results dict ONLY (for JSON serialization)
             # DO NOT sanitize start_date/end_date - they must remain datetime objects for database
@@ -2729,6 +2802,96 @@ class TradingBotAPI:
             logger.error(f"Error running backtest: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
+    async def list_strategy_definitions(self, request):
+        """List strategy definitions for the current user."""
+        try:
+            user_id = request.get('user_id')
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            limit = _safe_int(request.query.get('limit'), 50, min_val=1, max_val=100)
+            items = await self.db_manager.get_strategy_definitions(user_id, limit)
+            return web.json_response({'strategy_definitions': items})
+        except Exception as e:
+            logger.error(f"Error listing strategy definitions: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def create_strategy_definition(self, request):
+        """Create a strategy definition."""
+        try:
+            data = await request.json()
+            user_id = request.get('user_id')
+            name = (data.get('name') or '').strip() or 'Unnamed'
+            definition = data.get('definition')
+            if not isinstance(definition, dict):
+                return web.json_response({'error': 'definition must be a JSON object'}, status=400)
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            def_id = await self.db_manager.save_strategy_definition(user_id, name, definition)
+            if def_id is None:
+                return web.json_response({'error': 'Failed to save'}, status=500)
+            return web.json_response({'id': def_id, 'name': name})
+        except Exception as e:
+            logger.error(f"Error creating strategy definition: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def get_strategy_definition(self, request):
+        """Get one strategy definition by id."""
+        try:
+            def_id = int(request.match_info['id'])
+            user_id = request.get('user_id')
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            item = await self.db_manager.get_strategy_definition_by_id(def_id, user_id)
+            if not item:
+                return web.json_response({'error': 'Not found'}, status=404)
+            return web.json_response(item)
+        except ValueError:
+            return web.json_response({'error': 'Invalid id'}, status=400)
+        except Exception as e:
+            logger.error(f"Error getting strategy definition: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def update_strategy_definition(self, request):
+        """Update strategy definition."""
+        try:
+            def_id = int(request.match_info['id'])
+            data = await request.json()
+            user_id = request.get('user_id')
+            name = data.get('name')
+            definition = data.get('definition')
+            if name is None and definition is None:
+                return web.json_response({'error': 'Provide name and/or definition'}, status=400)
+            if definition is not None and not isinstance(definition, dict):
+                return web.json_response({'error': 'definition must be a JSON object'}, status=400)
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            ok = await self.db_manager.update_strategy_definition(def_id, user_id, name, definition)
+            if not ok:
+                return web.json_response({'error': 'Not found or update failed'}, status=404)
+            return web.json_response({'ok': True})
+        except ValueError:
+            return web.json_response({'error': 'Invalid id'}, status=400)
+        except Exception as e:
+            logger.error(f"Error updating strategy definition: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
+    async def delete_strategy_definition(self, request):
+        """Delete strategy definition."""
+        try:
+            def_id = int(request.match_info['id'])
+            user_id = request.get('user_id')
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            ok = await self.db_manager.delete_strategy_definition(def_id, user_id)
+            if not ok:
+                return web.json_response({'error': 'Not found'}, status=404)
+            return web.json_response({'ok': True})
+        except ValueError:
+            return web.json_response({'error': 'Invalid id'}, status=400)
+        except Exception as e:
+            logger.error(f"Error deleting strategy definition: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+
     async def list_backtests(self, request):
         """List all backtests for the current user."""
         try:
@@ -2763,6 +2926,84 @@ class TradingBotAPI:
             
         except Exception as e:
             logger.error(f"Error listing backtests: {e}", exc_info=True)
+            return web.json_response({'error': str(e)}, status=500)
+    
+    def _compute_backtest_score(self, bt: Dict) -> float:
+        """Compute score 0-100 from backtest record (uses results or top-level fields)."""
+        roi_pct = float(bt.get('roi_pct') or bt.get('results', {}).get('roi_pct') or 0)
+        win_rate = float(bt.get('win_rate') or bt.get('results', {}).get('win_rate') or 0)
+        pf = float(bt.get('profit_factor') or bt.get('results', {}).get('profit_factor') or 0)
+        if pf == float('inf') or pf != pf:
+            pf = 3.0
+        max_dd = float(bt.get('max_drawdown') or bt.get('results', {}).get('max_drawdown') or 0)
+        roi_norm = max(0, min(100, 50 + roi_pct * 5))
+        pf_norm = max(0, min(100, (pf / 3.0) * 100)) if pf >= 0 else 0
+        dd_norm = max(0, min(100, 100 + (max_dd or 0)))
+        return 0.4 * roi_norm + 0.3 * win_rate + 0.2 * pf_norm + 0.1 * dd_norm
+    
+    async def compare_backtests(self, request):
+        """Score and compare backtests with optional criteria (Algorithm Intelligence)."""
+        try:
+            data = await request.json() if request.can_read_body else {}
+            backtest_ids = data.get('backtest_ids') or []
+            criteria = data.get('criteria') or {}
+            min_roi_pct = _safe_float(criteria.get('min_roi_pct'), None)
+            min_win_rate = _safe_float(criteria.get('min_win_rate'), None)
+            min_profit_factor = _safe_float(criteria.get('min_profit_factor'), None)
+            validation_period_days = _safe_int(criteria.get('validation_period_days'), None)
+            user_id = request.get('user_id')
+            if not self.db_manager or not self.db_manager.initialized:
+                return web.json_response({'error': 'Database not initialized'}, status=500)
+            if not backtest_ids:
+                backtests = await self.db_manager.get_backtests(user_id, limit=50)
+                backtest_ids = [b['id'] for b in backtests[:20]]
+            results = []
+            for bid in backtest_ids[:50]:
+                bt = await self.db_manager.get_backtest_by_id(int(bid), user_id)
+                if not bt:
+                    continue
+                score = bt.get('score')
+                if score is None:
+                    score = self._compute_backtest_score(bt)
+                bt['score'] = score
+                start = bt.get('start_date')
+                end = bt.get('end_date')
+                period_days = None
+                if start and end:
+                    if hasattr(start, 'timestamp'):
+                        period_days = int((end.timestamp() - start.timestamp()) / 86400)
+                    elif isinstance(start, str) and isinstance(end, str):
+                        try:
+                            from datetime import datetime
+                            d1 = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                            d2 = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                            period_days = (d2 - d1).days
+                        except Exception:
+                            pass
+                if validation_period_days is not None and period_days is not None:
+                    if abs(period_days - validation_period_days) > 1:
+                        continue
+                roi_pct = float(bt.get('roi_pct') or 0)
+                win_rate = float(bt.get('win_rate') or 0)
+                pf = float(bt.get('profit_factor') or 0)
+                if pf == float('inf') or pf != pf:
+                    pf = 0
+                if min_roi_pct is not None and roi_pct < min_roi_pct:
+                    continue
+                if min_win_rate is not None and win_rate < min_win_rate:
+                    continue
+                if min_profit_factor is not None and pf < min_profit_factor:
+                    continue
+                results.append(self._format_backtest_results(bt))
+            results.sort(key=lambda x: float(x.get('score') or 0), reverse=True)
+            return web.json_response({
+                'backtests': results,
+                'total_compared': len(backtest_ids),
+                'passed': len(results),
+                'criteria': criteria
+            })
+        except Exception as e:
+            logger.error(f"Error comparing backtests: {e}", exc_info=True)
             return web.json_response({'error': str(e)}, status=500)
     
     async def test_backtest_route(self, request):

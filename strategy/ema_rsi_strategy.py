@@ -31,7 +31,7 @@ class EMARSIStrategy(BaseStrategy):
         "rsi_short_max": {"type": "int", "default": 55, "min": 40, "max": 70},
     }
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, **kwargs):
         super().__init__(config)
         self.config = config or get_config()
 

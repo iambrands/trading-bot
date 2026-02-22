@@ -24,7 +24,7 @@ class RSIOnlyStrategy(BaseStrategy):
         "rsi_overbought": {"type": "int", "default": 70, "min": 60, "max": 85},
     }
 
-    def __init__(self, config=None):
+    def __init__(self, config=None, **kwargs):
         super().__init__(config)
         self.config = config or get_config()
         self.rsi_period = getattr(self.config, "RSI_PERIOD", 14)

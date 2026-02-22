@@ -278,6 +278,22 @@ class DatabaseManager:
         await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_backtests_created_at ON backtests(created_at);
         """)
+        try:
+            await conn.execute("ALTER TABLE backtests ADD COLUMN score DECIMAL(10, 4)")
+        except Exception:
+            pass
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS strategy_definitions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                name VARCHAR(255) NOT NULL,
+                definition JSONB NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_strategy_definitions_user_id ON strategy_definitions(user_id);
+        """)
         await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_advanced_orders_user_id ON advanced_orders(user_id);
         """)
@@ -821,13 +837,14 @@ class DatabaseManager:
                 
                 logger.info(f"💾💾💾 Inserting with start_date type: {type(start_date)}, end_date type: {type(end_date)}")
                 
+                score_val = backtest_data.get('score')
                 backtest_id = await conn.fetchval("""
                     INSERT INTO backtests (
                         user_id, name, pair, start_date, end_date,
                         initial_balance, final_balance, total_pnl,
                         total_trades, winning_trades, losing_trades,
-                        win_rate, profit_factor, max_drawdown, roi_pct, results
-                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+                        win_rate, profit_factor, max_drawdown, roi_pct, results, score
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
                     RETURNING id
                 """,
                     user_id,  # If None, will be NULL in database
@@ -845,7 +862,8 @@ class DatabaseManager:
                     backtest_data.get('profit_factor'),
                     backtest_data.get('max_drawdown'),
                     backtest_data.get('roi_pct'),
-                    results_json_str  # Use the already-serialized JSON string
+                    results_json_str,  # Use the already-serialized JSON string
+                    score_val
                 )
                 
                 if backtest_id:
@@ -945,6 +963,120 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to get backtest by ID: {e}", exc_info=True)
             return None
+    
+    async def save_strategy_definition(self, user_id: Optional[int], name: str, definition: Dict[str, Any]) -> Optional[int]:
+        """Save a strategy definition. Returns definition id."""
+        if not self.initialized or not self.pool:
+            return None
+        try:
+            async with self.pool.acquire() as conn:
+                def_id = await conn.fetchval("""
+                    INSERT INTO strategy_definitions (user_id, name, definition)
+                    VALUES ($1, $2, $3) RETURNING id
+                """, user_id, name, json.dumps(definition))
+                return def_id
+        except Exception as e:
+            logger.error(f"Failed to save strategy definition: {e}", exc_info=True)
+            return None
+    
+    async def get_strategy_definitions(self, user_id: Optional[int], limit: int = 50) -> List[Dict[str, Any]]:
+        """List strategy definitions for user (or all if user_id None)."""
+        if not self.initialized or not self.pool:
+            return []
+        try:
+            async with self.pool.acquire() as conn:
+                if user_id is not None:
+                    rows = await conn.fetch("""
+                        SELECT id, user_id, name, definition, created_at FROM strategy_definitions
+                        WHERE user_id = $1 OR user_id IS NULL ORDER BY created_at DESC LIMIT $2
+                    """, user_id, limit)
+                else:
+                    rows = await conn.fetch("""
+                        SELECT id, user_id, name, definition, created_at FROM strategy_definitions
+                        ORDER BY created_at DESC LIMIT $1
+                    """, limit)
+                result = []
+                for row in rows:
+                    d = dict(row)
+                    if isinstance(d.get('definition'), str):
+                        try:
+                            d['definition'] = json.loads(d['definition'])
+                        except Exception:
+                            pass
+                    from decimal import Decimal
+                    for k, v in d.items():
+                        if isinstance(v, Decimal):
+                            d[k] = float(v)
+                    result.append(d)
+                return result
+        except Exception as e:
+            logger.error(f"Failed to list strategy definitions: {e}", exc_info=True)
+            return []
+    
+    async def get_strategy_definition_by_id(self, def_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
+        """Get one strategy definition by id."""
+        if not self.initialized or not self.pool:
+            return None
+        try:
+            async with self.pool.acquire() as conn:
+                if user_id is not None:
+                    row = await conn.fetchrow("""
+                        SELECT id, user_id, name, definition, created_at FROM strategy_definitions
+                        WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)
+                    """, def_id, user_id)
+                else:
+                    row = await conn.fetchrow("SELECT id, user_id, name, definition, created_at FROM strategy_definitions WHERE id = $1", def_id)
+                if row:
+                    d = dict(row)
+                    if isinstance(d.get('definition'), str):
+                        try:
+                            d['definition'] = json.loads(d['definition'])
+                        except Exception:
+                            pass
+                    from decimal import Decimal
+                    for k, v in d.items():
+                        if isinstance(v, Decimal):
+                            d[k] = float(v)
+                    return d
+                return None
+        except Exception as e:
+            logger.error(f"Failed to get strategy definition: {e}", exc_info=True)
+            return None
+    
+    async def update_strategy_definition(self, def_id: int, user_id: Optional[int], name: Optional[str], definition: Optional[Dict[str, Any]]) -> bool:
+        """Update strategy definition."""
+        if not self.initialized or not self.pool:
+            return False
+        try:
+            async with self.pool.acquire() as conn:
+                if name is not None and definition is not None:
+                    await conn.execute("""
+                        UPDATE strategy_definitions SET name = $1, definition = $2
+                        WHERE id = $3 AND (user_id = $4 OR user_id IS NULL)
+                    """, name, json.dumps(definition), def_id, user_id)
+                elif name is not None:
+                    await conn.execute("UPDATE strategy_definitions SET name = $1 WHERE id = $2 AND (user_id = $3 OR user_id IS NULL)", name, def_id, user_id)
+                elif definition is not None:
+                    await conn.execute("UPDATE strategy_definitions SET definition = $2 WHERE id = $1 AND (user_id = $3 OR user_id IS NULL)", def_id, json.dumps(definition), user_id)
+                return True
+        except Exception as e:
+            logger.error(f"Failed to update strategy definition: {e}", exc_info=True)
+            return False
+    
+    async def delete_strategy_definition(self, def_id: int, user_id: Optional[int] = None) -> bool:
+        """Delete strategy definition."""
+        if not self.initialized or not self.pool:
+            return False
+        try:
+            async with self.pool.acquire() as conn:
+                if user_id is not None:
+                    await conn.execute("DELETE FROM strategy_definitions WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)", def_id, user_id)
+                else:
+                    await conn.execute("DELETE FROM strategy_definitions WHERE id = $1", def_id)
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete strategy definition: {e}", exc_info=True)
+            return False
     
     async def update_last_login(self, user_id: int) -> bool:
         """Update user's last login timestamp."""
