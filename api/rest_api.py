@@ -32,7 +32,19 @@ class TradingBotAPI:
         self._setup_static_blocker()  # Static blocker last
     
     def _setup_middleware(self):
-        """Setup authentication middleware."""
+        """Setup security headers and authentication middleware."""
+        # Security headers middleware - runs first, adds headers to all responses
+        @web.middleware
+        async def security_headers_middleware(request, handler):
+            response = await handler(request)
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+            response.headers['X-XSS-Protection'] = '1; mode=block'
+            response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+            return response
+
+        self.app.middlewares.append(security_headers_middleware)
+
         @web.middleware
         async def auth_middleware(request, handler):
             # LOG ALL REQUESTS - especially POST to /api/backtest/run

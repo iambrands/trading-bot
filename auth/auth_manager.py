@@ -19,8 +19,14 @@ class AuthManager:
     
     def __init__(self, config=None):
         self.config = config or get_config()
-        # In production, this should come from environment variable
-        self.secret_key = getattr(self.config, 'JWT_SECRET_KEY', SECRET_KEY)
+        # In production, JWT_SECRET_KEY MUST be set in env - otherwise tokens invalid on restart
+        cfg_key = getattr(self.config, 'JWT_SECRET_KEY', '') or ''
+        cfg_key = (cfg_key or '').strip()
+        self.secret_key = cfg_key or SECRET_KEY
+        if not cfg_key and getattr(self.config, 'ENVIRONMENT', '') == 'production':
+            logger.warning(
+                "JWT_SECRET_KEY not set in production - tokens will be invalid on restart. Set JWT_SECRET_KEY in env."
+            )
         self.algorithm = 'HS256'
         self.token_expiry_hours = 24  # Tokens expire after 24 hours
     

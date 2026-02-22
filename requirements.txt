@@ -1,4 +1,4 @@
-aiohttp==3.9.1
+aiohttp>=3.13.3  # CVE-2024-27306 XSS, CVE-2024-23334 path traversal, CVE-2025-* DoS/Request Smuggling
 aiohttp-cors==0.7.0
 websockets==12.0
 pandas==2.2.3
