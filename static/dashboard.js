@@ -1927,7 +1927,7 @@ function renderBacktestList() {
     
     // Build table
     let html = '<div class="table-wrapper" style="max-height: 600px; overflow-y: auto;"><table><thead><tr>';
-    html += '<th>Name</th><th>Pair</th><th>Period</th><th>P&L (breakdown)</th><th>Fees</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
+    html += '<th>Name</th><th>Pair</th><th>Period</th><th>Gross</th><th>Fees</th><th>Net</th><th>ROI</th><th>Win Rate</th><th>Trades</th><th>Date</th><th>Actions</th>';
     html += '</tr></thead><tbody>';
     
     paginatedData.forEach(bt => {
@@ -1947,12 +1947,9 @@ function renderBacktestList() {
         html += `<td><strong>${escapeHtml(bt.name || 'Unnamed')}</strong></td>`;
         html += `<td><span class="badge" style="padding: 0.25rem 0.5rem; background: var(--blue-100); color: var(--blue-700); border-radius: 4px; font-size: 0.875rem;">${escapeHtml(bt.pair || 'N/A')}</span></td>`;
         html += `<td>${days} days</td>`;
-        html += `<td style="font-size: 0.8125rem; white-space: nowrap;">`;
-        html += `<div class="${grossPnl >= 0 ? 'positive' : 'negative'}">Gross: ${formatCurrency(grossPnl)}</div>`;
-        html += `<div style="color: var(--gray-600);">Fees: ${formatCurrency(totalFees)}</div>`;
-        html += `<div class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">Net: ${formatCurrency(netPnl)}</div>`;
-        html += `</td>`;
+        html += `<td class="${grossPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(grossPnl)}</td>`;
         html += `<td style="color: var(--gray-600);">${formatCurrency(totalFees)}</td>`;
+        html += `<td class="${netPnl >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatCurrency(netPnl)}</td>`;
         html += `<td class="${roi >= 0 ? 'positive' : 'negative'}" style="font-weight: 600;">${formatPercent(roi)}</td>`;
         html += `<td>${winRate.toFixed(2)}%</td>`;
         html += `<td>${trades}</td>`;
