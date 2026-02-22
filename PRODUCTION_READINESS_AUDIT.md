@@ -250,3 +250,42 @@ None identified. All routes are registered and reachable.
 | requirements.txt | aiohttp 3.9.1 → aiohttp>=3.13.3 |
 | api/rest_api.py | Added security_headers_middleware |
 | auth/auth_manager.py | Added JWT_SECRET_KEY production warning |
+
+---
+
+## Phase 2: Database Audit
+
+### 2.1 Schema Audit
+
+| Check | Status |
+|-------|--------|
+| All tables have primary keys | ✅ |
+| Foreign keys with ON DELETE CASCADE | ✅ (user_id refs) |
+| Indexes on FK columns | ✅ |
+| Indexes on frequently queried columns | ✅ |
+| Proper data types | ✅ |
+| created_at/updated_at where appropriate | ✅ |
+| NOT NULL where appropriate | ✅ |
+
+### 2.2 Query Performance Fixes
+
+| Issue | Fix |
+|-------|-----|
+| get_trades_with_date_range - unbounded | Added `limit` param (default 500, max 1000) |
+| get_advanced_orders - unbounded | Added LIMIT 500 |
+| advanced_orders ORDER BY created_at | Added idx_advanced_orders_created_at |
+
+### 2.3 Existing Good Practices
+
+- get_recent_trades: LIMIT $1 ✅
+- get_backtests: LIMIT $1/$2 ✅
+- Connection pool: min_size=2, max_size=10 ✅
+- All queries use parameterized ($1, $2) ✅
+
+### Fix Log — Phase 2
+
+| File | Change |
+|------|--------|
+| database/db_manager.py | get_trades_with_date_range: add limit param, cap 1000 |
+| database/db_manager.py | get_advanced_orders: add LIMIT 500 |
+| database/db_manager.py | Add idx_advanced_orders_created_at index |

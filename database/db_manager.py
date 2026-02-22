@@ -288,6 +288,9 @@ class DatabaseManager:
             CREATE INDEX IF NOT EXISTS idx_advanced_orders_pair ON advanced_orders(pair);
         """)
         await conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_advanced_orders_created_at ON advanced_orders(created_at DESC);
+        """)
+        await conn.execute("""
             CREATE INDEX IF NOT EXISTS idx_grid_strategies_user_id ON grid_strategies(user_id);
         """)
         await conn.execute("""
@@ -401,8 +404,8 @@ class DatabaseManager:
             logger.error(f"Failed to fetch recent trades: {e}", exc_info=True)
             return []
     
-    async def get_trades_with_date_range(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, user_id: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Fetch trades with optional date range filtering."""
+    async def get_trades_with_date_range(self, start_date: Optional[datetime] = None, end_date: Optional[datetime] = None, user_id: Optional[int] = None, limit: int = 500) -> List[Dict[str, Any]]:
+        """Fetch trades with optional date range filtering. Paginated to prevent unbounded queries."""
         if not self.initialized or not self.pool:
             return []
         
@@ -427,7 +430,8 @@ class DatabaseManager:
                     params.append(end_date)
                     param_index += 1
                 
-                query += " ORDER BY entry_time DESC"
+                query += f" ORDER BY entry_time DESC LIMIT ${param_index}"
+                params.append(min(limit, 1000))  # Cap at 1000
                 
                 rows = await conn.fetch(query, *params)
                 trades = []
@@ -1112,7 +1116,7 @@ class DatabaseManager:
                     params.append(order_type)
                     param_index += 1
                 
-                query += " ORDER BY created_at DESC"
+                query += " ORDER BY created_at DESC LIMIT 500"  # Paginate to prevent unbounded queries
                 
                 rows = await conn.fetch(query, *params)
                 orders = []
